@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "generated": "2026-11-17T10:00:00",
+  "jobs": [
+    {
+      "jobNumber": "2514/021",
+      "folder": "2514-021",
+      "site": "Example Retail Park",
+      "customer": "Example Developments Ltd",
+      "description": "Unit 4 frame and mezzanine",
+      "operatives": [
+        "j.smith@example.com",
+        "a.jones@example.com"
+      ],
+      "files": [
+        {
+          "name": "GA01 General Arrangement Rev C.pdf",
+          "category": "Drawing",
+          "path": "2514-021/Drawings/GA01 General Arrangement Rev C.pdf",
+          "issued": "2026-11-17T10:00:00",
+          "issuedBy": "office"
+        },
+        {
+          "name": "GA02 Mezzanine Plan Rev B.pdf",
+          "category": "Drawing",
+          "path": "2514-021/Drawings/GA02 Mezzanine Plan Rev B.pdf",
+          "issued": "2026-11-08T10:00:00",
+          "issuedBy": "office"
+        },
+        {
+          "name": "AD101 Beam B1 Assembly Rev A.pdf",
+          "category": "Drawing",
+          "path": "2514-021/Drawings/AD101 Beam B1 Assembly Rev A.pdf",
+          "issued": "2026-10-28T10:00:00",
+          "issuedBy": "office"
+        },
+        {
+          "name": "RAMS Unit 4 Erection Rev 1.pdf",
+          "category": "H&S",
+          "path": "2514-021/H&S/RAMS Unit 4 Erection Rev 1.pdf",
+          "issued": "2026-11-14T10:00:00",
+          "issuedBy": "office"
+        },
+        {
+          "name": "Crane Plan Unit 4 Rev 1.pdf",
+          "category": "H&S",
+          "path": "2514-021/H&S/Crane Plan Unit 4 Rev 1.pdf",
+          "issued": "2026-11-14T10:00:00",
+          "issuedBy": "office"
+        }
+      ],
+      "lat": 53.5768,
+      "lng": -2.4282,
+      "w3w": "filled.count.soap"
+    },
+    {
+      "jobNumber": "2522/004",
+      "folder": "2522-004",
+      "site": "Riverside Depot",
+      "customer": "Demo Rail Services",
+      "description": "Canopy steelwork",
+      "operatives": [
+        "j.smith@example.com"
+      ],
+      "files": [
+        {
+          "name": "CP01 Canopy GA Rev D.pdf",
+          "category": "Drawing",
+          "path": "2522-004/Drawings/CP01 Canopy GA Rev D.pdf",
+          "issued": "2026-10-18T10:00:00",
+          "issuedBy": "office"
+        },
+        {
+          "name": "RAMS Canopy Install Rev 2.pdf",
+          "category": "H&S",
+          "path": "2522-004/H&S/RAMS Canopy Install Rev 2.pdf",
+          "issued": "2026-10-23T10:00:00",
+          "issuedBy": "office"
+        }
+      ],
+      "lat": 53.4808,
+      "lng": -2.2426
+    },
+    {
+      "jobNumber": "2530/011",
+      "folder": "2530-011",
+      "site": "Northgate School",
+      "customer": "Sample Build Group",
+      "description": "Link bridge",
+      "operatives": [
+        "k.brown@example.com"
+      ],
+      "files": [
+        {
+          "name": "LB01 Link Bridge GA Rev A.pdf",
+          "category": "Drawing",
+          "path": "2530-011/Drawings/LB01 Link Bridge GA Rev A.pdf",
+          "issued": "2026-11-12T10:00:00",
+          "issuedBy": "office"
+        }
+      ],
+      "lat": 53.7632,
+      "lng": -2.7031
+    }
+  ]
+}
