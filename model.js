@@ -113,8 +113,8 @@
         (d.er.length ? '<div><i class="mv-dot" style="background:#F5A623"></i>Erected ' + d.er.length + " · " + kg(sumKg(d.er)) + ' <span class="small">' + esc(d.er.map((e) => e.mark).join(", ")) + "</span></div>" : "") +
         (d.ch.length ? '<div><i class="mv-dot" style="background:#2E9E44"></i>Bolted &amp; checked ' + d.ch.length + " · " + kg(sumKg(d.ch)) + ' <span class="small">' + esc(d.ch.map((e) => e.mark).join(", ")) + "</span></div>" : "") +
         '<div class="small" style="color:var(--sub)">' + esc([...new Set(d.who)].join(", ")) + (d.fixes ? " · " + d.fixes + " corrected" : "") + "</div></div>").join("") +
-        '</div><button class="btn sm" id="mvCsv" style="margin-top:8px">Download log (CSV)</button>' : '<div class="card small" style="color:var(--sub)">Nothing marked yet.</div>');
-      if ($("mvCsv")) $("mvCsv").onclick = downloadCsv;
+        '</div><button class="btn sm" id="mvXlsx" style="margin-top:8px">Download log (Excel)</button>' : '<div class="card small" style="color:var(--sub)">Nothing marked yet.</div>');
+      if ($("mvXlsx")) $("mvXlsx").onclick = downloadXlsx;
 
       const shown = all.filter((p) => filter === "all" || (filter === "none" ? !ctl.status[p.guid] : ctl.status[p.guid] && ctl.status[p.guid].s === filter))
         .sort((a, b) => (a.mark || a.profile).localeCompare(b.mark || b.profile, undefined, { numeric: true }) || b.weight - a.weight);
@@ -145,14 +145,16 @@
       Object.keys(fixes).forEach((day) => { (map[day] = map[day] || { day, er: [], ch: [], who: who[day] || [], fixes: 0 }).fixes = fixes[day]; });
       return Object.values(map).sort((a, b) => (a.day < b.day ? 1 : -1));
     }
-    function downloadCsv() {
-      const q = (v) => { let t = String(v == null ? "" : v); if (/^[=+\-@]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
-      const rows = [["Date", "Time", "Job", "Model", "Assembly", "Status", "Weight kg", "By"]].concat(log.slice().sort((a, b) => (a.at < b.at ? -1 : 1)).map((e) => {
-        const d = new Date(e.at);
-        return [localDay(e.at), d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), j.jobNumber, m.name, e.mark, e.s === "reset" ? "Reset" : LABEL[e.s], e.kg, e.by];
-      }));
-      const blob = new Blob([rows.map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv" });
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Erection log " + j.jobNumber.replace("/", "-") + ".csv"; a.click();
+    function downloadXlsx() {
+      const sorted = log.slice().sort((a, b) => (a.at < b.at ? -1 : 1));
+      const ukDate = (iso) => { const d = new Date(iso); return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear(); };
+      const logRows = [["Date", "Time", "Job", "Model", "Assembly", "Status", "Weight (kg)", "By"]].concat(sorted.map((e) => [
+        ukDate(e.at), new Date(e.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), j.jobNumber, m.name.replace(/\.ifc$/i, ""), e.mark, e.s === "reset" ? "Reset" : LABEL[e.s], Number(e.kg) || 0, e.by]));
+      const dayRows = [["Date", "Erected (no.)", "Erected (kg)", "Erected marks", "Bolted & checked (no.)", "Bolted & checked (kg)", "Checked marks", "Corrections", "By"]].concat(byDay().slice().reverse().map((d) => [
+        ukDate(d.day + "T12:00"), d.er.length, Math.round(sumKg(d.er) * 10) / 10, d.er.map((e) => e.mark).join(", "), d.ch.length, Math.round(sumKg(d.ch) * 10) / 10, d.ch.map((e) => e.mark).join(", "), d.fixes, [...new Set(d.who)].join(", ")]));
+      const blob = IC.Xlsx.build([{ name: "By day", rows: dayRows, widths: [12, 13, 13, 30, 20, 20, 30, 12, 20] }, { name: "Log", rows: logRows, widths: [12, 8, 10, 30, 14, 18, 12, 20] }]);
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Erection log " + j.jobNumber.replace("/", "-") + ".xlsx";
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
     }
 
     ctl.onChange = refresh;
