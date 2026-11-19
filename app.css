@@ -342,3 +342,8 @@ td.cc a { text-decoration: none; color: inherit; font-weight: 600; }
 .mv-row .pill { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .mv-row.sel { outline: 2px solid #1E88E5; }
 .chip.on { background: var(--text); color: var(--surface); }
+.mv-today { margin-top: 8px; font-size: 13px; }
+.mv-days .mv-day { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.mv-days .mv-day:last-child { border-bottom: 0; }
+.mv-dayh { margin-bottom: 4px; }
+.mv-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }

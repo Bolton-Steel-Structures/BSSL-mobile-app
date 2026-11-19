@@ -217,8 +217,11 @@ export async function open(el, opts) {
     heavyCount() { return this.list().filter((u) => u.heavy).length; },
     mark(s) {
       const at = new Date().toISOString();
-      sel.forEach((id) => { const u = units.get(id); if (!u) return; if (s) status[u.guid] = { s, by: opts.user || "", at }; else delete status[u.guid]; });
-      sel.clear(); paint(); opts.onStatus && opts.onStatus(status); this.onChange && this.onChange();
+      const done = [];
+      sel.forEach((id) => { const u = units.get(id); if (!u) return; if (s) status[u.guid] = { s, by: opts.user || "", at }; else delete status[u.guid]; done.push(u); });
+      sel.clear(); paint();
+      opts.onMark && opts.onMark(done, s, at);
+      opts.onStatus && opts.onStatus(status); this.onChange && this.onChange();
     },
     destroy() { alive = false; ro.disconnect(); renderer.dispose(); for (const m of meshes.values()) { m.geometry.dispose(); m.material.dispose(); } el.innerHTML = ""; }
   };

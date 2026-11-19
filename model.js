@@ -31,13 +31,21 @@
     if (!m) { location.hash = j ? "#/job/" + encodeURIComponent(folder) : "#/jobs"; return; }
     setBar("3D model", j.jobNumber + " · " + m.name.replace(/\.ifc$/i, ""), true);
     const key = "model:" + folder + ":" + m.path;
-    const status = LS.get(key, {}) || {};
+    // a dated log, one line per tick (never overwritten; Reset adds a line too). Status now = each assembly's last line.
+    const logKey = key + ":log";
+    let log = LS.get(logKey, null);
+    if (!Array.isArray(log)) { // earlier test version kept only the latest status: start the log from it
+      const old = LS.get(key, {}) || {};
+      log = Object.keys(old).map((g) => ({ guid: g, mark: "", kg: 0, s: old[g].s, by: old[g].by, at: old[g].at }));
+    }
+    const status = {};
+    log.slice().sort((a, b) => (a.at < b.at ? -1 : 1)).forEach((e) => { if (e.s === "reset") delete status[e.guid]; else status[e.guid] = { s: e.s, by: e.by, at: e.at }; });
     const mark = can("erect");
     $("main").innerHTML =
-      '<div class="mv-banner">For information: erect from the issued drawings. <b>Test version</b>: ticks are kept on this phone only.</div>' +
+      '<div class="mv-banner">For information: erect from the issued drawings. <b>Test version</b>: the log is kept on this phone only.</div>' +
       '<div class="mv-box" id="mvBox"></div>' +
       '<div class="mv-tools"><button class="btn sm" id="mvFit">Fit</button><button class="btn sm" id="mvBolts">Hide bolts</button><button class="btn sm" id="mvHide">Hide selected</button><button class="btn sm" id="mvShow" hidden>Show all</button><button class="btn sm" id="mvHeavy" hidden></button><button class="btn sm" id="mvClear">Clear selection</button></div>' +
-      '<div id="mvSel"></div><div id="mvProg"></div><div id="mvList"></div>';
+      '<div id="mvSel"></div><div id="mvProg"></div><div id="mvDays"></div><div id="mvList"></div>';
     if (current) { current.destroy(); current = null; }
     const box = $("mvBox");
     let url;
@@ -48,7 +56,8 @@
     } catch (e) { box.innerHTML = '<div class="mv-load">Couldn\'t open the model (' + esc(e.message) + ").</div>"; return; }
     const user = (S.user && S.user.name) || "";
     try {
-      current = await window.ICModel.open(box, { url, wasmPath: new URL("vendor/", location.href).href, status, user, keepOnMiss: true, onStatus: (st) => LS.set(key, st) });
+      current = await window.ICModel.open(box, { url, wasmPath: new URL("vendor/", location.href).href, status, user, keepOnMiss: true, onStatus: (st) => LS.set(key, st),
+        onMark: (list, st, at) => { list.forEach((u) => log.push({ guid: u.guid, mark: u.mark || u.profile, kg: Math.round(u.weight * 10) / 10, s: st || "reset", by: user, at })); LS.set(logKey, log); } });
     } catch (e) { box.innerHTML = '<div class="mv-load">Couldn\'t read the model (' + esc(e.message || String(e)) + ").</div>"; return; }
     const ctl = current;
     let bolts = true, filter = "all";
@@ -96,6 +105,17 @@
         '<span><i style="background:#A7ADB5"></i>Not started ' + ns.n + " · " + kg(ns.w) + "</span></div>" +
         '<div class="small">' + counted.length + " " + noun + ", " + kg(tot) + " in total" + (heavy.length ? " (" + heavy.length + " over 5 t left out)" : "") + ". Bolts not counted.</div></div>";
 
+      const days = byDay();
+      const td = days.find((d) => d.day === localDay(new Date().toISOString()));
+      $("mvProg").querySelector(".card").insertAdjacentHTML("beforeend", '<div class="mv-today"><b>Today:</b> ' + (td ? "erected " + td.er.length + " · " + kg(sumKg(td.er)) + ", bolted &amp; checked " + td.ch.length + " · " + kg(sumKg(td.ch)) : "nothing marked yet") + "</div>");
+      $("mvDays").innerHTML = '<div class="section-h">By day</div>' + (days.length ? '<div class="card mv-days">' + days.map((d) =>
+        '<div class="mv-day"><div class="mv-dayh"><b>' + esc(new Date(d.day + "T12:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })) + "</b>" + (d === td ? " · today" : "") + "</div>" +
+        (d.er.length ? '<div><i class="mv-dot" style="background:#F5A623"></i>Erected ' + d.er.length + " · " + kg(sumKg(d.er)) + ' <span class="small">' + esc(d.er.map((e) => e.mark).join(", ")) + "</span></div>" : "") +
+        (d.ch.length ? '<div><i class="mv-dot" style="background:#2E9E44"></i>Bolted &amp; checked ' + d.ch.length + " · " + kg(sumKg(d.ch)) + ' <span class="small">' + esc(d.ch.map((e) => e.mark).join(", ")) + "</span></div>" : "") +
+        '<div class="small" style="color:var(--sub)">' + esc([...new Set(d.who)].join(", ")) + (d.fixes ? " · " + d.fixes + " corrected" : "") + "</div></div>").join("") +
+        '</div><button class="btn sm" id="mvCsv" style="margin-top:8px">Download log (CSV)</button>' : '<div class="card small" style="color:var(--sub)">Nothing marked yet.</div>');
+      if ($("mvCsv")) $("mvCsv").onclick = downloadCsv;
+
       const shown = all.filter((p) => filter === "all" || (filter === "none" ? !ctl.status[p.guid] : ctl.status[p.guid] && ctl.status[p.guid].s === filter))
         .sort((a, b) => (a.mark || a.profile).localeCompare(b.mark || b.profile, undefined, { numeric: true }) || b.weight - a.weight);
       $("mvList").innerHTML = '<div class="section-h">' + (ctl.hasAssemblies ? "Assemblies" : "Parts") + " (" + all.length + ")</div>" +
@@ -106,6 +126,35 @@
       document.querySelectorAll("#mvList [data-f]").forEach((b) => (b.onclick = () => { filter = b.dataset.f; refresh(); }));
       document.querySelectorAll(".mv-row").forEach((b) => (b.onclick = () => { const id = Number(b.dataset.id); ctl.select([id], true); ctl.zoomTo(id); window.scrollTo({ top: 0, behavior: "smooth" }); }));
     }
+    // per day: an assembly counts as ERECTED on the day it first went erected (or straight to checked), and as CHECKED on
+    // the day it went checked; a Reset takes back that assembly's earlier lines (counted as a correction on its day)
+    const localDay = (iso) => { const d = new Date(iso); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+    const sumKg = (list) => list.reduce((t, e) => t + (e.kg || 0), 0);
+    function byDay() {
+      const recs = [], state = {}, fixes = {}, who = {};
+      log.slice().sort((a, b) => (a.at < b.at ? -1 : 1)).forEach((e) => {
+        const day = localDay(e.at), cur = state[e.guid] || "";
+        (who[day] = who[day] || []).push(e.by || "?");
+        if (e.s === "reset") { for (let i = recs.length - 1; i >= 0; i--) if (recs[i].guid === e.guid) recs.splice(i, 1); fixes[day] = (fixes[day] || 0) + 1; state[e.guid] = ""; return; }
+        if (!cur) recs.push({ guid: e.guid, day, type: "er", mark: e.mark, kg: e.kg });
+        if (e.s === "checked" && cur !== "checked") recs.push({ guid: e.guid, day, type: "ch", mark: e.mark, kg: e.kg });
+        state[e.guid] = e.s;
+      });
+      const map = {};
+      recs.forEach((r) => { const d = (map[r.day] = map[r.day] || { day: r.day, er: [], ch: [], who: who[r.day] || [], fixes: 0 }); d[r.type].push(r); });
+      Object.keys(fixes).forEach((day) => { (map[day] = map[day] || { day, er: [], ch: [], who: who[day] || [], fixes: 0 }).fixes = fixes[day]; });
+      return Object.values(map).sort((a, b) => (a.day < b.day ? 1 : -1));
+    }
+    function downloadCsv() {
+      const q = (v) => { let t = String(v == null ? "" : v); if (/^[=+\-@]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
+      const rows = [["Date", "Time", "Job", "Model", "Assembly", "Status", "Weight kg", "By"]].concat(log.slice().sort((a, b) => (a.at < b.at ? -1 : 1)).map((e) => {
+        const d = new Date(e.at);
+        return [localDay(e.at), d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), j.jobNumber, m.name, e.mark, e.s === "reset" ? "Reset" : LABEL[e.s], e.kg, e.by];
+      }));
+      const blob = new Blob([rows.map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv" });
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Erection log " + j.jobNumber.replace("/", "-") + ".csv"; a.click();
+    }
+
     ctl.onChange = refresh;
     refresh();
   }
