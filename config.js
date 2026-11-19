@@ -43,9 +43,9 @@ window.SITE_CONFIG = {
   //     Safety: toolbox, plant, lifting, handover, nearmiss
   //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
   roles: {
-    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "form:*"],
-    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "form:nearmiss", "form:ncr"]
+    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "form:*"],
+    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "team-week", "form:*"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "form:nearmiss", "form:ncr"]
   },
 
   // true = run with built-in sample data and no sign-in (for previewing only)

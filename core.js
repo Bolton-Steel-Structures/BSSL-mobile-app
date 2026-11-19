@@ -149,16 +149,34 @@
     signIn(id) { LS.set("demoUser", id || "operative"); LS.set("demoSignedIn", true); location.reload(); },
     signOut() { LS.set("demoSignedIn", false); LS.del("manifest"); LS.del("profile"); LS.del("user"); location.reload(); },
     async user() { const u = sample() || SAMPLES[2]; return { name: u.name, emails: [u.email] }; },
-    async manifest() { const r = await fetch("demo/site-manifest.json", { cache: "no-store" }); return r.json(); },
+    async manifest() {
+      const r = await fetch("demo/site-manifest.json", { cache: "no-store" }), m = await r.json();
+      // demo week plan: this week and next for the sample logins and team (the real one comes from the planner, W2)
+      if (!m.allocations) {
+        const P = {
+          "daniel.wiseman@boltonstructures.com": ["2514/021", "2514/021", "2514/021", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2514/021", "2514/021"],
+          "ian.jones@boltonstructures.com": ["2522/004", "2522/004", "2522/004", "2522/004", "2514/021", "2514/021", "2514/021", "2530/011", "2530/011", "2530/011"],
+          "liam.pilkington@boltonstructures.com": ["2530/011", "2514/021", "", "2522/004", "", "2530/011", "", "2514/021", "", ""],
+          "s.khan@example.com": ["2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "", "", ""],
+          "m.wilson@example.com": ["2514/021", "2514/021", "2530/011", "2530/011", "2514/021", "2514/021", "2514/021", "2514/021", "2522/004", "2522/004"]
+        };
+        const jobs = Object.fromEntries((m.jobs || []).map((j) => [j.jobNumber, j]));
+        const days = [], d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        for (; days.length < 10; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) days.push(isoDate(d));
+        m.allocations = [];
+        Object.entries(P).forEach(([email, list]) => list.forEach((jn, i) => { const j = jobs[jn]; if (j) m.allocations.push({ email, date: days[i], jobNumber: jn, folder: j.folder, site: j.site, description: j.description, start: jn === "2530/011" ? "08:00" : "07:30", workingAway: jn === "2522/004" }); }));
+      }
+      return m;
+    },
     async blob(path) { const r = await fetch("demo/files/" + path.split("/").map(encodeURIComponent).join("/")); if (!r.ok) throw new Error("download " + r.status); return r.blob(); }
   };
   const Src = DEMO ? DemoSrc : Graph;
 
   // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
   const DEFAULT_ROLES = {
-    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "form:*"],
-    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "form:nearmiss", "form:ncr"]
+    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "form:*"],
+    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "team-week", "form:*"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "form:nearmiss", "form:ncr"]
   };
   function roleOf(p) {
     const r = String((p && p.role) || "").toLowerCase(), roles = CFG.roles || DEFAULT_ROLES;
@@ -555,6 +573,12 @@
     return (S.manifest.jobs || []).filter((j) => (j.operatives || []).some((e) => mine.has(String(e).toLowerCase())));
   }
   const jobByFolder = (folder) => myJobs().find((j) => j.folder === folder);
+  // Site labour planner allocations for me (manifest "allocations", next 14 days; W2)
+  function myWeek() {
+    if (!S.manifest || !S.user) return [];
+    const mine = new Set(S.user.emails), today = isoDate(new Date());
+    return (S.manifest.allocations || []).filter((a) => mine.has(String(a.email).toLowerCase()) && a.date >= today).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
 
   function jobOptions(selected, allowNone) {
     return (allowNone ? '<option value="">No job / yard</option>' : "") +
@@ -564,6 +588,6 @@
   window.IC = {
     CFG, DEMO, LS, SAMPLES, can, roleOf, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
     Store, Src, Graph, Data, routes, route, status, setBar, sheet, ask, toast, shrinkImage, stampPhoto, fmtStamp, signaturePad, locate,
-    loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, jobByFolder, jobOptions
+    loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, myWeek, jobByFolder, jobOptions, DEMO_TEAM: Demo.team
   };
 })();

@@ -5,7 +5,7 @@
  */
 (function () {
   "use strict";
-  const { CFG, DEMO, LS, SAMPLES, can, roleOf, $, esc, fmtDate, fmtDay, Store, Src, Data, S, myJobs, jobByFolder, status, setBar, sheet, toast } = IC;
+  const { CFG, DEMO, LS, SAMPLES, can, roleOf, $, esc, fmtDate, fmtDay, Store, Src, Data, S, myJobs, myWeek, jobByFolder, status, setBar, sheet, toast } = IC;
   const fileKey = (f) => f.path + "|" + f.issued;
   const D = { viewed: LS.get("viewed", {}), offlineJobs: LS.get("offlineJobs", []), saved: new Set(), loading: false };
 
@@ -70,7 +70,7 @@
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
     const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && can("form:" + t.id));
     $("main").innerHTML = (can("manager") ? '<a class="tile-row mgr-entry" href="#/manager"><span class="ti">' + ICON.team + '</span><span><b>Manager tools</b><span class="small">Holidays, expenses, cards and time keeping for your team</span></span>›</a>' : "") +
-      (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="todo"></div>' +
+      (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
       '<div class="tiles">' +
       tile("drawings", "#/jobs", ICON.jobs, "Drawings", "My jobs") +
       (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:toolbox") ? "Safety" : "Report") + "</b><span>" + (can("form:toolbox") ? "RAMS, toolbox talks, checks" : "Near miss, hazard or problem") + "</span></a>" : "") +
@@ -78,8 +78,17 @@
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
       tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week") +
+      tile("week", "#/week", ICON.jobs, "Week plan", can("team-week") ? "Me and the team" : "Where I'm working") +
       tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …") + "</div>";
     if ($("timeCard")) IC.Time.card($("timeCard"));
+    // My week: where the labour planner has me for the next 7 days (W2)
+    const week = myWeek().filter((a) => a.date <= IC.isoDate(new Date(Date.now() + 6 * 864e5)));
+    if (week.length && $("myweek")) {
+      $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Week plan ›</a></div>' + week.map((a) => {
+        const d = IC.parseDate(a.date), isToday = a.date === IC.isoDate(new Date()), job = jobByFolder(a.folder);
+        return '<a class="todo' + (isToday ? "" : " info") + '"' + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + '><span class="ti">' + ICON.jobs + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ": " + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + '</b><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span></span>" + (job ? "›" : "") + "</a>";
+      }).join("");
+    }
     // things to do
     const todo = [];
     for (const j of can("rams") ? myJobs() : []) {
@@ -293,6 +302,7 @@
     if (name === "time") return can("time");
     if (["cards", "card-new"].includes(name)) return can("cards");
     if (name === "manager") return can("manager");
+    if (name === "week") return can("week");
     return true;
   }
 
