@@ -151,7 +151,7 @@
     async user() { const u = sample() || SAMPLES[2]; return { name: u.name, emails: [u.email] }; },
     async manifest() {
       const r = await fetch("demo/site-manifest.json", { cache: "no-store" }), m = await r.json();
-      // demo week plan: this week and next for the sample logins and team (the real one comes from the planner, W2)
+      // demo week plan for the sample logins and team (the real one comes from the planner, W2)
       if (!m.allocations) {
         const P = {
           "daniel.wiseman@boltonstructures.com": ["2514/021", "2514/021", "2514/021", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2514/021", "2514/021"],
@@ -161,11 +161,16 @@
           "m.wilson@example.com": ["2514/021", "2514/021", "2530/011", "2530/011", "2514/021", "2514/021", "2514/021", "2514/021", "2522/004", "2522/004"]
         };
         const jobs = Object.fromEntries((m.jobs || []).map((j) => [j.jobNumber, j]));
+        // as iCONSTRUCTE publishes it: this week (Mon–Fri), plus next Monday from Friday (SitePublisher.AllocationsTo)
         const days = [], d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-        for (; days.length < 10; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) days.push(isoDate(d));
+        const span = [5, 6, 0].includes(new Date().getDay()) ? 6 : 5;
+        for (; days.length < span; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) days.push(isoDate(d));
         m.allocations = [];
         Object.entries(P).forEach(([email, list]) => list.forEach((jn, i) => { const j = jobs[jn]; if (j) m.allocations.push({ email, date: days[i], jobNumber: jn, folder: j.folder, site: j.site, description: j.description, start: jn === "2530/011" ? "08:00" : "07:30", workingAway: jn === "2522/004" }); }));
       }
+      // demo 3D model (roadmap 5.8 test): Tekla IFC sample on the first job (stored as .ifc.txt: the preview host serves no .ifc)
+      const mj = (m.jobs || []).find((j) => j.jobNumber === "2514/021");
+      if (mj && !mj.models) mj.models = [{ name: "The Bond Roof Terrace - Test.ifc", path: "2514-021/Models/The Bond Roof Terrace - Test.ifc.txt", issued: "2026-11-18" }];
       return m;
     },
     async blob(path) { const r = await fetch("demo/files/" + path.split("/").map(encodeURIComponent).join("/")); if (!r.ok) throw new Error("download " + r.status); return r.blob(); }
@@ -174,9 +179,9 @@
 
   // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
   const DEFAULT_ROLES = {
-    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "form:*"],
-    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "team-week", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "form:nearmiss", "form:ncr"]
+    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
+    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:nearmiss", "form:ncr"]
   };
   function roleOf(p) {
     const r = String((p && p.role) || "").toLowerCase(), roles = CFG.roles || DEFAULT_ROLES;

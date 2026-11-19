@@ -318,3 +318,27 @@ td.cc a { text-decoration: none; color: inherit; font-weight: 600; }
 .wk td.wk-off { background: var(--bg); }
 .wk-job { display: inline-block; padding: 2px 3px; border-radius: 5px; font-weight: 700; font-size: 11px; letter-spacing: -0.2px; color: #222; margin: 1px; }
 .wk-clash { display: block; color: var(--danger); font-size: 11px; font-weight: 700; }
+
+/* 3D model (model.js, roadmap 5.8 test) */
+.mv-banner { background: #FFF4E5; color: #6B4100; border: 1px solid #F5C77A; border-radius: var(--radius); padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
+.mv-box { position: relative; height: 56vh; min-height: 300px; background: linear-gradient(#eef1f4, #dfe4ea); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; touch-action: none; }
+.mv-canvas, .mv-canvas canvas { width: 100%; height: 100%; display: block; }
+.mv-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #555; font-weight: 600; }
+.mv-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.mv-hint { color: var(--sub); margin: 4px 0 10px; }
+.mv-selh { margin-bottom: 6px; }
+.mv-info { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mv-info th { text-align: left; color: var(--sub); font-weight: 600; padding: 3px 8px 3px 0; white-space: nowrap; vertical-align: top; width: 1%; }
+.mv-info td { padding: 3px 0; }
+.mv-warn { color: var(--danger); font-weight: 600; }
+.mv-act { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.mv-act .btn { flex: 1; min-width: 110px; }
+.mv-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #A7ADB5; margin-bottom: 8px; }
+.mv-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; margin-bottom: 6px; }
+.mv-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.mv-checks p { margin: 0 0 8px; }
+.mv-meta { color: var(--sub); }
+.mv-row { width: 100%; text-align: left; font: inherit; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mv-row .pill { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.mv-row.sel { outline: 2px solid #1E88E5; }
+.chip.on { background: var(--text); color: var(--surface); }

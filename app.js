@@ -78,13 +78,13 @@
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
       tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week") +
-      tile("week", "#/week", ICON.jobs, "Week plan", can("team-week") ? "Me and the team" : "Where I'm working") +
+      tile("week", "#/week", ICON.jobs, "This week", can("team-week") ? "Me and the team" : can("crew") ? "My sites and who's with me" : "Where I'm working") +
       tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …") + "</div>";
     if ($("timeCard")) IC.Time.card($("timeCard"));
     // My week: where the labour planner has me for the next 7 days (W2)
     const week = myWeek().filter((a) => a.date <= IC.isoDate(new Date(Date.now() + 6 * 864e5)));
     if (week.length && $("myweek")) {
-      $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Week plan ›</a></div>' + week.map((a) => {
+      $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Details ›</a></div>' + week.map((a) => {
         const d = IC.parseDate(a.date), isToday = a.date === IC.isoDate(new Date()), job = jobByFolder(a.folder);
         return '<a class="todo' + (isToday ? "" : " info") + '"' + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + '><span class="ti">' + ICON.jobs + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ": " + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + '</b><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span></span>" + (job ? "›" : "") + "</a>";
       }).join("");
@@ -156,6 +156,7 @@
       '<div class="row"><button class="btn ' + (off ? "" : "primary") + '" id="btnOffline">' + (off ? "Saved offline ✓" : "Save for offline") + "</button></div>" +
       (hs.length ? '<div class="section-h">RAMS &amp; crane plan</div>' + hs.map(fileRow).join("") +
         (!can("rams") ? "" : rams.signed ? '<div class="signed">✓ You signed these on ' + esc(fmtDate(rams.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + '">Read &amp; sign the RAMS</a>') : "") +
+      ((j.models || []).length && can("model") ? '<div class="section-h">3D model</div>' + j.models.map((mo, i) => '<a class="todo info" href="#/model/' + f + "/" + i + '"><span><b>' + esc(mo.name.replace(/\.ifc$/i, "")) + '</b><span class="small">' + (can("erect") ? "View and mark steel erected" : "View the model") + (mo.issued ? " · issued " + esc(fmtDate(mo.issued)) : "") + "</span></span>›</a>").join("") : "") +
       '<div class="section-h">Drawings (' + dr.length + ")</div>" + (dr.length ? dr.map(fileRow).join("") : '<div class="empty">No drawings issued yet.</div>') +
       '<div class="section-h">Forms for this job</div><div class="chips">' +
       [["nearmiss", "Near miss / hazard"], ["toolbox", "Toolbox talk"], ["plant", "Plant check"], ["daywork", "Day work sheet"], ["erection", "Line, level & plumb"], ["bolting", "Bolting check"], ["ncr", "Report a problem (NCR)"], ["completion", "Handover certificate"]]
@@ -303,6 +304,7 @@
     if (["cards", "card-new"].includes(name)) return can("cards");
     if (name === "manager") return can("manager");
     if (name === "week") return can("week");
+    if (name === "model") return can("model");
     return true;
   }
 

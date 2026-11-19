@@ -1,0 +1,7 @@
+{
+  "name": "icsite-model-viewer",
+  "private": true,
+  "description": "Builds ../vendor/model-viewer.js (three.js + web-ifc) for the site app's 3D model screen (model.js). Run ./build.sh.",
+  "dependencies": { "three": "0.187.0", "web-ifc": "0.0.80" },
+  "devDependencies": { "esbuild": "^0.25.0" }
+}
