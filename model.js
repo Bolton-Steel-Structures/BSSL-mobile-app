@@ -62,24 +62,24 @@
     if (hv) { $("mvHeavy").hidden = false; $("mvHeavy").textContent = "Show " + hv + " left-out part" + (hv > 1 ? "s" : ""); }
     $("mvHeavy").onclick = () => { heavyOn = !heavyOn; ctl.heavy(heavyOn); $("mvHeavy").textContent = (heavyOn ? "Hide " : "Show ") + hv + " left-out part" + (hv > 1 ? "s" : ""); ctl.fit(); };
 
-    const steel = () => ctl.list().filter((p) => p.kind !== "Bolts");
+    const steel = () => ctl.list();
+    const noun = ctl.hasAssemblies ? "assemblies" : "members";
     function info(p) {
       const pr = p.props, rows = [
-        ["Mark", p.mark || '<span class="mv-warn">not in this export</span>'],
-        ["Profile", esc(p.profile)], ["Type", esc(p.kind + (p.name && p.name !== p.profile ? " · " + p.name : ""))],
+        ["Mark", p.mark ? esc(p.mark) : '<span class="mv-warn">not in this export</span>'],
+        ["Main part", esc(p.profile)], ["Parts", p.asm ? String(p.count) : ""], ["Type", p.asm ? "" : esc(p.kind)],
         ["Material", esc(p.material || "")], ["Length", p.length ? Math.round(p.length) + " mm" : ""],
         ["Weight", p.weight ? kg(p.weight) + (p.heavy ? ' <span class="mv-warn">check: unusually heavy</span>' : "") : ""],
         ["Phase", esc(p.phase)], ["Top / bottom", esc([pr["Top elevation"], pr["Bottom elevation"]].filter(Boolean).map((s) => String(s).trim()).join(" / "))],
-        ["Bolts", p.kind === "Bolts" ? esc([pr["Bolt Name"], pr["Bolt standard"], pr["Bolt count"] ? "× " + pr["Bolt count"] : "", pr.Location ? "(" + pr.Location + ")" : ""].filter(Boolean).join(" ")) : ""],
-        ["Status", ctl.status[p.guid] ? esc(LABEL[ctl.status[p.guid].s] + " · " + ctl.status[p.guid].by + " · " + new Date(ctl.status[p.guid].at).toLocaleDateString("en-GB")) : (p.kind === "Bolts" ? "" : "Not started")]
+        ["Status", ctl.status[p.guid] ? esc(LABEL[ctl.status[p.guid].s] + " · " + ctl.status[p.guid].by + " · " + new Date(ctl.status[p.guid].at).toLocaleDateString("en-GB")) : "Not started"]
       ].filter((r) => r[1]);
       return '<table class="mv-info">' + rows.map((r) => "<tr><th>" + r[0] + "</th><td>" + r[1] + "</td></tr>").join("") + "</table>";
     }
     function refresh() {
-      const sel = [...ctl.sel].map((id) => ctl.parts.get(id));
-      const selSteel = sel.filter((p) => p.kind !== "Bolts");
+      const sel = [...ctl.sel].map((id) => ctl.units.get(id)).filter(Boolean);
+      const selSteel = sel;
       $("mvShow").hidden = !ctl.hiddenCount();
-      $("mvSel").innerHTML = !sel.length ? '<p class="small mv-hint">Tap a member to see it' + (mark ? ", tap more to select several, then mark them." : ".") + " Drag to turn, pinch to zoom.</p>" :
+      $("mvSel").innerHTML = !sel.length ? '<p class="small mv-hint">Tap the steel to see it' + (mark ? ", tap more to select several, then mark them." : ".") + " Drag to turn, pinch to zoom.</p>" :
         '<div class="card"><div class="mv-selh"><b>' + sel.length + " selected</b>" + (selSteel.length ? " · " + kg(selSteel.reduce((a, p) => a + p.weight, 0)) : "") + "</div>" +
         (sel.length === 1 ? info(sel[0]) : "") +
         (mark && selSteel.length ? '<div class="mv-act"><button class="btn" data-s="erected" style="background:#F5A623;color:#222">Erected</button><button class="btn" data-s="checked" style="background:#2E9E44;color:#fff">Bolted &amp; checked</button><button class="btn" data-s="">Reset</button></div>' : "") + "</div>";
@@ -94,13 +94,14 @@
         '<div class="mv-legend"><span><i style="background:#2E9E44"></i>Bolted &amp; checked ' + ch.n + " · " + kg(ch.w) + "</span>" +
         '<span><i style="background:#F5A623"></i>Erected ' + er.n + " · " + kg(er.w) + "</span>" +
         '<span><i style="background:#A7ADB5"></i>Not started ' + ns.n + " · " + kg(ns.w) + "</span></div>" +
-        '<div class="small">' + counted.length + " members, " + kg(tot) + " in total" + (heavy.length ? " (" + heavy.length + " part" + (heavy.length > 1 ? "s" : "") + " over 5 t left out)" : "") + ". Bolts not counted.</div></div>";
+        '<div class="small">' + counted.length + " " + noun + ", " + kg(tot) + " in total" + (heavy.length ? " (" + heavy.length + " over 5 t left out)" : "") + ". Bolts not counted.</div></div>";
 
       const shown = all.filter((p) => filter === "all" || (filter === "none" ? !ctl.status[p.guid] : ctl.status[p.guid] && ctl.status[p.guid].s === filter))
         .sort((a, b) => (a.mark || a.profile).localeCompare(b.mark || b.profile, undefined, { numeric: true }) || b.weight - a.weight);
-      $("mvList").innerHTML = '<div class="section-h">Members</div><div class="chips">' +
+      $("mvList").innerHTML = '<div class="section-h">' + (ctl.hasAssemblies ? "Assemblies" : "Parts") + " (" + all.length + ")</div>" +
+        (ctl.hasAssemblies ? "" : '<p class="small" style="color:var(--sub);margin:0 0 8px">This file was exported without assemblies, so parts are listed. Export with assemblies to list by erection mark.</p>') + '<div class="chips">' +
         [["all", "All"], ["none", "Not started"], ["erected", "Erected"], ["checked", "Checked"]].map(([f, t]) => '<button class="chip' + (filter === f ? " on" : "") + '" data-f="' + f + '">' + t + "</button>").join("") + "</div>" +
-        shown.map((p) => { const st = ctl.status[p.guid]; return '<button class="todo mv-row' + (ctl.sel.has(p.id) ? " sel" : "") + '" data-id="' + p.id + '"><span><b>' + esc(p.mark || p.profile) + "</b>" + '<span class="small"> ' + esc((p.mark ? p.profile + " · " : "") + (p.length ? Math.round(p.length) + " mm · " : "") + kg(p.weight)) + "</span></span>" +
+        shown.map((p) => { const st = ctl.status[p.guid]; return '<button class="todo mv-row' + (ctl.sel.has(p.id) ? " sel" : "") + '" data-id="' + p.id + '"><span><b>' + esc(p.mark || p.profile) + "</b>" + '<span class="small"> ' + esc((p.mark ? p.profile + " · " : "") + (p.asm && p.count > 1 ? p.count + " parts · " : p.length ? Math.round(p.length) + " mm · " : "") + kg(p.weight)) + "</span></span>" +
           '<span class="pill" style="background:' + (st ? (st.s === "checked" ? "#2E9E44" : "#F5A623") : "#A7ADB5") + ';color:' + (st && st.s === "checked" ? "#fff" : "#222") + '">' + (st ? LABEL[st.s] : "Not started") + "</span></button>"; }).join("");
       document.querySelectorAll("#mvList [data-f]").forEach((b) => (b.onclick = () => { filter = b.dataset.f; refresh(); }));
       document.querySelectorAll(".mv-row").forEach((b) => (b.onclick = () => { const id = Number(b.dataset.id); ctl.select([id], true); ctl.zoomTo(id); window.scrollTo({ top: 0, behavior: "smooth" }); }));
