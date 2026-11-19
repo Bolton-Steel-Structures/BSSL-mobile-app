@@ -37,7 +37,7 @@
       '<div class="mv-banner">For information: erect from the issued drawings. <b>Test version</b>: ticks are kept on this phone only.</div>' +
       '<div class="mv-box" id="mvBox"></div>' +
       '<div class="mv-tools"><button class="btn sm" id="mvFit">Fit</button><button class="btn sm" id="mvBolts">Hide bolts</button><button class="btn sm" id="mvHide">Hide selected</button><button class="btn sm" id="mvShow" hidden>Show all</button><button class="btn sm" id="mvHeavy" hidden></button><button class="btn sm" id="mvClear">Clear selection</button></div>' +
-      '<div id="mvSel"></div><div id="mvProg"></div><div id="mvChecks"></div><div id="mvList"></div>';
+      '<div id="mvSel"></div><div id="mvProg"></div><div id="mvList"></div>';
     if (current) { current.destroy(); current = null; }
     const box = $("mvBox");
     let url;
@@ -94,16 +94,7 @@
         '<div class="mv-legend"><span><i style="background:#2E9E44"></i>Bolted &amp; checked ' + ch.n + " · " + kg(ch.w) + "</span>" +
         '<span><i style="background:#F5A623"></i>Erected ' + er.n + " · " + kg(er.w) + "</span>" +
         '<span><i style="background:#A7ADB5"></i>Not started ' + ns.n + " · " + kg(ns.w) + "</span></div>" +
-        '<div class="small">' + counted.length + " members, " + kg(tot) + " in total" + (heavy.length ? " (" + heavy.length + " left out, see below)" : "") + ". Bolts not counted.</div></div>";
-
-      // what this export is missing (so the Tekla export settings can be fixed before 5.8 is built)
-      const noMark = all.filter((p) => !p.mark).length;
-      const checks = [];
-      if (noMark) checks.push("<b>No erection marks</b> on " + noMark + " of " + all.length + " members. Export with the assembly mark (ASSEMBLY_POS) as a property, and with Assemblies switched on, so a member can be found by its mark.");
-      if (heavy.length) checks.push("<b>" + heavy.length + " part" + (heavy.length > 1 ? "s" : "") + " over 5 t</b> (" + heavy.map((p) => esc(p.profile) + " " + kg(p.weight)).join(", ") + ") left out of the totals and hidden (Show to see them): probably a reference slab or placeholder. Leave these out of the export, or the tonnes erected will be wrong.");
-      const phases = new Set(all.map((p) => p.phase).filter(Boolean));
-      if (phases.size <= 1) checks.push("<b>One phase only</b>" + (phases.size ? " (" + esc([...phases][0]) + ")" : "") + ": set phases in Tekla to match the Fab Issues so progress can be shown per phase.");
-      $("mvChecks").innerHTML = checks.length ? '<div class="section-h">About this export</div><div class="card small mv-checks">' + checks.map((c) => "<p>" + c + "</p>").join("") + '<p class="mv-meta">' + esc(m.name) + " · read in " + (ctl.loadMs / 1000).toFixed(1) + " s</p></div>" : "";
+        '<div class="small">' + counted.length + " members, " + kg(tot) + " in total" + (heavy.length ? " (" + heavy.length + " part" + (heavy.length > 1 ? "s" : "") + " over 5 t left out)" : "") + ". Bolts not counted.</div></div>";
 
       const shown = all.filter((p) => filter === "all" || (filter === "none" ? !ctl.status[p.guid] : ctl.status[p.guid] && ctl.status[p.guid].s === filter))
         .sort((a, b) => (a.mark || a.profile).localeCompare(b.mark || b.profile, undefined, { numeric: true }) || b.weight - a.weight);
