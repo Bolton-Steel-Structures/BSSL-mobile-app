@@ -1,0 +1,151 @@
+/* iCONSTRUCTE Site: Manager tools (Liam, 19/11/2026).
+ * One place for a manager to look after their team: holiday requests, expense claims, competency cards and time keeping
+ * (check in / out). Only shown to managers, and each manager only gets their own team's records: the Azure API decides
+ * who is in the team (the Manager field on each employee in iCONSTRUCTE) and never sends anyone else's. Nothing here is
+ * kept in the iCONSTRUCTE Access file; approved weeks go back to iCONSTRUCTE as job hours (Work Log).
+ */
+(function () {
+  "use strict";
+  const { $, esc, fmtDate, fmtDay, fmtTime, fmtHours, fmtMoney, fmtDistance, isoDate, parseDate, sameDay, Data, setBar, route, toast } = IC;
+
+  const weekStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  const initials = (n) => String(n || "?").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase();
+  const onLeave = (all, email, iso) => all.find((r) => r.user === email && r.status === "approved" && r.from <= iso && iso <= r.to);
+
+  async function load() {
+    const me = Data.profile.email;
+    const team = (await Data.team()).filter((p) => p.email !== me);
+    const emails = new Set(team.map((p) => p.email));
+    const mineOrTeam = (r) => emails.has(r.user);
+    const [time, leave, expenses, cards, weeks] = await Promise.all(["time", "leave", "expenses", "cards", "timesheets"].map((k) => Data.list(k, "team")));
+    return { team, time: time.filter(mineOrTeam).sort((a, b) => a.at.localeCompare(b.at)), leave: leave.filter(mineOrTeam), expenses: expenses.filter(mineOrTeam),
+      cards: cards.filter((c) => mineOrTeam(c) && IC.Cards.live(c)), weeks: weeks.filter(mineOrTeam) };
+  }
+
+  // Where each person is today: on site (since, where, flagged), checked out, on holiday, not checked in; plus missed check-outs.
+  function today(d, p) {
+    const mine = d.time.filter((e) => e.user === p.email), ps = IC.Time.pairs(mine);
+    const todays = ps.filter((x) => x.in && sameDay(x.in.at, new Date()));
+    const missed = ps.filter((x) => x.in && !x.out && !sameDay(x.in.at, new Date()));
+    const open = todays.find((x) => !x.out), leave = onLeave(d.leave, p.email, isoDate(new Date()));
+    let state, cls;
+    if (open) { state = "On site · " + (open.in.site || open.in.jobNumber || "") + " since " + fmtTime(open.in.at); cls = "on"; }
+    else if (todays.length) { state = "Checked out " + fmtTime(todays[todays.length - 1].out.at) + " · " + fmtHours(todays.reduce((t, x) => t + x.ms, 0)); cls = "done"; }
+    else if (leave) { state = "On holiday" + (leave.to !== leave.from ? " until " + fmtDay(leave.to) : " today"); cls = "off"; }
+    else { state = "Not checked in"; cls = "none"; }
+    const flags = todays.flatMap((x) => [x.in, x.out]).filter((e) => e && e.flagged);
+    return { state, cls, open, missed, flags, ms: todays.reduce((t, x) => t + x.ms, 0) };
+  }
+
+  // ---------------------------------------------------------------- dashboard
+  async function dashboard() {
+    setBar("Manager tools", "Your team", false);
+    const d = await load();
+    const pendLeave = d.leave.filter((r) => r.status === "pending");
+    const pendExp = d.expenses.filter((e) => e.status === "pending"), toPay = d.expenses.filter((e) => e.status === "approved");
+    const cardsDue = d.cards.filter((c) => { const s = IC.Cards.state(c); return s.days != null && s.days <= IC.Cards.SOON_DAYS; }).sort((a, b) => a.expiry.localeCompare(b.expiry));
+    const noCscs = d.team.filter((p) => !d.cards.some((c) => c.user === p.email && (c.type === "CSCS" || c.type === "CPCS" || c.type === "NPORS")));
+    const states = d.team.map((p) => Object.assign({ p }, today(d, p)));
+    const onSite = states.filter((s) => s.cls === "on").length;
+    const ws = weekStart(new Date()), lastWs = new Date(ws); lastWs.setDate(lastWs.getDate() - 7);
+    const toApprove = d.team.filter((p) => d.time.some((e) => e.user === p.email && new Date(e.at) >= lastWs && new Date(e.at) < ws) && !d.weeks.some((w) => w.user === p.email && w.weekStart === isoDate(lastWs)));
+    const offSoon = d.leave.filter((r) => r.status === "approved" && r.to >= isoDate(new Date()) && r.from <= isoDate(new Date(Date.now() + 13 * 864e5))).sort((a, b) => a.from.localeCompare(b.from));
+
+    const link = (href, icon, title, sub, n) => '<a class="tile-row" href="' + href + '"><span class="ti">' + icon + "</span><span><b>" + esc(title) + '</b><span class="small">' + esc(sub) + "</span></span>" + (n ? '<span class="pill pending">' + n + "</span>" : "") + "›</a>";
+    $("main").innerHTML =
+      '<div class="stats"><div><b>' + onSite + "/" + d.team.length + '</b><span>on site now</span></div><div><b>' + pendLeave.length + "</b><span>holiday requests</span></div>" +
+      "<div><b>" + pendExp.length + "</b><span>claims to approve</span></div><div><b>" + cardsDue.length + "</b><span>cards expiring / expired</span></div></div>" +
+      '<div class="section-h">Waiting for you</div>' +
+      link("#/leave/team", IC.ICON.leave, "Holiday requests", pendLeave.length ? pendLeave.map((r) => r.userName.split(" ")[0]).join(", ") : "None waiting · team calendar", pendLeave.length) +
+      link("#/expenses/team", IC.ICON.money, "Expense claims", pendExp.length ? fmtMoney(pendExp.reduce((t, e) => t + e.amount, 0)) + " to approve" + (toPay.length ? " · " + fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "") : (toPay.length ? fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "None waiting"), pendExp.length) +
+      link("#/manager/time/-1", IC.ICON.clock, "Timesheets to approve", toApprove.length ? "Week of " + fmtDay(lastWs) + ": " + toApprove.map((p) => p.name.split(" ")[0]).join(", ") : "Last week all approved", toApprove.length) +
+      link("#/manager/cards", IC.ICON.card, "Competency cards", cardsDue.length || noCscs.length ? [cardsDue.length ? cardsDue.length + " expiring or expired" : "", noCscs.length ? noCscs.length + " with no CSCS / CPCS on record" : ""].filter(Boolean).join(" · ") : "All in date", cardsDue.length + noCscs.length) +
+      '<div class="section-h">Today</div>' + (states.length ? states.map((s) =>
+        '<a class="tile-row mt-' + s.cls + '" href="#/manager/person/' + encodeURIComponent(s.p.email) + '/0"><span class="avatar">' + esc(initials(s.p.name)) + "</span><span><b>" + esc(s.p.name) + '</b><span class="small">' + esc(s.state) + "</span>" +
+        s.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") +
+        s.missed.map((x) => '<span class="flag">No check-out on ' + esc(fmtDay(x.in.at)) + "</span>").join("") + "</span>›</a>").join("") : '<div class="empty small">No one in your team yet. Managers are set on each employee in iCONSTRUCTE.</div>') +
+      '<div class="section-h">Off in the next 2 weeks</div>' + (offSoon.length ? offSoon.map((r) => '<div class="req"><div><b>' + esc(r.userName) + '</b><div class="small">' + esc(fmtDay(r.from)) + (r.to !== r.from ? " – " + esc(fmtDay(r.to)) : "") + " · " + esc(r.type) + "</div></div></div>").join("") : '<div class="empty small">No one booked off.</div>') +
+      (cardsDue.length ? '<div class="section-h">Cards expiring or expired</div>' + cardsDue.map((c) => IC.Cards.row(c, true)).join("") : "") +
+      '<p class="small">Only managers see Manager tools, and only for their own team. Holiday, expense, card and check-in records are kept in the secure Azure database, not in iCONSTRUCTE\'s shared file.</p>';
+  }
+
+  // ---------------------------------------------------------------- time keeping: team week, approve weeks
+  async function viewTime(off) {
+    const ws = weekStart(new Date()); ws.setDate(ws.getDate() + off * 7); const we = new Date(ws); we.setDate(we.getDate() + 7);
+    setBar("Time keeping", "Week of " + fmtDay(ws), true);
+    const d = await load(), days = [...Array(7).keys()].map((i) => { const x = new Date(ws); x.setDate(x.getDate() + i); return x; });
+    const rows = d.team.map((p) => {
+      const ps = IC.Time.pairs(d.time.filter((e) => e.user === p.email)).filter((x) => x.in && new Date(x.in.at) >= ws && new Date(x.in.at) < we);
+      const per = days.map((day) => ps.filter((x) => sameDay(x.in.at, day)).reduce((t, x) => t + x.ms, 0));
+      const flags = ps.flatMap((x) => [x.in, x.out]).filter((e) => e && e.flagged).length, missing = ps.filter((x) => !x.out && !sameDay(x.in.at, new Date())).length;
+      const done = d.weeks.find((w) => w.user === p.email && w.weekStart === isoDate(ws));
+      return { p, ps, per, total: per.reduce((a, b) => a + b, 0), flags, missing, done };
+    });
+    const finished = we <= weekStart(new Date()) || off < 0;
+    const h = (ms) => (ms ? (Math.round(ms / 360000) / 10).toFixed(1) : "");
+    $("main").innerHTML = '<div class="row nav-week"><a class="btn" href="#/manager/time/' + (off - 1) + '">‹ Previous</a>' + (off < 0 ? '<a class="btn" href="#/manager/time/' + (off + 1) + '">Next ›</a>' : "") + "</div>" +
+      '<div class="scroll-x"><table class="tbl hrs"><thead><tr><th>Name</th>' + days.map((x) => "<th>" + x.toLocaleDateString("en-GB", { weekday: "short" }) + "</th>").join("") + "<th>Total</th></tr></thead><tbody>" +
+      rows.map((r) => "<tr><td><a href=\"#/manager/person/" + encodeURIComponent(r.p.email) + "/" + off + '">' + esc(r.p.name) + "</a></td>" + r.per.map((ms) => "<td>" + h(ms) + "</td>").join("") + "<td><b>" + h(r.total) + "</b></td></tr>").join("") +
+      "</tbody></table></div>" + '<p class="small">Hours from check-in to check-out. Tap a name for the detail (sites, times, any flagged check-ins).</p>' +
+      '<div class="section-h">' + (finished ? "Approve the week" : "This week is still running") + "</div>" +
+      rows.filter((r) => r.total || r.done).map((r) => '<div class="req"><div><b>' + esc(r.p.name) + '</b><div class="small">' + fmtHours(r.total) + (r.flags ? ' · <span class="flag">' + r.flags + " flagged</span>" : "") + (r.missing ? ' · <span class="flag">' + r.missing + " missing check-out</span>" : "") + "</div>" +
+        (r.done ? '<div class="small">Approved by ' + esc(r.done.decidedBy) + " · " + esc(fmtDate(r.done.decidedAt)) + " · sent to iCONSTRUCTE as job hours</div>" : "") + "</div>" +
+        '<div class="req-r">' + (r.done ? '<span class="pill approved">Approved</span>' : finished ? '<button class="btn go sm" data-ok="' + esc(r.p.email) + '"' + (r.missing ? " disabled" : "") + ">Approve</button>" : '<span class="pill">Open</span>') + "</div></div>").join("") +
+      (rows.some((r) => r.missing && !r.done && finished) ? '<p class="small">A week with a missing check-out can\'t be approved until the person enters the time they left (on their Home screen).</p>' : "");
+    document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = async () => {
+      const r = rows.find((x) => x.p.email === b.dataset.ok);
+      const jobs = {};
+      r.ps.forEach((x) => { const k = x.in.jobFolder || ""; jobs[k] = jobs[k] || { jobFolder: k, jobNumber: x.in.jobNumber || "", site: x.in.site || "", ms: 0 }; jobs[k].ms += x.ms; });
+      if (!(await IC.ask("Approve " + r.p.name + "'s week: " + fmtHours(r.total) + "? The hours go into iCONSTRUCTE against each job.", "Approve"))) return;
+      await Data.save("timesheets", { user: r.p.email, userName: r.p.name, weekStart: isoDate(ws), jobs: Object.values(jobs), totalMs: r.total, status: "approved", decidedBy: Data.profile.name, decidedAt: new Date().toISOString() });
+      toast("Week approved"); IC.refreshView();
+    }));
+  }
+
+  // One person: today, the week's check-ins, holidays, cards.
+  async function viewPerson(email, off) {
+    const d = await load(), p = d.team.find((x) => x.email === email); if (!p) { location.hash = "#/manager"; return; }
+    const ws = weekStart(new Date()); ws.setDate(ws.getDate() + off * 7); const we = new Date(ws); we.setDate(we.getDate() + 7);
+    setBar(p.name, p.role || "", true);
+    const ps = IC.Time.pairs(d.time.filter((e) => e.user === email)).filter((x) => x.in && new Date(x.in.at) >= ws && new Date(x.in.at) < we);
+    const cards = d.cards.filter((c) => c.user === email), leave = d.leave.filter((r) => r.user === email && (r.status === "approved" || r.status === "pending") && r.to >= isoDate(new Date()));
+    $("main").innerHTML = '<div class="card">' + esc(today(d, p).state) + "</div>" +
+      '<div class="row nav-week"><a class="btn" href="#/manager/person/' + encodeURIComponent(email) + "/" + (off - 1) + '">‹ Previous</a>' + (off < 0 ? '<a class="btn" href="#/manager/person/' + encodeURIComponent(email) + "/" + (off + 1) + '">Next ›</a>' : "") + "</div>" +
+      '<div class="tot-line">Week of ' + esc(fmtDay(ws)) + " <b>" + fmtHours(ps.reduce((t, x) => t + x.ms, 0)) + "</b></div>" +
+      (ps.length ? ps.map((x) => '<div class="ts-row"><div><b>' + esc(x.in.site || x.in.jobNumber || "") + "</b> <span class=\"small\">" + esc(x.in.jobNumber || "") + '</span><div class="small">' + esc(fmtDay(x.in.at)) + " " + fmtTime(x.in.at) + " – " + (x.out ? fmtTime(x.out.at) + (x.out.manual ? " (entered later)" : "") : sameDay(x.in.at, new Date()) ? "on site" : "no check-out") + "</div>" +
+        [x.in, x.out].filter((e) => e && e.flagged).map((e) => '<div class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</div>").join("") +
+        "</div><span>" + fmtHours(x.ms) + "</span></div>").join("") : '<div class="empty small">No check-ins this week.</div>') +
+      '<div class="section-h">Holidays booked</div>' + (leave.length ? leave.map((r) => '<div class="req"><div><b>' + esc(fmtDay(r.from)) + (r.to !== r.from ? " – " + esc(fmtDay(r.to)) : "") + '</b><div class="small">' + esc(r.type) + '</div></div><div class="req-r"><span class="pill ' + r.status + '">' + esc(r.status.charAt(0).toUpperCase() + r.status.slice(1)) + "</span></div></div>").join("") : '<div class="empty small">None booked.</div>') +
+      '<div class="section-h">Cards</div>' + (cards.length ? cards.map((c) => IC.Cards.row(c)).join("") : '<div class="empty small">No cards on record. Ask them to add their CSCS card in the app (Home › My cards).</div>');
+  }
+
+  // ---------------------------------------------------------------- competency cards: who holds what
+  async function viewCards() {
+    setBar("Competency cards", "Your team", true);
+    const d = await load(), name = IC.Cards.name;
+    const types = ["CSCS"].concat([...new Set(d.cards.map(name))].filter((t) => t !== "CSCS").sort());
+    const cell = (c) => { if (!c) return "<td></td>"; const s = IC.Cards.state(c);
+      return '<td class="cc ' + s.cls + '"><a href="#/card/' + c.id + '">' + (c.expiry ? esc(parseDate(c.expiry).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })) : "✓") + (IC.Cards.checked(c) ? "" : "*") + "</a></td>"; };
+    $("main").innerHTML = '<div class="legend"><span class="approved">In date</span><span class="pending">Expires within ' + IC.Cards.SOON_DAYS + ' days</span><span class="declined">Expired</span></div>' +
+      '<div class="scroll-x"><table class="tbl cards-m"><thead><tr><th>Name</th>' + types.map((t) => "<th>" + esc(t) + "</th>").join("") + "</tr></thead><tbody>" +
+      d.team.map((p) => { const mine = d.cards.filter((c) => c.user === p.email);
+        return "<tr><td><a href=\"#/manager/person/" + encodeURIComponent(p.email) + '/0">' + esc(p.name) + "</a></td>" + types.map((t) => { const c = mine.filter((x) => name(x) === t).sort((a, b) => (b.expiry || "").localeCompare(a.expiry || ""))[0]; return t === "CSCS" && !c ? '<td class="cc declined">none</td>' : cell(c); }).join("") + "</tr>"; }).join("") +
+      "</tbody></table></div>" +
+      '<p class="small">Dates are expiry dates. * = not yet checked against the original card (open it and tap "I\'ve seen the original card"). Use this for RAMS and induction packs and tender questionnaires; welders\' BS EN ISO 9606-1 qualifications show here too.</p>' +
+      '<button class="btn block" id="csv">Export (CSV)</button>';
+    $("csv").onclick = () => {
+      const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+      const lines = [["Name", "Email", "Card", "Number", "Category", "Expiry", "Status", "Checked by"].map(q).join(",")].concat(
+        d.cards.map((c) => [c.userName, c.user, name(c), c.number, c.category, c.expiry, IC.Cards.state(c).label, IC.Cards.checked(c) ? c.decidedBy : ""].map(q).join(",")));
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\r\n")], { type: "text/csv" })); a.download = "Competency cards " + isoDate(new Date()) + ".csv"; a.click();
+    };
+  }
+
+  route("manager", async (args) => {
+    if (!Data.profile || !Data.profile.isManager) { location.hash = "#/"; return; }
+    if (args[0] === "time") return viewTime(Number(args[1] || 0));
+    if (args[0] === "cards") return viewCards();
+    if (args[0] === "person" && args[1]) return viewPerson(decodeURIComponent(args[1]), Number(args[2] || 0));
+    return dashboard();
+  });
+})();

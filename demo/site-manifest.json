@@ -9,8 +9,10 @@
       "customer": "Example Developments Ltd",
       "description": "Unit 4 frame and mezzanine",
       "operatives": [
-        "j.smith@example.com",
-        "a.jones@example.com"
+        "liam.pilkington@boltonstructures.com",
+        "ian.jones@boltonstructures.com",
+        "daniel.wiseman@boltonstructures.com",
+        "m.wilson@example.com"
       ],
       "files": [
         {
@@ -60,7 +62,10 @@
       "customer": "Demo Rail Services",
       "description": "Canopy steelwork",
       "operatives": [
-        "j.smith@example.com"
+        "liam.pilkington@boltonstructures.com",
+        "ian.jones@boltonstructures.com",
+        "daniel.wiseman@boltonstructures.com",
+        "s.khan@example.com"
       ],
       "files": [
         {
@@ -88,6 +93,7 @@
       "customer": "Sample Build Group",
       "description": "Link bridge",
       "operatives": [
+        "liam.pilkington@boltonstructures.com",
         "k.brown@example.com"
       ],
       "files": [

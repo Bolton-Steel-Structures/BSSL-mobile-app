@@ -5,7 +5,7 @@
  */
 (function () {
   "use strict";
-  const { CFG, DEMO, LS, $, esc, fmtDate, fmtDay, Store, Src, Data, S, myJobs, jobByFolder, status, setBar, sheet, toast } = IC;
+  const { CFG, DEMO, LS, SAMPLES, can, roleOf, $, esc, fmtDate, fmtDay, Store, Src, Data, S, myJobs, jobByFolder, status, setBar, sheet, toast } = IC;
   const fileKey = (f) => f.path + "|" + f.issued;
   const D = { viewed: LS.get("viewed", {}), offlineJobs: LS.get("offlineJobs", []), saved: new Set(), loading: false };
 
@@ -18,7 +18,9 @@
     forms: '<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M8.5 11h7M8.5 15h7"/></svg>',
     leave: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg>',
     money: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg>',
-    clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+    clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    card: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.5 1.7-2.2 3-2.2s2.4.7 3 2.2M14 10h4M14 13h3"/></svg>',
+    team: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.8-3.4 3.2-5.2 6-5.2s5.2 1.8 6 5.2"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.4.2 4.2 1.8 5 5"/></svg>'
   };
   IC.ICON = ICON;
 
@@ -65,23 +67,29 @@
   async function viewHome() {
     const p = Data.profile || {}, h = new Date().getHours();
     setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
-    $("main").innerHTML = '<div class="card" id="timeCard"></div><div id="todo"></div>' +
+    const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
+    const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && can("form:" + t.id));
+    $("main").innerHTML = (can("manager") ? '<a class="tile-row mgr-entry" href="#/manager"><span class="ti">' + ICON.team + '</span><span><b>Manager tools</b><span class="small">Holidays, expenses, cards and time keeping for your team</span></span>›</a>' : "") +
+      (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="todo"></div>' +
       '<div class="tiles">' +
-      '<a class="tile" href="#/jobs">' + ICON.jobs + "<b>Drawings</b><span>My jobs</span></a>" +
-      '<a class="tile" href="#/forms">' + ICON.hs + "<b>Safety</b><span>RAMS, toolbox talks, checks</span></a>" +
-      '<a class="tile" href="#/qa">' + ICON.check + "<b>QA</b><span>Quality records by job</span></a>" +
-      '<a class="tile" href="#/leave">' + ICON.leave + "<b>Holidays</b><span>Request and calendar</span></a>" +
-      '<a class="tile" href="#/expenses">' + ICON.money + "<b>Expenses</b><span>Claims and receipts</span></a>" +
-      '<a class="tile" href="#/time">' + ICON.clock + "<b>Timesheet</b><span>Hours this week</span></a></div>";
-    IC.Time.card($("timeCard"));
+      tile("drawings", "#/jobs", ICON.jobs, "Drawings", "My jobs") +
+      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:toolbox") ? "Safety" : "Report") + "</b><span>" + (can("form:toolbox") ? "RAMS, toolbox talks, checks" : "Near miss, hazard or problem") + "</span></a>" : "") +
+      tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
+      tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
+      tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
+      tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week") +
+      tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …") + "</div>";
+    if ($("timeCard")) IC.Time.card($("timeCard"));
     // things to do
     const todo = [];
-    for (const j of myJobs()) {
+    for (const j of can("rams") ? myJobs() : []) {
       const r = await IC.Forms.ramsStatus(j);
       if (r.needed && !r.signed) todo.push('<a class="todo" href="#/form-new/rams/' + encodeURIComponent(j.folder) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Sign the RAMS for " + esc(j.jobNumber) + '</b><span class="small">' + esc(j.site || "") + " · new or updated RAMS</span></span>›</a>");
     }
     const drafts = (await Data.list("forms")).filter((f) => f.status === "draft").length;
     if (drafts) todo.push('<a class="todo" href="#/forms"><span class="ti">' + ICON.forms + "</span><span><b>" + drafts + " form" + (drafts > 1 ? "s" : "") + ' not finished</b><span class="small">Saved as drafts</span></span>›</a>');
+    const myDue = !can("cards") ? [] : (await Data.list("cards")).filter((c) => IC.Cards.live(c) && (IC.Cards.state(c).days ?? 999) <= IC.Cards.SOON_DAYS);
+    if (myDue.length) todo.push('<a class="todo" href="#/cards"><span class="ti">' + ICON.card + "</span><span><b>" + esc(myDue.map(IC.Cards.name).join(", ")) + (myDue.length > 1 ? " cards" : " card") + (myDue.some((c) => IC.Cards.state(c).days < 0) ? " out of date" : " expiring") + '</b><span class="small">' + esc(IC.Cards.state(myDue[0]).label) + "</span></span>›</a>");
     if (p.isManager) {
       const l = await IC.Leave.pendingForManager(), e = await IC.Expenses.pendingForManager();
       if (l) todo.push('<a class="todo" href="#/leave/team"><span class="ti">' + ICON.leave + "</span><span><b>" + l + " holiday request" + (l > 1 ? "s" : "") + ' to review</b><span class="small">Team calendar</span></span>›</a>');
@@ -128,20 +136,21 @@
     const dr = files.filter((f) => f.category !== "H&S"), hs = files.filter((f) => f.category === "H&S");
     const off = D.offlineJobs.includes(j.folder), rams = await IC.Forms.ramsStatus(j);
     const f = encodeURIComponent(j.folder);
-    // site location from the job card (Google pin / coordinates / what3words)
-    const loc = j.lat != null ? '<div class="loc-row"><span>📍 ' + Number(j.lat).toFixed(5) + ", " + Number(j.lng).toFixed(5) + (j.w3w ? " · ///" + esc(j.w3w) : "") + "</span>" +
-        '<a class="btn sm" href="https://www.google.com/maps/dir/?api=1&destination=' + j.lat + "," + j.lng + '" target="_blank" rel="noopener">Directions</a>' +
-        (j.w3w ? '<a class="btn sm" href="https://what3words.com/' + encodeURIComponent(j.w3w) + '" target="_blank" rel="noopener">what3words</a>' : "") + "</div>"
-      : j.w3w ? '<div class="loc-row"><span>📍 ///' + esc(j.w3w) + '</span><a class="btn sm" href="https://what3words.com/' + encodeURIComponent(j.w3w) + '" target="_blank" rel="noopener">what3words</a></div>'
+    // site location from the job card: its Google Maps link (and the position, when the link contains one)
+    const safeLink = j.mapLink && /^https?:\/\//i.test(j.mapLink) ? j.mapLink : "";
+    const dirUrl = j.lat != null ? "https://www.google.com/maps/dir/?api=1&destination=" + j.lat + "," + j.lng : safeLink;
+    const loc = dirUrl ? '<div class="loc-row"><span>📍 ' + (j.lat != null ? Number(j.lat).toFixed(5) + ", " + Number(j.lng).toFixed(5) : "Site on Google Maps") + "</span>" +
+        '<a class="btn sm" href="' + esc(dirUrl) + '" target="_blank" rel="noopener">Directions</a></div>' +
+        (j.lat == null ? '<div class="loc-row small">The job card link has no position in it, so check-ins and photos can\'t show distance from site.</div>' : "")
       : '<div class="loc-row small">No site location on the job card yet, so check-ins and photos can\'t show distance from site.</div>';
     $("main").innerHTML = loc +
       '<div class="row"><button class="btn ' + (off ? "" : "primary") + '" id="btnOffline">' + (off ? "Saved offline ✓" : "Save for offline") + "</button></div>" +
       (hs.length ? '<div class="section-h">RAMS &amp; crane plan</div>' + hs.map(fileRow).join("") +
-        (rams.signed ? '<div class="signed">✓ You signed these on ' + esc(fmtDate(rams.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + '">Read &amp; sign the RAMS</a>') : "") +
+        (!can("rams") ? "" : rams.signed ? '<div class="signed">✓ You signed these on ' + esc(fmtDate(rams.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + '">Read &amp; sign the RAMS</a>') : "") +
       '<div class="section-h">Drawings (' + dr.length + ")</div>" + (dr.length ? dr.map(fileRow).join("") : '<div class="empty">No drawings issued yet.</div>') +
       '<div class="section-h">Forms for this job</div><div class="chips">' +
-      [["toolbox", "Toolbox talk"], ["plant", "Plant check"], ["daywork", "Day work sheet"], ["erection", "Line, level & plumb"], ["bolting", "Bolting check"], ["ncr", "Report a problem (NCR)"], ["completion", "Handover certificate"]]
-        .map(([id, t]) => '<a class="chip" href="#/form-new/' + id + "/" + f + '">' + esc(t) + "</a>").join("") + '<a class="chip" href="#/qa/' + f + '">QA for this job ›</a><a class="chip" href="#/forms">All forms ›</a></div>' +
+      [["nearmiss", "Near miss / hazard"], ["toolbox", "Toolbox talk"], ["plant", "Plant check"], ["daywork", "Day work sheet"], ["erection", "Line, level & plumb"], ["bolting", "Bolting check"], ["ncr", "Report a problem (NCR)"], ["completion", "Handover certificate"]]
+        .filter(([id]) => can("form:" + id)).map(([id, t]) => '<a class="chip" href="#/form-new/' + id + "/" + f + '">' + esc(t) + "</a>").join("") + (can("qa") ? '<a class="chip" href="#/qa/' + f + '">QA for this job ›</a>' : "") + '<a class="chip" href="#/forms">All forms ›</a></div>' +
       '<p class="small">Only the current issue of each drawing is shown. Superseded drawings are removed automatically, including offline copies.</p>';
     document.querySelectorAll("[data-path]").forEach((b) => (b.onclick = () => (location.hash = "#/view/" + f + "/" + encodeURIComponent(b.dataset.path))));
     $("btnOffline").onclick = () => toggleOffline(j);
@@ -240,19 +249,23 @@
     setBar("iCONSTRUCTE Site", "", false); $("nav").hidden = true;
     $("main").innerHTML = '<div class="signin"><span class="logo-wrap"><img class="logo" src="icons/iconstructe-logo.png" alt="iCONSTRUCTE"></span><div class="company">BOLTON STEEL STRUCTURES</div><h1>Site app</h1>' +
       "<p>Sign in with your Bolton Steel Structures work account.</p>" +
-      '<button class="btn primary block" id="btnSignIn">Sign in</button>' + (DEMO ? '<p class="small" style="margin-top:16px">Demo mode: sample data, nothing leaves this phone.</p>' : "") + "</div>";
-    $("btnSignIn").onclick = () => Src.signIn();
+      (DEMO ? '<p class="small">Demo: choose a sample login. Sample data only, nothing leaves this phone.</p>' +
+        SAMPLES.map((u) => '<button class="btn block sample-login" data-sample="' + u.id + '"><b>' + esc(u.name) + '</b><span class="small">' + esc(u.role) + "</span></button>").join("")
+        : '<button class="btn primary block" id="btnSignIn">Sign in</button>') + "</div>";
+    if ($("btnSignIn")) $("btnSignIn").onclick = () => Src.signIn();
+    document.querySelectorAll("[data-sample]").forEach((b) => (b.onclick = () => Src.signIn(b.dataset.sample)));
   }
 
   function accountSheet() {
     const p = Data.profile || {};
-    const sh = sheet("<h3>" + esc(p.name || S.user.name) + "</h3><p>" + esc(S.user.emails[0]) + (p.role ? " · " + esc(p.role) : "") + "</p>" +
-      (DEMO ? '<label class="confirm"><input type="checkbox" id="sMgr"' + (p.isManager ? " checked" : "") + "><span>Demo: show manager screens (approvals, team calendar)</span></label>" : "") +
+    const sh = sheet("<h3>" + esc(p.name || S.user.name) + "</h3><p>" + esc(S.user.emails[0]) + " · " + esc(roleOf(p)) + "</p>" +
+
+      (p.isManager ? '<a class="btn block" href="#/manager" id="sMgrTools">Manager tools</a>' : "") +
       '<button class="btn block" id="sCheck">Check for updates</button>' + (DEMO ? '<button class="btn block" id="sReset">Demo: reset sample data</button>' : "") +
-      '<button class="btn block" id="sOut">Sign out</button><button class="btn block" id="sClose">Close</button>');
+      '<button class="btn block" id="sOut">' + (DEMO ? "Switch sample login" : "Sign out") + "</button>" + '<button class="btn block" id="sClose">Close</button>');
     $("sCheck").onclick = () => { sh.close(); refresh(); };
     $("sClose").onclick = sh.close;
-    if ($("sMgr")) $("sMgr").onchange = (e) => { LS.set("demoManager", e.target.checked); Data.profile.isManager = e.target.checked; LS.set("profile", Data.profile); sh.close(); route(); };
+    if ($("sMgrTools")) $("sMgrTools").onclick = () => sh.close();
     if ($("sReset")) $("sReset").onclick = async () => { LS.set("demoSeeded", 0); await Data.loadProfile(S.user); sh.close(); toast("Sample data reset"); route(); };
     $("sOut").onclick = async () => {
       if (Data.pending && !(await IC.ask(Data.pending + " item(s) haven't been sent yet and will be lost. Sign out anyway?", "Sign out"))) return;
@@ -261,11 +274,26 @@
     };
   }
 
-  const NAV = [["", "Home", ICON.home, ["", "time"]], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view"]], ["qa", "QA", ICON.check, ["qa"]], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"]],
-    ["leave", "Holidays", ICON.leave, ["leave", "leave-new"]], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"]]];
+  const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
+    ["leave", "Holidays", ICON.leave, ["leave", "leave-new"], "leave"], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"], "expenses"]];
+  const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && can("form:" + t.id));
+  const allowed = (f) => !f || (f === "forms" ? anyForm() : can(f));
   function drawNav(name) {
     $("nav").hidden = false;
-    $("nav").innerHTML = NAV.map(([h, t, ic, names]) => '<a href="#/' + h + '" class="' + (names.includes(name) ? "on" : "") + '">' + ic + "<span>" + t + "</span></a>").join("");
+    $("nav").innerHTML = NAV.filter((n) => allowed(n[4])).map(([h, t, ic, names]) => '<a href="#/' + h + '" class="' + (names.includes(name) ? "on" : "") + '">' + ic + "<span>" + t + "</span></a>").join("");
+  }
+  // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
+  function permitted(name, args) {
+    if (["jobs", "job", "view"].includes(name)) return can("drawings");
+    if (["qa", "snag"].includes(name)) return can("qa");
+    if (name === "forms") return anyForm();
+    if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]);
+    if (["leave", "leave-new"].includes(name)) return can("leave");
+    if (["expenses", "expense", "expense-new"].includes(name)) return can("expenses");
+    if (name === "time") return can("time");
+    if (["cards", "card-new"].includes(name)) return can("cards");
+    if (name === "manager") return can("manager");
+    return true;
   }
 
   function route() {
@@ -274,6 +302,7 @@
     const parts = location.hash.replace(/^#\/?/, "").split("/"), name = parts[0] || "", args = parts.slice(1);
     drawNav(name);
     $("sheet").hidden = true;
+    if (!permitted(name, args)) { toast("That isn't part of your role in the app"); location.hash = "#/"; return; }
     if (name === "") viewHome();
     else if (name === "jobs") viewJobs();
     else if (name === "job" && args[0]) viewJob(decodeURIComponent(args[0]));

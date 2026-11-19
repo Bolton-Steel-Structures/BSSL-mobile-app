@@ -33,6 +33,21 @@ window.SITE_CONFIG = {
   mileageRate: 0.55,
   mileageRateOver10k: 0.25,
 
+  // What each role sees in the app (Liam to confirm with his tick-box schedule; change the lists, nothing else).
+  // The role comes from the employee record in iCONSTRUCTE (Role: Manager / Supervisor / Operative).
+  //   drawings   My jobs and drawings          rams      Read & sign the RAMS
+  //   time       Check in / out, timesheet      leave     Holidays           expenses  Expenses
+  //   cards      My competency cards            qa        QA (inspections, snags, handover)
+  //   manager    Manager tools (team approvals, time keeping, cards)
+  //   form:<id>  each form, e.g. form:toolbox, form:plant ("form:*" = all forms)
+  //     Safety: toolbox, plant, lifting, handover, nearmiss
+  //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
+  roles: {
+    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "form:*"],
+    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "form:*"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "form:nearmiss", "form:ncr"]
+  },
+
   // true = run with built-in sample data and no sign-in (for previewing only)
   demo: true
 };

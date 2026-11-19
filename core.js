@@ -143,20 +143,40 @@
     async blob(path) { const r = await fetch(await this.itemUrl(path)); if (!r.ok) throw new Error("download " + r.status); return r.blob(); }
   };
 
+  const sample = () => SAMPLES.find((x) => x.id === LS.get("demoUser", "")) || null;
   const DemoSrc = {
-    async init() { return LS.get("demoSignedIn", false); },
-    signIn() { LS.set("demoSignedIn", true); location.reload(); },
-    signOut() { LS.set("demoSignedIn", false); LS.del("manifest"); location.reload(); },
-    async user() { return { name: "John Smith", emails: ["j.smith@example.com"] }; },
+    async init() { return LS.get("demoSignedIn", false) && !!sample(); },
+    signIn(id) { LS.set("demoUser", id || "operative"); LS.set("demoSignedIn", true); location.reload(); },
+    signOut() { LS.set("demoSignedIn", false); LS.del("manifest"); LS.del("profile"); LS.del("user"); location.reload(); },
+    async user() { const u = sample() || SAMPLES[2]; return { name: u.name, emails: [u.email] }; },
     async manifest() { const r = await fetch("demo/site-manifest.json", { cache: "no-store" }); return r.json(); },
     async blob(path) { const r = await fetch("demo/files/" + path.split("/").map(encodeURIComponent).join("/")); if (!r.ok) throw new Error("download " + r.status); return r.blob(); }
   };
   const Src = DEMO ? DemoSrc : Graph;
 
+  // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
+  const DEFAULT_ROLES = {
+    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "form:*"],
+    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "form:*"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "form:nearmiss", "form:ncr"]
+  };
+  function roleOf(p) {
+    const r = String((p && p.role) || "").toLowerCase(), roles = CFG.roles || DEFAULT_ROLES;
+    const key = Object.keys(roles).find((k) => k.toLowerCase() === r);
+    return key || (p && p.isManager && roles.Manager ? "Manager" : "Operative");
+  }
+  // can("qa"), can("form:plant") … for the signed-in person (or a given profile)
+  function can(feature, profile) {
+    const p = profile || Data.profile, list = (CFG.roles || DEFAULT_ROLES)[roleOf(p)] || [];
+    return list.includes(feature) || (feature.startsWith("form:") && list.includes("form:*"));
+  }
+
   // ---------------------------------------------------------------- data layer
   // Records are kept on the device first, then sent. With no signal they wait in the outbox and go when signal returns.
-  // Kinds: time, forms, leave, expenses. In demo mode everything stays on this device.
-  const KINDS = ["time", "forms", "leave", "expenses", "snags"];
+  // Kinds: time, forms, leave, expenses, snags, cards (competency cards), timesheets (weeks approved by a manager).
+  // In demo mode everything stays on this device.
+  const KINDS = ["time", "forms", "leave", "expenses", "snags", "cards", "timesheets"];
+  const TEAM_KINDS = ["leave", "expenses", "time", "cards", "timesheets"]; // a manager also gets their team's records
   const Api = {
     async call(method, path, body, raw) {
       const headers = { Authorization: "Bearer " + (await Graph.token([CFG.apiScope])) };
@@ -177,13 +197,15 @@
 
     async loadProfile(user) {
       if (DEMO) {
-        const p = Object.assign({ name: user.name, email: user.emails[0], role: "Erector", leaveAllowance: 22, isManager: LS.get("demoManager", false) }, {});
-        this.profile = p;
+        const u = sample() || SAMPLES[2];
+        this.profile = { name: u.name, email: u.email, role: u.role, leaveAllowance: u.leaveAllowance };
       } else {
         try { this.profile = await Api.call("GET", "/me"); } catch (e) { console.warn(e); this.profile = this.profile || { name: user.name, email: user.emails[0], leaveAllowance: 0, isManager: false }; }
       }
+      // Manager tools follow the role's permissions (config.js roles), whatever the API says
+      this.profile.isManager = can("manager", this.profile);
       LS.set("profile", this.profile);
-      if (DEMO) await Demo.seed(this.profile);
+      if (DEMO) await Demo.seed();
       return this.profile;
     },
 
@@ -194,11 +216,19 @@
     },
     async get(kind, id) { const r = await Store.get(kind + ":" + id, "records"); return r ? r.rec : null; },
 
+    // Manager tools: the people this manager looks after (from the Manager field on each employee in iCONSTRUCTE).
+    async team() {
+      if (!this.profile || !this.profile.isManager) return [];
+      if (DEMO) return Demo.team.map(([email, name, role]) => ({ email, name, role }));
+      if (navigator.onLine) { try { const t = await Api.call("GET", "/team"); LS.set("team", t); return t; } catch (e) { console.warn("team", e); } }
+      return LS.get("team", []);
+    },
+
     // Fetch the latest from Azure into the device cache (no-op in demo).
     async pull() {
       if (DEMO || !navigator.onLine) return;
       for (const kind of KINDS) {
-        const scopes = kind === "snags" || kind === "forms" ? ["jobs"] : this.profile && this.profile.isManager && (kind === "leave" || kind === "expenses") ? ["mine", "team"] : ["mine"];
+        const scopes = kind === "snags" || kind === "forms" ? ["jobs"] : this.profile && this.profile.isManager && TEAM_KINDS.includes(kind) ? ["mine", "team"] : ["mine"];
         for (const scope of scopes) {
           try {
             const rows = await Api.call("GET", "/" + kind + "?scope=" + scope);
@@ -284,35 +314,67 @@
   };
 
   // ---------------------------------------------------------------- demo data (sample team, so approvals and the team calendar have something in them)
+  // Sample logins (demo only): one of each role, so each can be tried. Liam Pilkington manages the sample team.
+  const SAMPLES = [
+    { id: "manager", name: "Liam Pilkington", email: "liam.pilkington@boltonstructures.com", role: "Manager", leaveAllowance: 25 },
+    { id: "supervisor", name: "Ian Jones", email: "ian.jones@boltonstructures.com", role: "Supervisor", leaveAllowance: 25 },
+    { id: "operative", name: "Daniel Wiseman", email: "daniel.wiseman@boltonstructures.com", role: "Operative", leaveAllowance: 22 }
+  ];
   const Demo = {
-    async seed(profile) {
-      if (LS.get("demoSeeded", 0) === 3) return;
+    // the manager's team (everyone except Liam), with two extra sample people so the team screens have something in them
+    team: [["ian.jones@boltonstructures.com", "Ian Jones", "Supervisor"], ["daniel.wiseman@boltonstructures.com", "Daniel Wiseman", "Operative"],
+      ["s.khan@example.com", "Sam Khan", "Operative"], ["m.wilson@example.com", "Mark Wilson", "Operative (welder)"]],
+    async seed() {
+      if (LS.get("demoSeeded", 0) === 5) return;
       await Data.clearAll();
       const now = new Date(), d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
       const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records");
-      const team = [["a.jones@example.com", "Andy Jones"], ["p.brown@example.com", "Paul Brown"], ["s.khan@example.com", "Sam Khan"], ["m.wilson@example.com", "Mark Wilson"]];
+      const liam = [SAMPLES[0].email, SAMPLES[0].name], [ian, dan, sam, mark] = this.team;
+      // holidays
       const leave = [
-        [team[0], d(9), d(13), "Annual leave", "pending", "Family holiday"],
-        [team[1], d(10), d(11), "Annual leave", "pending", ""],
-        [team[2], d(3), d(3), "Annual leave", "approved", "Dentist (half day pm)"],
-        [team[3], d(24), d(28), "Annual leave", "approved", ""],
-        [[profile.email, profile.name], d(-20), d(-18), "Annual leave", "approved", ""]
+        [dan, d(9), d(13), "Annual leave", "pending", "Family holiday"],
+        [ian, d(10), d(11), "Annual leave", "pending", ""],
+        [sam, d(3), d(3), "Annual leave", "approved", "Dentist (half day pm)"],
+        [mark, d(24), d(28), "Annual leave", "approved", ""],
+        [dan, d(-20), d(-18), "Annual leave", "approved", ""],
+        [liam, d(30), d(34), "Annual leave", "approved", ""]
       ];
       for (const [p, from, to, type, status, note] of leave) await put("leave", { id: uid(), user: p[0], userName: p[1], from, to, type, status, note, days: null, createdAt: now.toISOString() });
-      await put("expenses", { id: uid(), user: team[0][0], userName: team[0][1], date: d(-2), category: "Subsistence", amount: 18.4, vat: 3.07, jobFolder: "2514-021", jobNumber: "2514/021", note: "Overnight meal allowance", status: "pending", createdAt: now.toISOString() });
-      await put("expenses", { id: uid(), user: team[2][0], userName: team[2][1], date: d(-4), category: "Mileage", miles: 64, amount: 35.2, jobFolder: "2522-004", jobNumber: "2522/004", note: "Own van to site and back", status: "pending", createdAt: now.toISOString() });
-      await put("expenses", { id: uid(), user: profile.email, userName: profile.name, date: d(-9), category: "Parking", amount: 6.5, vat: 1.08, jobFolder: "2514-021", jobNumber: "2514/021", note: "", status: "approved", decidedBy: "Office", createdAt: now.toISOString() });
-      // a little time history for this week
-      for (let back = 3; back >= 1; back--) {
-        const day = new Date(now); day.setDate(day.getDate() - back); if (day.getDay() === 0 || day.getDay() === 6) continue;
-        const tin = new Date(day); tin.setHours(7, 28 + back, 0, 0); const tout = new Date(day); tout.setHours(16, 5 + back * 4, 0, 0);
-        await put("time", { id: uid(), user: profile.email, userName: profile.name, type: "in", at: tin.toISOString(), jobFolder: "2514-021", jobNumber: "2514/021", site: "Example Retail Park", distanceM: 40, flagged: false, accuracy: 12 });
-        await put("time", { id: uid(), user: profile.email, userName: profile.name, type: "out", at: tout.toISOString(), jobFolder: "2514-021", jobNumber: "2514/021", site: "Example Retail Park", distanceM: 55, flagged: false, accuracy: 15 });
+      // expenses
+      await put("expenses", { id: uid(), user: dan[0], userName: dan[1], date: d(-2), category: "Subsistence / meals", amount: 18.4, vat: 3.07, jobFolder: "2514-021", jobNumber: "2514/021", note: "Overnight meal allowance", status: "pending", createdAt: now.toISOString() });
+      await put("expenses", { id: uid(), user: ian[0], userName: ian[1], date: d(-4), category: "Mileage (own vehicle)", miles: 64, amount: 35.2, from: "Yard, Bolton", to: "Site", jobFolder: "2522-004", jobNumber: "2522/004", note: "Own van to site and back", status: "pending", createdAt: now.toISOString() });
+      await put("expenses", { id: uid(), user: dan[0], userName: dan[1], date: d(-9), category: "Parking", amount: 6.5, vat: 1.08, jobFolder: "2514-021", jobNumber: "2514/021", note: "", status: "approved", decidedBy: "Liam Pilkington", createdAt: now.toISOString() });
+      // check-ins: last week and this week, someone on site now, one flagged, one missed check-out
+      const at = (back, h, m) => { const x = new Date(now); x.setDate(x.getDate() - back); x.setHours(h, m, 0, 0); return x; };
+      const job = { jobFolder: "2514-021", jobNumber: "2514/021", site: "Example Retail Park" }, job2 = { jobFolder: "2522-004", jobNumber: "2522/004", site: "Riverside Depot" };
+      const shift = async (p, back, j, inH, inM, outH, outM, extra) => {
+        const day = at(back, 0, 0); if (day.getDay() === 0 || day.getDay() === 6) return;
+        await put("time", Object.assign({ id: uid(), user: p[0], userName: p[1], type: "in", at: at(back, inH, inM).toISOString(), distanceM: 35, flagged: false, accuracy: 10 }, j, extra && extra.in));
+        if (outH != null) await put("time", Object.assign({ id: uid(), user: p[0], userName: p[1], type: "out", at: at(back, outH, outM).toISOString(), distanceM: 40, flagged: false, accuracy: 12 }, j, extra && extra.out));
+      };
+      for (let back = 1; back <= 11; back++) {
+        await shift(ian, back, back % 2 ? job : job2, 7, 20, 16, 15);
+        await shift(dan, back, job, 7, 35, 16, 25);
+        await shift(sam, back, job2, 7, 40, 16, 30);
+        await shift(mark, back, job, 7, 15, back === 2 ? null : 15, 45);
       }
-      LS.set("demoSeeded", 3);
+      await shift(ian, 0, job, 7, 18, null);
+      await shift(dan, 0, job, 7, 52, null, null, { in: { distanceM: 1240, flagged: true, reason: "Collecting bolts from the yard first" } });
+      await shift(mark, 0, job, 7, 12, null);
+      // competency cards: one expired, two expiring, one person with no CSCS on record
+      const card = (p, type, number, category, off, verified) => put("cards", { id: uid(), user: p[0], userName: p[1], type, number, category, expiry: d(off), photos: [], status: verified ? "verified" : "current", decidedBy: verified ? "Liam Pilkington" : undefined, decidedAt: verified ? now.toISOString() : undefined, createdAt: now.toISOString() });
+      await card(liam, "CSCS", "00412345", "Manager (black)", 400, true);
+      await card(ian, "CSCS", "00290014", "Supervisor (gold)", 300, true);
+      await card(ian, "SMSTS", "SM-55120", "", 45, true);
+      await card(ian, "First aid at work", "FAW-2291", "", 120, false);
+      await card(dan, "CSCS", "00398811", "Skilled worker (blue)", -10, true);
+      await card(dan, "IPAF", "IP-77231", "3a / 3b", 30, false);
+      await card(sam, "CSCS", "00377120", "Skilled worker (blue)", 520, true);
+      await card(sam, "CPCS", "CP-118842", "A60 telehandler", 700, true);
+      await card(mark, "Welder qualification (BS EN ISO 9606-1)", "WQ-0417", "135 P FW 1.1 S t10 PB ml", 90, true);
+      LS.set("demoSeeded", 5);
     }
   };
-
   // ---------------------------------------------------------------- UI helpers
   const routes = {};
   function route(name, fn) { routes[name] = fn; }
@@ -500,7 +562,7 @@
   }
 
   window.IC = {
-    CFG, DEMO, LS, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
+    CFG, DEMO, LS, SAMPLES, can, roleOf, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
     Store, Src, Graph, Data, routes, route, status, setBar, sheet, ask, toast, shrinkImage, stampPhoto, fmtStamp, signaturePad, locate,
     loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, jobByFolder, jobOptions
   };
