@@ -1,47 +1,28 @@
 /* iCONSTRUCTE Site: QA (quality assurance) section: BSS Works Inspection, snag list with close-out, completion certificates.
- * BSS want this to be detailed. This screen sets out the planned structure, following the erection sequence in
- * QFC05 Site Erection, QFC06 Identification & Traceability and NSSS 7th Edition Sections 2, 5, 6, 8, 9 and 10.
- * Items marked "Available" open the quality forms that already work. "Planned" items are to be specified with BSS.
+ * Kept lean (Liam, 20 Nov): only the checks with a working form, in erection order (QFC05, NSSS 5, 6, 8, 9):
+ * before erection, erection, close-out (site inspection with snags, NCR, completion certificate).
  */
 (function () {
   "use strict";
   const { $, esc, Data, myJobs, jobByFolder, jobOptions, setBar, route, LS } = IC;
 
-  // stage → items. form = existing form template id (available now); otherwise planned.
+  // Trimmed 20 Nov (Liam: too onerous): only checks with a working form, in erection order (QFC05). The planned
+  // placeholders (pre-site inspection, ITP, delivery / traceability / bolt batch records, preloaded bolt inspection,
+  // welder & WPS check, packs & shims, protective treatment, QA dossier) are off the screen; they stay on the roadmap.
   const STAGES = [
     { title: "1. Before erection", items: [
-      { name: "Pre-site inspection", ref: "QFC05 Q05.1", text: "Access, ground conditions, crane positions, erection sequence and plant needs, with photos." },
-      { name: "Safe site handover", ref: "NSSS 8.2, 8.3 · Table 1.5(x)", form: "handover" },
-      { name: "Foundation & holding-down bolt survey", ref: "NSSS 9.1, 9.2", form: "foundation" },
-      { name: "Inspection & test plan (ITP)", ref: "Project specification", text: "Hold and witness points for the job, set up in the office and signed off on site as each is reached." }
+      { name: "Safe site handover", ref: "NSSS 8.2, 8.3", form: "handover" },
+      { name: "Foundation check", ref: "NSSS 9.1, 9.2", form: "foundation" }
     ] },
-    { title: "2. Deliveries & traceability", items: [
-      { name: "Delivery check", ref: "QFC05 · QFC06", text: "Check each delivery against the delivery note and drawings: piece marks, quantities, damage. Photos, and an NCR if anything's wrong." },
-      { name: "Material traceability", ref: "QFC06 · NSSS 2 · BS EN 10204 3.1", text: "Link piece marks to mill certificates. Photograph the marks on site so the job record traces back to the steel order." },
-      { name: "Bolt batches & certificates", ref: "NSSS 6", text: "Record bolt batch, grade and certificate for each delivery and where each batch was used." }
-    ] },
-    { title: "3. Erection", items: [
-      { name: "Erection progress", ref: "QFC05", text: "Mark members erected by grid and level, ticking them off on the erection drawing." },
-      { name: "Line, level & plumb survey", ref: "NSSS 8.6, 9.3, 9.6", form: "erection" },
-      { name: "Bolting & tightening", ref: "NSSS 6.3, 6.4, 8.8", form: "bolting" },
-      { name: "Preloaded bolt inspection", ref: "NSSS 6.3.3 · BS EN 1090-2", text: "Inspection of tightening by method (torque, combined, DTI, HRC), with sample results and the tool calibration record (QP06)." },
-      { name: "Site welding", ref: "NSSS 5, 8.7", form: "welding" },
-      { name: "Welder & WPS check", ref: "WPS / PQR / WQ register", text: "Pick the welder and WPS from the register; the app warns if a qualification has lapsed." },
-      { name: "Packs & shims", ref: "NSSS 6.4.1, 8.6.1", text: "Where packs and shims were used, and that they're secured." }
-    ] },
-    { title: "4. Protective treatment", items: [
-      { name: "Site touch-up & repairs", ref: "NSSS 10.5.5, 10.5.9", text: "Surface preparation to St3, primer and build-up coats, with photos before and after." },
-      { name: "Paint conditions", ref: "NSSS 10.5.4", text: "Air temperature (min 10°C), humidity (max 85%), and steel temperature at least 3°C above dew point. The app checks the readings." },
-      { name: "DFT readings", ref: "NSSS 10.5.6 · Table 10.3", text: "Enter readings per area. The app applies the NSSS acceptance rules (mean ≥ nominal, all ≥ 80%, fewer than 20% between 80% and 100%, none above max) and the 25 µm profile correction." },
-      { name: "DFT gauge calibration", ref: "NSSS 10.5.6", text: "Calibration before the first readings and once per shift, with the shim and test plate recorded." }
-    ] },
-    { title: "5. Close-out", items: [
-      { name: "Site inspection / handover", ref: "BSS Works Inspection · NSSS 8.9", form: "works" },
-      { name: "Snagging", ref: "QFC05", form: "snag" },
-      { name: "Non-conformance & corrective action", ref: "QP08 · QFC05 Q05.12", form: "ncr" },
-      { name: "Completion & handover certificate", ref: "NSSS 8.9 · QFC05 Q05.11", form: "completion" },
-      { name: "QA dossier", ref: "QFC05 Q05.11 · QFC06", text: "One PDF per job of every QA record, certificate and photo, ready to hand to the client and file against the job in iCONSTRUCTE." }
+    { title: "2. Erection", items: [
+      { name: "Line, level & plumb", ref: "NSSS 8.6, 9.3, 9.6", form: "erection" },
+      { name: "Bolting check", ref: "NSSS 6, 8.8", form: "bolting" },
+      { name: "Site welding", ref: "NSSS 5, 8.7", form: "welding" }
     ] }
+  ];
+  const CLOSE_OUT = [
+    { name: "Non-conformance (NCR)", ref: "QP08", form: "ncr" },
+    { name: "Completion certificate", ref: "NSSS 8.9 · QFC05 Q05.11", form: "completion" }
   ];
 
   // ---------------------------------------------------------------- snags, close-out and the completion certificate
@@ -163,7 +144,11 @@
     const snags = (await Data.list("snags", "team")).filter((x) => x.jobFolder === folder);
     const open = snags.filter((x) => x.status !== "closed"), closed = snags.filter((x) => x.status === "closed");
     const count = (id) => forms.filter((f) => f.templateId === id).length;
-    const total = STAGES.reduce((t, s) => t + s.items.length, 0), ready = STAGES.reduce((t, s) => t + s.items.filter((i) => i.form).length, 0);
+    const item = (it) => {
+      const n = count(it.form);
+      const inner = '<span class="ti quality">' + IC.ICON.check + '</span><span><b>' + esc(it.name) + '</b><span class="small">' + esc(it.ref) + "</span></span>" + (n ? '<span class="pill ok">' + n + " done</span>" : "");
+      return folder ? '<a class="tile-row qa-item" href="#/form-new/' + it.form + "/" + encodeURIComponent(folder) + '">' + inner + "</a>" : '<div class="tile-row qa-item">' + inner + "</div>";
+    };
     const inspections = forms.filter((f) => f.templateId === "works").sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
     const insRow = (f) => {
       const n = snags.filter((x) => x.inspectionId === f.id && x.status !== "closed").length;
@@ -176,23 +161,13 @@
     $("main").innerHTML =
       (jobs.length ? '<label class="fl">Job<select id="qaJob">' + jobOptions(folder, false) + "</select></label>" : "") +
       (j ? '<div class="qa-job"><div><b>' + esc(j.jobNumber) + '</b> <span class="small">' + esc(j.site || j.customer || "") + '</span></div><div class="small">' + forms.length + " QA record" + (forms.length === 1 ? "" : "s") + " · " + open.length + " open snag" + (open.length === 1 ? "" : "s") + "</div></div>" : "") +
-      '<div class="section-h">Site inspection / handover</div>' +
-      '<div class="card"><div class="small" style="margin-bottom:10px">BSS Works Inspection: 20 areas, each with photos. Any N becomes a snag on the list below. When every snag is closed out, the completion certificate is created and filed in the job\'s 09 - QA folder.</div>' +
-      (folder ? '<a class="btn primary block" href="#/form-new/works/' + encodeURIComponent(folder) + '">New inspection</a>' : "") + "</div>" +
-      (inspections.length ? inspections.map(insRow).join("") : '<div class="empty small">No inspections on this job yet.</div>') +
-      '<div class="section-h">Snag list (' + open.length + " open)</div>" + (open.length ? open.map(snagRow).join("") : '<div class="empty small">No open snags.</div>') +
+      STAGES.map((st) => '<div class="section-h">' + esc(st.title) + "</div>" + st.items.map(item).join("")).join("") +
+      '<div class="section-h">3. Close-out</div>' +
+      (folder ? '<a class="tile-row qa-item" href="#/form-new/works/' + encodeURIComponent(folder) + '"><span class="ti quality">' + IC.ICON.check + '</span><span><b>Site inspection / handover</b><span class="small">Any N becomes a snag below</span></span><span class="pill ok">Start</span></a>' : "") +
+      (inspections.length ? inspections.map(insRow).join("") : "") +
+      '<div class="small" style="margin:8px 2px 4px;font-weight:600">Snags (' + open.length + " open)</div>" + (open.length ? open.map(snagRow).join("") : '<div class="empty small">No open snags.</div>') +
       (closed.length ? '<details class="closed-snags"><summary>' + closed.length + " closed snag" + (closed.length > 1 ? "s" : "") + "</summary>" + closed.map(snagRow).join("") + "</details>" : "") +
-      '<div class="qa-intro" style="margin-top:18px"><b>More QA to come.</b> The outline below follows QFC05, QFC06 and the NSSS. ' + ready + " of " + total + " items work now; the rest are planned and will be built to BSS's documents.</div>" +
-      STAGES.map((s) => '<div class="section-h">' + esc(s.title) + "</div>" + s.items.map((it) => {
-        const n = it.form ? count(it.form) : 0;
-        const inner = '<span class="ti ' + (it.form ? "quality" : "") + '">' + (it.form ? IC.ICON.check : IC.ICON.forms) + '</span><span><b>' + esc(it.name) + '</b><span class="small">' + esc(it.ref) + "</span>" +
-          (it.text ? '<span class="qa-desc">' + esc(it.text) + "</span>" : "") + "</span>" +
-          (it.form ? '<span class="pill ok">' + (n ? n + " done" : "Available") + "</span>" : '<span class="pill">Planned</span>');
-        return it.form && folder
-          ? '<a class="tile-row qa-item" href="#/form-new/' + it.form + "/" + encodeURIComponent(folder) + '">' + inner + "</a>"
-          : '<div class="tile-row qa-item planned">' + inner + "</div>";
-      }).join("")).join("") +
-      '<p class="small">Send the office any other standard QA documents (ITPs, DFT records, delivery checks) and they will be built in the same way.</p>';
+      CLOSE_OUT.map(item).join("");
     if ($("qaJob")) $("qaJob").onchange = (e) => { LS.set("lastJob", e.target.value); location.hash = "#/qa/" + encodeURIComponent(e.target.value); };
   });
 
