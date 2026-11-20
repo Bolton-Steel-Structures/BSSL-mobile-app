@@ -132,7 +132,7 @@
 
   // ---------------------------------------------------------------- QA page
   route("qa", async (args) => {
-    setBar("Quality assurance", "Inspections, snags and handover", false);
+    setBar("Quality assurance", "Inspections, snags and handover", !!args[0]); // back arrow when opened from a job's QA tile
     const jobs = IC.viewableJobs();
     let folder = args[0] ? decodeURIComponent(args[0]) : LS.get("lastJob", jobs[0] && jobs[0].folder);
     if (!jobByFolder(folder)) folder = (jobs[0] || {}).folder || "";
@@ -167,7 +167,7 @@
       '<div class="small" style="margin:8px 2px 4px;font-weight:600">Snags (' + open.length + " open)</div>" + (open.length ? open.map(snagRow).join("") : '<div class="empty small">No open snags.</div>') +
       (closed.length ? '<details class="closed-snags"><summary>' + closed.length + " closed snag" + (closed.length > 1 ? "s" : "") + "</summary>" + closed.map(snagRow).join("") + "</details>" : "") +
       CLOSE_OUT.map(item).join("");
-    if ($("qaJob")) $("qaJob").onchange = (e) => { LS.set("lastJob", e.target.value); location.hash = "#/qa/" + encodeURIComponent(e.target.value); };
+    if ($("qaJob")) $("qaJob").onchange = (e) => { LS.set("lastJob", e.target.value); location.replace("#/qa/" + encodeURIComponent(e.target.value)); };
   });
 
   IC.QA = { afterInspection, checkComplete, inspectionStatusHtml, bindStatus };
