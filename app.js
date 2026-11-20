@@ -113,6 +113,13 @@
       for (const j of myJobs().filter((x) => todaySites.has(x.folder) && !mineToday.some((f) => f.jobFolder === x.folder)))
         todo.push('<a class="todo" href="#/form-new/powra/' + encodeURIComponent(j.folder) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Today's POWRA for " + esc(j.jobNumber) + '</b><span class="small">' + esc(j.site || "") + " · before work starts</span></span>›</a>");
     }
+    // RAMS / crane plan registers on today's sites with people still to sign (supervisors)
+    if (roleOf(Data.profile) === "Supervisor") for (const j of myJobs().filter((x) => todaySites.has(x.folder))) {
+      for (const x of (j.files || []).filter((f) => f.category === "H&S")) {
+        const left = await IC.Forms.ramsStillToSign(j, x, await IC.Forms.ramsRegister(j, x));
+        if (left.length) todo.push('<a class="todo" href="#/register/' + encodeURIComponent(j.folder) + "/" + encodeURIComponent(x.path) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>" + left.length + " still to sign the " + esc(IC.Forms.docKind(x)) + " for " + esc(j.jobNumber) + '</b><span class="small">' + esc(left.map((p) => p.name).join(", ")) + "</span></span>›</a>");
+      }
+    }
     const drafts = (await Data.list("forms")).filter((f) => f.status === "draft").length;
     if (drafts) todo.push('<a class="todo" href="#/forms"><span class="ti">' + ICON.forms + "</span><span><b>" + drafts + " form" + (drafts > 1 ? "s" : "") + ' not finished</b><span class="small">Saved as drafts</span></span>›</a>');
     const myDue = !can("cards") ? [] : (await Data.list("cards")).filter((c) => IC.Cards.live(c) && (IC.Cards.state(c).days ?? 999) <= IC.Cards.SOON_DAYS);

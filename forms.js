@@ -315,12 +315,22 @@
     const key = docKey(x), recs = (await Data.list("forms", "team")).filter((f) => f.jobFolder === j.folder && f.status === "submitted" && f.docsKey && f.docsKey.split("|").includes(key));
     const rows = [];
     recs.forEach((f) => {
-      if (f.templateId === "rams") rows.push({ name: f.userName || "", sig: f.values.sig, at: f.submittedAt, how: "own phone" });
+      if (f.templateId === "rams") rows.push({ name: f.userName || "", email: f.user || "", sig: f.values.sig, at: f.submittedAt, how: "own phone" });
       if (f.templateId === "ramsbrief") (f.values.attendees || []).forEach((p) => rows.push({ name: p.name, sig: p.sig, at: f.submittedAt, how: "briefed by " + (f.values.by || f.userName || "") }));
     });
     rows.sort((a, b) => (a.at || "").localeCompare(b.at || ""));
     const seen = new Set();
     return rows.filter((r) => { const k = String(r.name).trim().toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+  }
+  // Who should sign this issue (Liam, 20 Nov: the register stays live until everyone allocated has signed): everyone on
+  // the planner for the job from the day it was issued, plus anyone who has checked in there since; managers don't sign
+  async function ramsStillToSign(j, x, rows) {
+    const from = String(x.issued || "").slice(0, 10), want = new Map();
+    const add = (email, why) => { const e = String(email || "").toLowerCase(); if (!e || want.has(e) || IC.roleFor(e) === "Manager") return; want.set(e, why); };
+    ((IC.S.manifest && IC.S.manifest.allocations) || []).filter((a) => a.folder === j.folder && !a.off && (!from || a.date >= from)).forEach((a) => add(a.email, "on the planner " + fmtDay(IC.parseDate(a.date))));
+    (await Data.list("time", "team")).filter((t) => t.type === "in" && t.jobFolder === j.folder && (!from || t.at >= from)).forEach((t) => add(t.user, "checked in " + fmtDay(t.at)));
+    const signedE = new Set(rows.map((r) => String(r.email || "").toLowerCase()).filter(Boolean)), signedN = new Set(rows.map((r) => String(r.name).trim().toLowerCase()));
+    return [...want].map(([email, why]) => ({ email, name: IC.nameFor(email), why })).filter((p) => !signedE.has(p.email) && !signedN.has(String(p.name).trim().toLowerCase()));
   }
 
   const docLink = (job, x) => '<a class="doc-link" href="#/view/' + encodeURIComponent(job.folder) + "/" + encodeURIComponent(x.path) + '">' + esc(x.name) + ' <span class="small">issued ' + esc(fmtDate(x.issued)) + "</span></a>";
@@ -764,10 +774,11 @@
     const folder = decodeURIComponent(args[0] || ""), path = decodeURIComponent(args[1] || ""), j = jobByFolder(folder);
     const x = j && (j.files || []).find((f) => f.category === "H&S" && f.path === path);
     if (!x) { location.hash = "#/job/" + encodeURIComponent(folder) + "/rams"; return; }
-    const kind = docKind(x), rows = await ramsRegister(j, x);
+    const kind = docKind(x), rows = await ramsRegister(j, x), todo = await ramsStillToSign(j, x, rows);
     setBar(kind === "crane plan" ? "Crane plan register" : "RAMS register", j.jobNumber, true);
     const sigs = await Promise.all(rows.map(async (r) => (r.sig ? await Data.blobUrl(r.sig) : "")));
-    $("main").innerHTML = '<div class="card"><b>' + esc(x.name) + '</b><div class="small">Issued ' + esc(fmtDate(x.issued)) + " · " + rows.length + " signed</div></div>" +
+    $("main").innerHTML = '<div class="card"><b>' + esc(x.name) + '</b><div class="small">Issued ' + esc(fmtDate(x.issued)) + " · " + rows.length + " signed · " + (todo.length ? todo.length + " still to sign" : "everyone allocated has signed") + "</div></div>" +
+      (todo.length ? '<div class="section-h">Still to sign (' + todo.length + ")</div>" + todo.map((p) => '<div class="reg-row"><span><b>' + esc(p.name) + '</b><span class="small"> ' + esc(p.why) + '</span></span><span class="pill">To sign</span></div>').join("") + '<div class="section-h">Signed (' + rows.length + ")</div>" : "") +
       (rows.length ? rows.map((r, i) => '<div class="ppl-done reg-row"><span><b>' + esc(r.name) + '</b><span class="small"> ' + esc(fmtDay(r.at) + " " + fmtTime(r.at) + " · " + r.how) + "</span></span>" + (sigs[i] ? '<img class="sig-img sm" src="' + sigs[i] + '">' : "") + "</div>").join("") : '<div class="empty small">Nobody has signed for this issue yet.</div>') +
       '<a class="btn primary block" href="#/form-new/ramsbrief/' + encodeURIComponent(folder) + "/" + encodeURIComponent(path) + '">Brief the gang (sign on this phone)</a>' +
       (rows.length ? '<button class="btn block" id="regShare">Share register (PDF)</button>' : "");
@@ -808,5 +819,5 @@
   });
   IC.route("form", (args) => viewDone(args[0]));
 
-  IC.Forms = { templates: T, tpl, ramsStatus, ramsRegister, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
+  IC.Forms = { templates: T, tpl, ramsStatus, ramsRegister, ramsStillToSign, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
 })();

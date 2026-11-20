@@ -26,6 +26,8 @@
     if (s) return s.name;
     return e.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
+  IC.nameFor = nameFor;
+  IC.roleFor = (email) => { const e = String(email).toLowerCase(), t = (IC.DEMO_TEAM || []).find((x) => x[0] === e); if (t) return t[2] || ""; const s = (IC.SAMPLES || []).find((x) => String(x.email).toLowerCase() === e); return s ? s.role || "" : ""; };
   const shortName = (n) => { const w = String(n).split(" "); return w.length > 1 ? w[0] + " " + w[w.length - 1][0] : n; };
 
   // this week, plus next Monday when it has been published (from Friday)
