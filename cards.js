@@ -39,8 +39,7 @@
     const due = mine.filter((c) => { const s = state(c); return s.days != null && s.days <= SOON_DAYS; });
     $("main").innerHTML = (due.length ? '<div class="warnbox">' + due.map((c) => esc(name(c)) + ": " + esc(state(c).label.toLowerCase())).join("<br>") + ". Book the renewal and tell the office.</div>" : "") +
       '<a class="btn primary block" href="#/card-new">Add a card</a><div class="section-h">My cards (' + mine.length + ")</div>" +
-      (mine.length ? mine.map((c) => row(c)).join("") : '<div class="empty small">No cards yet. Add your CSCS card and any others (CPCS, IPAF, PASMA, first aid …) so they\'re on your phone on site.</div>') +
-      '<p class="small">Card photos are only seen by you and your manager. They\'re kept on this phone so you can show them with no signal.</p>';
+      (mine.length ? mine.map((c) => row(c)).join("") : '<div class="empty small">No cards yet. Add your CSCS card and any others (CPCS, IPAF, PASMA, first aid …) so they\'re on your phone on site.</div>');
   });
 
   route("card-new", async (args) => {

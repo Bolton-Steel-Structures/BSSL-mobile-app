@@ -39,13 +39,14 @@ window.SITE_CONFIG = {
   //   time       Check in / out, timesheet      leave     Holidays           expenses  Expenses
   //   cards      My competency cards            qa        QA (inspections, snags, handover)
   //   manager    Manager tools (team approvals, time keeping, cards)
+  //   all-jobs   Projects: every live project and its packages of work (managers; no check in / out or timesheet)
   //   form:<id>  each form, e.g. form:toolbox, form:plant ("form:*" = all forms)
   //     Safety: toolbox, plant, lifting, handover, nearmiss
   //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
   roles: {
     Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:nearmiss", "form:ncr"]
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:nearmiss", "form:ncr"]
   },
 
   // true = run with built-in sample data and no sign-in (for previewing only)

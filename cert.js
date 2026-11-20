@@ -50,7 +50,7 @@
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = 210, M = 15, R = W - M, BOTTOM = 280;
     const job = IC.jobByFolder(rec.jobFolder) || { jobNumber: rec.jobNumber, site: rec.site, customer: "" };
-    const v = rec.values || {}, t = IC.Forms.tpl("works"), itemsRaw = t.fields.find((f) => f.type === "inspect").items, items = itemsRaw.map((x) => (typeof x === "string" ? x : x.t)), xLabel = (it) => { const o = itemsRaw.find((x) => typeof x !== "string" && x.t === it); return o && o.x ? o.x.label : ""; };
+    const v = rec.values || {}, t = IC.Forms.tpl(rec.templateId) || IC.Forms.tpl("works"), itemsRaw = t.fields.find((f) => f.type === "inspect").items, items = itemsRaw.map((x) => (typeof x === "string" ? x : x.t)), xLabel = (it) => { const o = itemsRaw.find((x) => typeof x !== "string" && x.t === it); return o && o.x ? o.x.label : ""; };
     const co = Object.assign({}, FALLBACK, (S.manifest && S.manifest.company) || {});
     let y = M;
     const need = (h) => { if (y + h > BOTTOM) { doc.addPage(); y = M; } };
@@ -151,16 +151,18 @@
       doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(33, 33, 33); doc.text(name || "", x, y + 28);
       doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.text(date ? "Date: " + date : "", x, y + 33);
     };
-    await sigBox("Signed by BSSL representative", v.bssName, v.sig, fmtDate(subDate), M);
+    const supervisorOnly = rec.templateId === "supcomp";
+    await sigBox(supervisorOnly ? "Signed by BSS supervisor" : "Signed by BSSL representative", v.bssName || rec.userName, v.sig, fmtDate(subDate), M);
     const left = (v.clientMode || "").indexOf("Left with client") === 0;
-    if (left) {
+    if (supervisorOnly) { /* Supervisors Completion: BSS's own sign-off, no client box */ }
+    else if (left) {
       const d = new Date(subDate); d.setDate(d.getDate() + 5);
       text("Client representative", M + 95, 8.5, "normal", [97, 97, 97]);
       const l = doc.splitTextToSize("Left with the client on " + fmtDate(subDate) + ". Acceptance deemed granted on " + fmtDate(d) + " if not returned before then.", 80);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(33, 33, 33); doc.text(l, M + 95, y + 8);
     } else await sigBox("Signed by client representative", v.clientName, v.clientSig, fmtDate(subDate), M + 95);
     y += 42;
-    need(16); const dl = doc.splitTextToSize(DEEMED, R - M); doc.setFont("helvetica", "italic"); doc.setFontSize(7.8); doc.setTextColor(97, 97, 97); doc.text(dl, M, y);
+    if (!supervisorOnly) { need(16); const dl = doc.splitTextToSize(DEEMED, R - M); doc.setFont("helvetica", "italic"); doc.setFontSize(7.8); doc.setTextColor(97, 97, 97); doc.text(dl, M, y); }
 
     // footer on every page
     const n = doc.getNumberOfPages();

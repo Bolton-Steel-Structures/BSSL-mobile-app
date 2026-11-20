@@ -37,7 +37,7 @@
         glRef: rec.values.glRef, stage: rec.values.stage, raisedBy: (Data.profile && Data.profile.name) || rec.userName, raisedAt: new Date().toISOString(), status: "open" });
       r.snagId = sn.id; made++;
     }
-    if (made) { rec.flags = IC.Forms.flagsFor(T(), rec.values); await Data.save("forms", rec); IC.toast(made + " snag" + (made > 1 ? "s" : "") + " added to the job's snag list"); }
+    if (made) { rec.flags = IC.Forms.flagsFor(IC.Forms.tpl(rec.templateId) || T(), rec.values); await Data.save("forms", rec); IC.toast(made + " snag" + (made > 1 ? "s" : "") + " added to the job's snag list"); }
     await checkComplete(rec.id);
   }
 
@@ -146,7 +146,9 @@
       const inner = '<span class="ti quality">' + IC.ICON.check + '</span><span><b>' + esc(it.name) + '</b><span class="small">' + esc(it.ref) + "</span></span>" + (n ? '<span class="pill ok">' + n + " done</span>" : "");
       return folder ? '<a class="tile-row qa-item" href="#/form-new/' + it.form + "/" + encodeURIComponent(folder) + '">' + inner + "</a>" : '<div class="tile-row qa-item">' + inner + "</div>";
     };
-    const inspections = forms.filter((f) => f.templateId === "works").sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
+    // supervisors use the short "Supervisors Completion"; managers the full site inspection / handover (Liam, 20 Nov)
+    const inspTpl = IC.can("manager") ? "works" : "supcomp";
+    const inspections = forms.filter((f) => f.templateId === "works" || f.templateId === "supcomp").sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
     const insRow = (f) => {
       const n = snags.filter((x) => x.inspectionId === f.id && x.status !== "closed").length;
       const pill = f.certificate ? '<span class="pill ok">Certificate</span>' : n ? '<span class="pill declined">' + n + " open</span>" : '<span class="pill">Clear</span>';
@@ -160,7 +162,7 @@
       (j ? '<div class="qa-job"><div><b>' + esc(j.jobNumber) + '</b> <span class="small">' + esc(j.site || j.customer || "") + '</span></div><div class="small">' + forms.length + " QA record" + (forms.length === 1 ? "" : "s") + " · " + open.length + " open snag" + (open.length === 1 ? "" : "s") + "</div></div>" : "") +
       STAGES.map((st) => '<div class="section-h">' + esc(st.title) + "</div>" + st.items.map(item).join("")).join("") +
       '<div class="section-h">3. Close-out</div>' +
-      (folder ? '<a class="tile-row qa-item" href="#/form-new/works/' + encodeURIComponent(folder) + '"><span class="ti quality">' + IC.ICON.check + '</span><span><b>Site inspection / handover</b><span class="small">Line, level &amp; plumb, bolting, site welds and finishes: any N becomes a snag below</span></span><span class="pill ok">Start</span></a>' : "") +
+      (folder ? '<a class="tile-row qa-item" href="#/form-new/' + inspTpl + "/" + encodeURIComponent(folder) + '"><span class="ti quality">' + IC.ICON.check + "</span><span><b>" + (inspTpl === "works" ? "Site inspection / handover" : "Supervisors Completion") + '</b><span class="small">Any N becomes a snag below</span></span><span class="pill ok">Start</span></a>' : "") +
       (inspections.length ? inspections.map(insRow).join("") : "") +
       '<div class="small" style="margin:8px 2px 4px;font-weight:600">Snags (' + open.length + " open)</div>" + (open.length ? open.map(snagRow).join("") : '<div class="empty small">No open snags.</div>') +
       (closed.length ? '<details class="closed-snags"><summary>' + closed.length + " closed snag" + (closed.length > 1 ? "s" : "") + "</summary>" + closed.map(snagRow).join("") + "</details>" : "") +

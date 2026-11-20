@@ -96,8 +96,7 @@
             '<div class="small">' + fmtTime(p.in.at) + " – " + (p.out ? fmtTime(p.out.at) + (p.out.manual ? " (entered later)" : "") : "still on site") + "</div>" +
             [p.in, p.out].filter((e) => e && e.flagged).map((e) => '<div class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</div>").join("") +
             "</div><span>" + fmtHours(p.ms) + "</span></div>").join("") + "</div>";
-      }).join("") +
-      '<p class="small">Your location is recorded only at the moment you check in or out, and is used to confirm time on site for the Day Work Sheet and job costing.</p>';
+      }).join("");
   });
 
   IC.Time = { card, entries, pairs };

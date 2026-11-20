@@ -80,7 +80,7 @@
       '<div class="tiles">' +
       tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
       tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
-      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:toolbox") ? "Safety" : "Report") + "</b><span>" + (can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "Near miss, hazard or problem") + "</span></a>" : "") +
+      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + "Safety" + "</b><span>" + (can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
@@ -99,7 +99,10 @@
     }
     // things to do
     const todo = [];
-    for (const j of can("rams") ? myJobs() : []) {
+    // RAMS to sign: only for the site you're on today (Liam, 20 Nov: people can be reallocated before later days), i.e.
+    // today's planner allocation and the job you're checked in at
+    const todaySites = await sitesToday();
+    for (const j of can("rams") ? myJobs().filter((x) => todaySites.has(x.folder)) : []) {
       const r = await IC.Forms.ramsStatus(j);
       if (r.needed && !r.signed) todo.push('<a class="todo" href="#/form-new/rams/' + encodeURIComponent(j.folder) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Sign the RAMS for " + esc(j.jobNumber) + '</b><span class="small">' + esc(j.site || "") + " · new or updated RAMS</span></span>›</a>");
     }
@@ -164,12 +167,32 @@
       (n ? '<span class="pill new">' + n + " new</span>" : "") + (off ? '<span class="pill ok">Saved offline</span>' : "") + "</div></button>";
   }
 
-  function viewJobs(args) {
+  // Which of my jobs to show (Liam, 20 Nov): operatives the job they're on today; supervisors their current and recent
+  // jobs (this week on the planner, or checked in at in the last 14 days)
+  async function sitesToday() {
+    const today = IC.isoDate(new Date()), set = new Set(myWeek().filter((a) => a.date === today && !a.off && a.folder).map((a) => a.folder));
+    try { const ps = IC.Time.pairs(await IC.Time.entries()), open = ps.find((p) => p.in && !p.out && IC.sameDay(p.in.at, new Date())); if (open && open.in.jobFolder) set.add(open.in.jobFolder); } catch (e) { /* no time records */ }
+    return set;
+  }
+  async function sitesRecent() {
+    const set = await sitesToday(), mine = new Set(S.user.emails), from = new Date(); from.setDate(from.getDate() - 14);
+    ((S.manifest && S.manifest.allocations) || []).forEach((a) => { if (mine.has(String(a.email).toLowerCase()) && !a.off && a.folder) set.add(a.folder); });
+    try { (await IC.Time.entries()).forEach((e) => { if (e.jobFolder && new Date(e.at) >= from) set.add(e.jobFolder); }); } catch (e) { /* no time records */ }
+    return set;
+  }
+
+  async function viewJobs(args) {
     if (can("all-jobs")) return viewProjects(args || []);
-    setBar("My jobs", S.user ? S.user.name : "", false);
-    const jobs = myJobs().sort((a, b) => String(a.jobNumber).localeCompare(String(b.jobNumber)));
+    const supervisor = can("crew");
+    setBar(supervisor ? "My jobs" : "Today's job", S.user ? S.user.name : "", false);
     if (!S.manifest) { $("main").innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const keep = supervisor ? await sitesRecent() : await sitesToday();
+    const jobs = myJobs().filter((j) => keep.has(j.folder)).sort((a, b) => String(a.jobNumber).localeCompare(String(b.jobNumber)));
     if (!jobs.length) {
+      $("main").innerHTML = '<div class="empty"><h2>' + (supervisor ? "No current jobs" : "No job today") + "</h2></div>";
+      return;
+    }
+    if (false) {
       $("main").innerHTML = '<div class="empty"><h2>No jobs yet</h2><p>You are not on the site team for any live job. Ask the office to add you to the job in iCONSTRUCTE (Job card &gt; Site Issue &gt; Site Team).</p></div>';
       return;
     }
@@ -193,32 +216,55 @@
       '<span class="file-flags">' + (isNew(f) ? '<span class="pill new">New</span>' : "") + (saved ? '<span class="pill ok">Offline</span>' : "") + "</span></button>";
   }
 
-  async function viewJob(folder) {
+  // Job page (Liam, 20 Nov): the job's details, then a tile for each kind of site document; each opens its own page.
+  async function viewJob(folder, section) {
     const j = jobByFolder(folder);
     if (!j) { location.hash = "#/jobs"; return; }
-    setBar(j.jobNumber, j.site || j.customer, true);
     const files = (j.files || []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     const dr = files.filter((f) => f.category !== "H&S"), hs = files.filter((f) => f.category === "H&S");
     const off = D.offlineJobs.includes(j.folder), rams = await IC.Forms.ramsStatus(j);
     const f = encodeURIComponent(j.folder);
+    const bindFiles = () => document.querySelectorAll("[data-path]").forEach((b) => (b.onclick = () => (location.hash = "#/view/" + f + "/" + encodeURIComponent(b.dataset.path))));
+    if (section === "drawings") {
+      setBar("Drawings", j.jobNumber, true);
+      $("main").innerHTML = dr.length ? dr.map(fileRow).join("") : '<div class="empty">No drawings issued yet.</div>';
+      return bindFiles();
+    }
+    if (section === "rams") {
+      setBar("RAMS & crane plan", j.jobNumber, true);
+      $("main").innerHTML = (hs.length ? hs.map(fileRow).join("") : '<div class="empty">No RAMS issued yet.</div>') +
+        (hs.length && can("rams") ? (rams.signed ? '<div class="signed">✓ You signed these on ' + esc(fmtDate(rams.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + '">Read &amp; sign the RAMS</a>') : "");
+      return bindFiles();
+    }
+    if (section === "model") {
+      setBar("3D model", j.jobNumber, true);
+      $("main").innerHTML = (j.models || []).map((mo, i) => '<a class="tile-row" href="#/model/' + f + "/" + i + '"><span class="ti">' + ICON.jobs + '</span><span><b>' + esc(mo.name.replace(/\.ifc$/i, "")) + '</b><span class="small">' + (mo.issued ? "Issued " + esc(fmtDate(mo.issued)) : "") + "</span></span>›</a>").join("");
+      return;
+    }
+    if (section === "forms") {
+      setBar("Forms", j.jobNumber, true);
+      $("main").innerHTML = [["toolbox", "Toolbox talk", "#/toolbox/"], ["powra", "Point of work risk assessment", "#/form-new/powra/"], ["daywork", "Day work sheet", "#/form-new/daywork/"], ["nearmiss", "Near miss / hazard", "#/form-new/nearmiss/"], ["ncr", "Report a problem (NCR)", "#/form-new/ncr/"]]
+        .filter(([id]) => can("form:" + id) && !(can("qa") && IC.Forms.QA_FORMS.includes(id))).map(([id, t, h]) => '<a class="tile-row" href="' + h + f + '"><span class="ti safety">' + ICON.hs + "</span><span><b>" + esc(t) + "</b></span>›</a>").join("");
+      return;
+    }
+    setBar(j.jobNumber, j.site || j.customer, true);
     // site location from the job card: its Google Maps link (and the position, when the link contains one)
     const safeLink = j.mapLink && /^https?:\/\//i.test(j.mapLink) ? j.mapLink : "";
     const dirUrl = j.lat != null ? "https://www.google.com/maps/dir/?api=1&destination=" + j.lat + "," + j.lng : safeLink;
-    const loc = dirUrl ? '<div class="loc-row"><span>📍 ' + (j.lat != null ? Number(j.lat).toFixed(5) + ", " + Number(j.lng).toFixed(5) : "Site on Google Maps") + "</span>" +
-        '<a class="btn sm" href="' + esc(dirUrl) + '" target="_blank" rel="noopener">Directions</a></div>' +
-        (j.lat == null ? '<div class="loc-row small">The job card link has no position in it, so check-ins and photos can\'t show distance from site.</div>' : "")
-      : '<div class="loc-row small">No site location on the job card yet, so check-ins and photos can\'t show distance from site.</div>';
+    const loc = dirUrl ? '<div class="loc-row"><span>📍 ' + esc(j.site || "Site") + '</span><a class="btn sm" href="' + esc(dirUrl) + '" target="_blank" rel="noopener">Directions</a></div>' : "";
+    const nNew = dr.filter(isNew).length;
+    const t = (show, href, icon, title, sub, badge) => (show ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span>" + (badge ? '<em class="tile-badge">' + badge + "</em>" : "") + "</a>" : "");
+    const models = j.models || [];
     $("main").innerHTML = loc +
       '<div class="row"><button class="btn ' + (off ? "" : "primary") + '" id="btnOffline">' + (off ? "Saved offline ✓" : "Save for offline") + "</button></div>" +
-      (hs.length ? '<div class="section-h">RAMS &amp; crane plan</div>' + hs.map(fileRow).join("") +
-        (!can("rams") ? "" : rams.signed ? '<div class="signed">✓ You signed these on ' + esc(fmtDate(rams.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + '">Read &amp; sign the RAMS</a>') : "") +
-      ((j.models || []).length && can("model") ? '<div class="section-h">3D model</div>' + j.models.map((mo, i) => '<a class="todo info" href="#/model/' + f + "/" + i + '"><span><b>' + esc(mo.name.replace(/\.ifc$/i, "")) + '</b><span class="small">' + (can("erect") ? "View and mark steel erected" : "View the model") + (mo.issued ? " · issued " + esc(fmtDate(mo.issued)) : "") + "</span></span>›</a>").join("") : "") +
-      '<div class="section-h">Drawings (' + dr.length + ")</div>" + (dr.length ? dr.map(fileRow).join("") : '<div class="empty">No drawings issued yet.</div>') +
-      '<div class="section-h">Forms for this job</div><div class="chips">' +
-      [["nearmiss", "Near miss / hazard"], ["toolbox", "Toolbox talk"], ["plant", "Plant check"], ["daywork", "Day work sheet"], ["ncr", "Report a problem (NCR)"]]
-        .filter(([id]) => can("form:" + id) && !(can("qa") && IC.Forms.QA_FORMS.includes(id))).map(([id, t]) => '<a class="chip" href="' + (id === "toolbox" ? "#/toolbox/" : "#/form-new/" + id + "/") + f + '">' + esc(t) + "</a>").join("") + (can("qa") ? '<a class="chip" href="#/qa/' + f + '">QA for this job ›</a>' : "") + '<a class="chip" href="#/forms">All forms ›</a></div>' +
-      '<p class="small">Only the current issue of each drawing is shown. Superseded drawings are removed automatically, including offline copies.</p>';
-    document.querySelectorAll("[data-path]").forEach((b) => (b.onclick = () => (location.hash = "#/view/" + f + "/" + encodeURIComponent(b.dataset.path))));
+      '<div class="tiles">' +
+      t(true, "#/job/" + f + "/drawings", ICON.file, "Drawings", dr.length + (dr.length === 1 ? " drawing" : " drawings"), nNew ? nNew + " new" : "") +
+      t(models.length && can("model"), models.length === 1 ? "#/model/" + f + "/0" : "#/job/" + f + "/model", ICON.jobs, "3D model", can("erect") ? "View and mark erected" : "View the model") +
+      t(hs.length || can("rams"), "#/job/" + f + "/rams", ICON.hs, "RAMS", hs.length ? (can("rams") ? (rams.signed ? "Signed" : "Read and sign") : hs.length + " document" + (hs.length > 1 ? "s" : "")) : "None issued", can("rams") && rams.needed && !rams.signed ? "Sign" : "") +
+      t(can("form:plant") && (j.plant || []).length, "#/plant/" + f, ICON.check, "Plant checks", (j.plant || []).length + " machine" + ((j.plant || []).length === 1 ? "" : "s")) +
+      t(can("qa"), "#/qa/" + f, ICON.check, "QA", "Handover, audit, snags") +
+      t(true, "#/job/" + f + "/forms", ICON.forms, "Forms", "Toolbox, POWRA, day work") +
+      "</div>";
     $("btnOffline").onclick = () => toggleOffline(j);
   }
 
@@ -357,6 +403,7 @@
     if (name === "forms") return anyForm();
     if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]);
     if (name === "toolbox") return can("form:toolbox");
+    if (name === "plant") return can("form:plant");
     if (["leave", "leave-new"].includes(name)) return can("leave");
     if (["expenses", "expense", "expense-new"].includes(name)) return can("expenses");
     if (name === "time") return can("time");
@@ -375,9 +422,9 @@
     $("sheet").hidden = true;
     if (!permitted(name, args)) { toast("That isn't part of your role in the app"); location.hash = "#/"; return; }
     if (name === "") viewHome();
-    else if (name === "jobs") viewJobs(args);
+    else if (name === "jobs") viewJobs(args).catch((e) => console.error(e));
     else if (name === "project" && args[0]) viewProject(args);
-    else if (name === "job" && args[0]) viewJob(decodeURIComponent(args[0]));
+    else if (name === "job" && args[0]) viewJob(decodeURIComponent(args[0]), args[1] || "");
     else if (name === "view" && args[0]) viewFile(decodeURIComponent(args[0]), decodeURIComponent(args.slice(1).join("/")));
     else if (IC.routes[name]) Promise.resolve(IC.routes[name](args)).catch((e) => { console.error(e); $("main").innerHTML = '<div class="empty">Something went wrong: ' + esc(e.message) + "</div>"; });
     else location.hash = "#/";

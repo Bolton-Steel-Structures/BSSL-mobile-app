@@ -91,8 +91,7 @@
         Object.keys(sites).sort().map((k) => '<div class="section-h">' + esc(k) + " · " + sites[k].length + "</div>" + sites[k].map((x) => person(x, "In at " + esc(fmtTime(x.t.open.in.at)) + (x.t.open.in.jobNumber ? " · " + esc(x.t.open.in.jobNumber) : "") + elsewhere(x), "on")).join("")).join("") +
         (r.out.length ? '<div class="section-h">Checked out</div>' + r.out.map((x) => person(x, esc(x.t.state), "done")).join("") : "") +
         (r.off.length ? '<div class="section-h">Off today</div>' + r.off.map((x) => person(x, x.hol ? "On holiday" + (x.hol.to !== x.hol.from ? " until " + esc(fmtDay(x.hol.to)) : "") : "Off (on the planner)", "off")).join("") : "") +
-        (r.notIn.length ? '<div class="section-h">Office and others not checked in</div>' + r.notIn.map((x) => person(x, esc(plannedText(x)), "none")).join("") : "") +
-        '<p class="small" style="color:var(--sub)">Updated ' + esc(hhmm(new Date())) + ". Site staff not checked in by " + esc(hhmm(r.by)) + " are flagged unless on holiday or on the planner's Off row.</p>";
+        (r.notIn.length ? '<div class="section-h">Office and others not checked in</div>' + r.notIn.map((x) => person(x, esc(plannedText(x)), "none")).join("") : "");
     };
     $("main").innerHTML = '<div id="liveBox"><div class="empty">Loading…</div></div><button class="btn block" id="liveRefresh" style="margin-top:8px">Refresh now</button>';
     $("liveRefresh").onclick = async () => { try { await IC.Data.flush(); await IC.Data.pull(); } catch (e) { /* offline: show what we have */ } draw(); };
@@ -126,14 +125,14 @@
       link("#/leave/team", IC.ICON.leave, "Holiday requests", pendLeave.length ? pendLeave.map((r) => r.userName.split(" ")[0]).join(", ") : "None waiting · team calendar", pendLeave.length) +
       link("#/expenses/team", IC.ICON.money, "Expense claims", pendExp.length ? fmtMoney(pendExp.reduce((t, e) => t + e.amount, 0)) + " to approve" + (toPay.length ? " · " + fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "") : (toPay.length ? fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "None waiting"), pendExp.length) +
       link("#/manager/time/-1", IC.ICON.clock, "Timesheets to approve", toApprove.length ? "Week of " + fmtDay(lastWs) + ": " + toApprove.map((p) => p.name.split(" ")[0]).join(", ") : "Last week all approved", toApprove.length) +
+      link("#/manager/plant", IC.ICON.check, "Plant checks", "Every machine on every job this week") +
       link("#/manager/cards", IC.ICON.card, "Competency cards", cardsDue.length || noCscs.length ? [cardsDue.length ? cardsDue.length + " expiring or expired" : "", noCscs.length ? noCscs.length + " with no CSCS / CPCS on record" : ""].filter(Boolean).join(" · ") : "All in date", cardsDue.length + noCscs.length) +
       '<div class="section-h">Today</div>' + (states.length ? states.map((s) =>
         '<a class="tile-row mt-' + s.cls + '" href="#/manager/person/' + encodeURIComponent(s.p.email) + '/0"><span class="avatar">' + esc(initials(s.p.name)) + "</span><span><b>" + esc(s.p.name) + '</b><span class="small">' + esc(s.state) + "</span>" +
         s.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") +
         s.missed.map((x) => '<span class="flag">No check-out on ' + esc(fmtDay(x.in.at)) + "</span>").join("") + "</span>›</a>").join("") : '<div class="empty small">No one in your team yet. Managers are set on each employee in iCONSTRUCTE.</div>') +
       '<div class="section-h">Off in the next 2 weeks</div>' + (offSoon.length ? offSoon.map((r) => '<div class="req"><div><b>' + esc(r.userName) + '</b><div class="small">' + esc(fmtDay(r.from)) + (r.to !== r.from ? " – " + esc(fmtDay(r.to)) : "") + " · " + esc(r.type) + "</div></div></div>").join("") : '<div class="empty small">No one booked off.</div>') +
-      (cardsDue.length ? '<div class="section-h">Cards expiring or expired</div>' + cardsDue.map((c) => IC.Cards.row(c, true)).join("") : "") +
-      '<p class="small">Only managers see Manager tools, and only for their own team. Holiday, expense, card and check-in records are kept in the secure Azure database, not in iCONSTRUCTE\'s shared file.</p>';
+      (cardsDue.length ? '<div class="section-h">Cards expiring or expired</div>' + cardsDue.map((c) => IC.Cards.row(c, true)).join("") : "");
   }
 
   // ---------------------------------------------------------------- time keeping: team week, approve weeks
@@ -153,12 +152,11 @@
     $("main").innerHTML = '<div class="row nav-week"><a class="btn" href="#/manager/time/' + (off - 1) + '">‹ Previous</a>' + (off < 0 ? '<a class="btn" href="#/manager/time/' + (off + 1) + '">Next ›</a>' : "") + "</div>" +
       '<div class="scroll-x"><table class="tbl hrs"><thead><tr><th>Name</th>' + days.map((x) => "<th>" + x.toLocaleDateString("en-GB", { weekday: "short" }) + "</th>").join("") + "<th>Total</th></tr></thead><tbody>" +
       rows.map((r) => "<tr><td><a href=\"#/manager/person/" + encodeURIComponent(r.p.email) + "/" + off + '">' + esc(r.p.name) + "</a></td>" + r.per.map((ms) => "<td>" + h(ms) + "</td>").join("") + "<td><b>" + h(r.total) + "</b></td></tr>").join("") +
-      "</tbody></table></div>" + '<p class="small">Hours from check-in to check-out. Tap a name for the detail (sites, times, any flagged check-ins).</p>' +
+      "</tbody></table></div>" +
       '<div class="section-h">' + (finished ? "Approve the week" : "This week is still running") + "</div>" +
       rows.filter((r) => r.total || r.done).map((r) => '<div class="req"><div><b>' + esc(r.p.name) + '</b><div class="small">' + fmtHours(r.total) + (r.flags ? ' · <span class="flag">' + r.flags + " flagged</span>" : "") + (r.missing ? ' · <span class="flag">' + r.missing + " missing check-out</span>" : "") + "</div>" +
         (r.done ? '<div class="small">Approved by ' + esc(r.done.decidedBy) + " · " + esc(fmtDate(r.done.decidedAt)) + " · sent to iCONSTRUCTE as job hours</div>" : "") + "</div>" +
-        '<div class="req-r">' + (r.done ? '<span class="pill approved">Approved</span>' : finished ? '<button class="btn go sm" data-ok="' + esc(r.p.email) + '"' + (r.missing ? " disabled" : "") + ">Approve</button>" : '<span class="pill">Open</span>') + "</div></div>").join("") +
-      (rows.some((r) => r.missing && !r.done && finished) ? '<p class="small">A week with a missing check-out can\'t be approved until the person enters the time they left (on their Home screen).</p>' : "");
+        '<div class="req-r">' + (r.done ? '<span class="pill approved">Approved</span>' : finished ? '<button class="btn go sm" data-ok="' + esc(r.p.email) + '"' + (r.missing ? " disabled" : "") + ">Approve</button>" : '<span class="pill">Open</span>') + "</div></div>").join("");
     document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = async () => {
       const r = rows.find((x) => x.p.email === b.dataset.ok);
       const jobs = {};
@@ -198,7 +196,6 @@
       d.team.map((p) => { const mine = d.cards.filter((c) => c.user === p.email);
         return "<tr><td><a href=\"#/manager/person/" + encodeURIComponent(p.email) + '/0">' + esc(p.name) + "</a></td>" + types.map((t) => { const c = mine.filter((x) => name(x) === t).sort((a, b) => (b.expiry || "").localeCompare(a.expiry || ""))[0]; return t === "CSCS" && !c ? '<td class="cc declined">none</td>' : cell(c); }).join("") + "</tr>"; }).join("") +
       "</tbody></table></div>" +
-      '<p class="small">Dates are expiry dates. * = not yet checked against the original card (open it and tap "I\'ve seen the original card"). Use this for RAMS and induction packs and tender questionnaires; welders\' BS EN ISO 9606-1 qualifications show here too.</p>' +
       '<button class="btn block" id="csv">Export (CSV)</button>';
     $("csv").onclick = () => {
       const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
@@ -211,11 +208,34 @@
   // for Home's to-do list: who's late in (empty before the check-in time or on a non-working day)
   IC.Manager = { async lateCheckIns() { const r = roll(await load()); const list = r.late ? r.missing : []; list.by = hhmm(r.by); return list; } };
 
+  // Plant checks across the jobs (Liam, 20 Nov: managers oversee these and can complete them): every machine on hire to
+  // a live job, this week's daily checks (green OK, red defect, grey none), today's state first. Tap a machine for its
+  // weekly sheet, where a manager can also do the check.
+  async function viewPlant() {
+    IC.setBar("Plant checks", "This week", true);
+    const mon = (() => { const x = new Date(); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; })();
+    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(mon); d.setDate(d.getDate() + i); return d; });
+    const checks = (await Data.list("forms", "team")).filter((c) => c.templateId === "plant" && c.status !== "draft" && c.values);
+    const jobs = IC.viewableJobs().filter((j) => (j.plant || []).length);
+    let missingToday = 0, defects = 0;
+    const rows = jobs.map((j) => '<div class="section-h">' + esc(j.jobNumber + " · " + (j.site || "")) + "</div>" + j.plant.map((p) => {
+      const mine = checks.filter((c) => c.jobFolder === j.folder && c.values.plantKey === p.id);
+      const dayState = (d) => { const dc = mine.filter((c) => IC.sameDay(c.submittedAt || c.updatedAt, d)); return !dc.length ? "" : dc.some((c) => c.values.safe === "No" || (c.flags || []).length) ? "bad" : "ok"; };
+      const today = dayState(new Date()); if (!today) missingToday++; if (today === "bad") defects++;
+      return '<a class="tile-row" href="#/plant/' + encodeURIComponent(j.folder) + "/" + encodeURIComponent(p.id) + '"><span><b>' + esc(p.model || p.description || "Plant") + '</b><span class="small">' + esc([p.type, p.ref].filter(Boolean).join(" · ")) + '</span><span class="pdots">' +
+        days.map((d) => '<span class="pd ' + dayState(d) + '">' + d.toLocaleDateString("en-GB", { weekday: "narrow" }) + "</span>").join("") + "</span></span>" +
+        (today === "bad" ? '<span class="pill declined">Defect</span>' : today === "ok" ? '<span class="pill ok">Checked</span>' : '<span class="pill">Not checked today</span>') + "</a>";
+    }).join("")).join("");
+    $("main").innerHTML = '<div class="stats"><div><b>' + jobs.reduce((t, j) => t + j.plant.length, 0) + '</b><span>machines</span></div><div><b>' + missingToday + '</b><span>not checked today</span></div><div><b>' + defects + "</b><span>defects today</span></div></div>" +
+      (rows || '<div class="empty small">No plant on hire to live jobs.</div>');
+  }
+
   route("manager", async (args) => {
     if (!Data.profile || !Data.profile.isManager) { location.hash = "#/"; return; }
     if (args[0] === "live") return viewLive();
     if (args[0] === "time") return viewTime(Number(args[1] || 0));
     if (args[0] === "cards") return viewCards();
+    if (args[0] === "plant") return viewPlant();
     if (args[0] === "person" && args[1]) return viewPerson(decodeURIComponent(args[1]), Number(args[2] || 0));
     return dashboard();
   });

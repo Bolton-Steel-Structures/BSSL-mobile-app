@@ -34,6 +34,36 @@
   }
 
   const YNA = ["Yes", "No", "N/A"];
+  // Plant BSS hires (Liam, 20 Nov), each with its own daily check sheet. Cranes are checked by the crane company's driver.
+  const PLANT_TYPES = ["Telehandler", "Cherry picker – diesel", "Cherry picker – electric", "Scissor lift – diesel", "Scissor lift – electric", "Genie SuperLift", "Mini crane"];
+  const MEWP_COMMON = ["Ground and platform controls working; emergency stop at both", "Emergency lowering / auxiliary descent checked", "Tilt alarm and overload (load sensing) working",
+    "Platform guardrails, gate and toe boards intact", "No hydraulic leaks; hoses and cylinders undamaged", "Tyres and wheels in good condition", "Alarms, beacon and horn working",
+    "Ground conditions checked for the set-up", "Rescue plan in place and the ground person briefed"];
+  const DIESEL = ["Fuel, engine oil and coolant levels OK", "Exhaust and engine bay free of damage and leaks"];
+  const ELECTRIC = ["Batteries charged; charger lead and connections undamaged", "No battery acid leaks or corrosion"];
+  const PLANT_CHECKS = {
+    "Telehandler": ["Thorough examination (LOLER) in date for the machine and every attachment",
+      "Load chart for the attachment in use is in the cab", "Load moment indicator (LMI) tested and working", "Quick-hitch / carriage locking pin secure",
+      "Lifting jib: LOLER in date, SWL marked, locking pins and retaining clips fitted", "Chains: tag in date, no stretched or damaged links, hooks with safety catches",
+      "Forks: no cracks or bends, locking pins fitted", "Stabilisers / outriggers working (if fitted)", "Tyres, wheels and wheel nuts in good condition",
+      "No hydraulic, fuel or oil leaks; hoses undamaged", "Brakes, steering and parking brake working", "Lights, beacon, horn and reversing alarm working",
+      "Seat belt, mirrors and cab glass undamaged", "Fuel, engine oil, coolant and hydraulic levels OK"],
+    "Cherry picker – diesel": ["Thorough examination (LOLER) in date", "Harness and short lanyard inspected and worn, clipped to the basket anchor", "Outriggers / stabilisers working (if fitted)"].concat(MEWP_COMMON, DIESEL),
+    "Cherry picker – electric": ["Thorough examination (LOLER) in date", "Harness and short lanyard inspected and worn, clipped to the basket anchor"].concat(MEWP_COMMON, ELECTRIC),
+    "Scissor lift – diesel": ["Thorough examination (LOLER) in date", "Pothole protection deploys", "Extension deck locks in and out"].concat(MEWP_COMMON, DIESEL),
+    "Scissor lift – electric": ["Thorough examination (LOLER) in date", "Pothole protection deploys", "Extension deck locks in and out"].concat(MEWP_COMMON, ELECTRIC),
+    "Genie SuperLift": ["Thorough examination (LOLER) in date", "Set up on firm, level ground; legs / outriggers out and locked", "Castors locked", "Mast sections clean, straight and undamaged",
+      "Winch cable: no kinks, fraying or crushing; at least 3 wraps on the drum", "Winch brake holds the load", "Forks / load platform secure; load within the SWL for the height",
+      "Handle and ratchet working", "Load secured before lifting; nobody under the load"],
+    "Mini crane": ["Thorough examination (LOLER) in date for the crane and every lifting accessory", "Set up on firm, level ground; outriggers fully out, on pads and interlocks working",
+      "Level indicator shows the crane level", "Rated capacity indicator / safe load indicator tested and working", "Overhoist (anti-two-block) cut-out working",
+      "Wire rope: no kinks, broken wires or crushing; spooling correctly on the drum", "Hook and safety catch undamaged; hook block turns freely",
+      "Boom sections and pins undamaged", "No hydraulic, fuel or oil leaks; hoses undamaged", "Tracks and undercarriage in good condition",
+      "Remote / control station and emergency stops working", "Slings, shackles and lifting accessories tagged and in date"],
+    // Older checks only (no longer offered)
+    "Other machine (daily check)": ["Thorough examination (LOLER) in date (if lifting)", "Tyres, tracks and wheels in good condition",
+      "No hydraulic, fuel or oil leaks", "Controls and emergency stop working", "Alarms, lights and beacon working", "Guards and covers in place"]
+  };
   const T = [
     // ----- SAFETY
     { id: "rams", group: "Safety", title: "RAMS & crane plan briefing", ref: "QFC05 Q05.4", perPerson: true,
@@ -54,15 +84,19 @@
         { type: "photos", id: "photos", label: "Photos (optional)" }
       ] },
     { id: "plant", group: "Safety", title: "Plant pre-use check", ref: "QFC05 Q05.8 · Plant register",
+      blurb: "Daily check before use. Each machine has a weekly sheet anyone on the site can add to.",
       fields: [
-        { type: "select", id: "plantType", label: "Plant", options: ["MEWP – scissor", "MEWP – boom", "Telehandler", "Rotating telehandler", "Mobile crane", "Forklift", "Generator / compressor", "Other"], required: true },
-        { type: "text", id: "plantId", label: "Make / model and fleet or hire no.", required: true },
+        { type: "hidden", id: "plantKey" },
+        { type: "text", id: "plantRef", label: "Machine reference (fleet / hire no. on the machine)", required: true },
+        { type: "select", id: "plantType", label: "Machine", options: PLANT_TYPES, required: true },
+        { type: "text", id: "plantId", label: "Make / model", placeholder: "e.g. Genie Z45" },
         { type: "number", id: "hours", label: "Hour meter", unit: "hrs" },
-        { type: "checklist", id: "checks", label: "Checks", items: ["Thorough examination (LOLER) certificate in date", "Operator holds a valid card for this plant (IPAF / CPCS / NPORS)", "Tyres, tracks and wheels in good condition", "No hydraulic, fuel or oil leaks", "Ground, outriggers and stabilisers suitable", "Controls and emergency stop working", "Emergency lowering checked", "Alarms, lights and beacon working", "Guardrails, gates and harness anchor points intact", "SWL plate / load chart visible"], badAnswer: "No", required: true },
+        { type: "checklist", id: "checks", label: "Checks", itemsBy: "plantType", itemsFor: PLANT_CHECKS, badAnswer: "No", required: true },
         { type: "text", id: "defects", label: "Other comments", multiline: true },
         { type: "yesno", id: "safe", label: "Safe to use?", badAnswer: "No", required: true, warn: "Do not use. Tag it out of use and tell your supervisor and the hire company." },
         { type: "photos", id: "photos", label: "Photos" },
-        { type: "signature", id: "sig", label: "Checked by", required: true }
+        { type: "text", id: "operator", label: "Operator", prefill: "me", required: true },
+        { type: "signature", id: "sig", label: "Operator signature", required: true }
       ] },
     { id: "lifting", group: "Safety", title: "Lifting accessories check", ref: "QFC05 Q05.10 · Lifting equipment register",
       fields: [
@@ -70,7 +104,6 @@
           { id: "item", label: "Item", type: "select", options: ["Chain sling", "Webbing sling", "Round sling", "Shackle", "Beam clamp", "Lifting beam", "Eyebolt", "Other"] },
           { id: "idno", label: "ID no.", type: "text" }, { id: "swl", label: "SWL", type: "text" },
           { id: "cert", label: "Exam date", type: "date" }, { id: "ok", label: "Condition OK", type: "yesno", badAnswer: "No" }] },
-        { type: "note", text: "Take any item that fails out of use straight away and tag it “Do not use”." },
         { type: "signature", id: "sig", label: "Checked by", required: true }
       ] },
     { id: "handover", group: "Safety", title: "Safe site handover", ref: "NSSS 8.2, 8.3 · Table 1.5(x)",
@@ -82,6 +115,19 @@
         { type: "text", id: "pcName", label: "Principal Contractor representative", required: true },
         { type: "signature", id: "pcSig", label: "Principal Contractor signature", required: true },
         { type: "signature", id: "sig", label: "BSS supervisor signature", required: true }
+      ] },
+    { id: "powra", group: "Safety", title: "Point of work risk assessment (POWRA)", ref: "H&S · RAMS",
+      blurb: "Before starting the task: check the hazards where you're working, then the team signs.",
+      fields: [
+        { type: "text", id: "task", label: "Task", required: true },
+        { type: "text", id: "where", label: "Where on site", required: true },
+        { type: "checklist", id: "checks", label: "Before starting", badAnswer: "No", required: true, items: [
+          "Briefed on the RAMS for this task", "Safe access and egress to the work area", "Working at height controls in place (MEWP, edge protection, harness)",
+          "Lift planned, exclusion zone set and slinger / signaller in place", "Plant checked", "Weather suitable (wind, rain, ice)",
+          "Other trades and the public kept clear", "Tools and equipment checked", "Correct PPE worn", "Emergency and rescue arrangements known"] },
+        { type: "text", id: "other", label: "Any other hazards and how they're controlled", multiline: true },
+        { type: "yesno", id: "safe", label: "Safe to start?", badAnswer: "No", required: true, warn: "Don't start. Tell your supervisor." },
+        { type: "people", id: "team", label: "Team: each person signs", required: true }
       ] },
     { id: "nearmiss", group: "Safety", title: "Near miss / hazard report", ref: "H&S",
       fields: [
@@ -163,12 +209,12 @@
     { id: "works", group: "Quality", title: "Site inspection / handover", ref: "BSS Works Inspection · NSSS 8.9 · QFC05 Q05.11",
       blurb: "BSS standard Works Inspection sheet: areas inspected, snags & defects, and client sign-off for partial or full handover.",
       fields: [
-        { type: "note", text: "Contract and contract no. come from the job above. Mark each area Y (accept), N (snag or defect: add a comment) or N/A." },
         { type: "text", id: "glRef", label: "GL ref (grid lines / area inspected)", required: true },
         { type: "text", id: "stage", label: "Work stage", required: true, placeholder: "e.g. Phase 1 frame, GL A–F" },
         { type: "inspect", id: "areas", label: "Areas inspected / snags & defects noted", required: true, items: [
           "HD bolts tight", "Proprietary anchors installed", "All steelwork fitted", { t: "Columns lined, levelled & plumbed on grid", x: { label: "Checked with", options: ["Total station", "Laser level", "Laser line", "Spirit level", "Optical level", "Plumb line and tape"] } },
-          "All bolts installed", "Beam connection – bolts tight", { t: "HSFG / TCB bolts torqued", x: { label: "Torque (Nm), if required", number: true } }, "Beams level",
+          "All bolts installed", "Beam connection – bolts tight", "HSFG / TCB (indicator) bolts: indicators show full tension",
+          { t: "Bolts tensioned by torque", x: { label: "Torque (Nm), if required", number: true } }, "Beams level",
           "Top flanges unpainted where decking is fixed", "Finishes (paint / galv) undamaged", "All flooring installed",
           "All purlins installed", "All side rails installed", "Isolation packs installed", "PC stair free of spalled edges",
           "Steel stair fixed", "Balustrade / handrail complete", "Edge protection complete", "Metal deck complete", "Siteworks repaired",
@@ -197,6 +243,24 @@
         { type: "photos", id: "photos", label: "Photos" },
         { type: "text", id: "comments", label: "Other comments", multiline: true },
         { type: "signature", id: "sig", label: "Audited by", required: true }
+      ] },
+    { id: "supcomp", group: "Quality", title: "Supervisors Completion", ref: "BSS Works Inspection (short) · NSSS 8.9",
+      blurb: "The supervisor's sign-off of the finished area. Any N becomes a snag.",
+      fields: [
+        { type: "text", id: "glRef", label: "GL ref (grid lines / area)", required: true },
+        { type: "text", id: "stage", label: "Work stage", required: true, placeholder: "e.g. Phase 1 frame, GL A–F" },
+        { type: "inspect", id: "areas", label: "Areas checked", required: true, items: [
+          "All steelwork fitted",
+          { t: "Columns lined, levelled & plumbed on grid", x: { label: "Checked with", options: ["Total station", "Laser level", "Laser line", "Spirit level", "Optical level", "Plumb line and tape"] } },
+          "All bolts installed and tight",
+          "HSFG / TCB (indicator) bolts: indicators show full tension",
+          { t: "Bolts tensioned by torque", x: { label: "Torque (Nm), if required", number: true } },
+          "Finishes (paint / galv) undamaged",
+          "Site welds: where any site welding has been done, coatings repaired (N/A if none)",
+          "Edge protection / handrail complete", "Work area cleared"] },
+        { type: "photos", id: "photos", label: "Photos" },
+        { type: "text", id: "comments", label: "Other comments", multiline: true },
+        { type: "signature", id: "sig", label: "Supervisor signature", required: true }
       ] },
     { id: "completion", group: "Quality", title: "Completion & handover certificate", ref: "NSSS 8.9 · QFC05 Q05.11",
       fields: [
@@ -244,6 +308,7 @@
     const label = f.label ? '<div class="ff-l">' + esc(f.label) + (f.required ? ' <span class="req-star">*</span>' : "") + (f.unit ? ' <span class="small">(' + esc(f.unit) + ")</span>" : "") + "</div>" : "";
     const need = (ok) => (f.required && !ok ? (f.label || "This") + " is needed" : "");
     switch (f.type) {
+      case "hidden": { const hv = val != null ? val : (ctx.prefill || {})[f.id] || ""; el.hidden = true; return { el, get: () => hv, check: () => "" }; }
       case "h": el.innerHTML = '<div class="section-h">' + esc(f.label) + "</div>"; return { el, get: () => undefined, check: () => "" };
       case "note": el.innerHTML = '<div class="note">' + esc(f.text) + "</div>"; return { el, get: () => undefined, check: () => "" };
       case "docs": {
@@ -252,14 +317,17 @@
         return { el, get: () => undefined, check: () => (hs.length ? "" : "No RAMS have been issued for this job") };
       }
       case "text": case "number": case "date": case "time": {
-        const v = val != null ? val : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : "";
+        const pre = (ctx.prefill || {})[f.id];
+        const v = val != null ? val : pre != null ? pre : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : "";
         el.innerHTML = label + (f.multiline ? '<textarea rows="3">' + esc(v) + "</textarea>" : '<input type="' + (f.type === "text" ? "text" : f.type) + '"' + (f.type === "number" ? ' inputmode="decimal" step="any"' : "") + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : "") + ' value="' + esc(v) + '">');
         const inp = el.querySelector("input,textarea");
         return { el, get: () => inp.value.trim(), check: () => need(inp.value.trim()) };
       }
       case "select": {
+        if (val == null && ctx.prefill && ctx.prefill[f.id] != null) val = ctx.prefill[f.id];
         el.innerHTML = label + '<select><option value="">Choose…</option>' + f.options.map((o) => "<option" + (o === val ? " selected" : "") + ">" + esc(o) + "</option>").join("") + "</select>";
-        const s = el.querySelector("select"); return { el, get: () => s.value, check: () => need(s.value) };
+        const s = el.querySelector("select"); s.onchange = () => document.dispatchEvent(new CustomEvent("ic-field", { detail: { id: f.id, value: s.value } }));
+        return { el, get: () => s.value, check: () => need(s.value) };
       }
       case "yesno": {
         const opts = f.na === false ? ["Yes", "No"] : YNA;
@@ -274,6 +342,15 @@
           check: () => need(s.dataset.value) || (act && s.dataset.value === f.badAnswer && !act.value.trim() ? (f.label || "This") + ": say what action is needed" : "") };
       }
       case "checklist": {
+        if (f.itemsBy) {
+          // items follow another field (the machine type): rebuilt when it changes
+          const holder = document.createElement("div"); holder.className = "ff ff-checklist";
+          let inner = null, cur = (ctx.values || {})[f.itemsBy] || (ctx.prefill || {})[f.itemsBy] || "";
+          const draw = () => { const items = f.itemsFor[cur] || []; holder.innerHTML = ""; if (!items.length) { inner = null; holder.innerHTML = '<div class="small">' + esc(f.label) + ": pick the machine first.</div>"; return; } inner = field(Object.assign({}, f, { itemsBy: null, items }), cur === ((ctx.values || {})[f.itemsBy] || "") ? val : null, ctx); holder.appendChild(inner.el); };
+          draw();
+          document.addEventListener("ic-field", (e) => { if (e.detail.id === f.itemsBy && e.detail.value !== cur && holder.isConnected) { cur = e.detail.value; draw(); } });
+          return { el: holder, get: () => (inner ? inner.get() : {}), extra: () => (inner && inner.extra ? inner.extra() : {}), check: () => (inner ? inner.check() : f.required ? "Pick the machine" : "") };
+        }
         const v = val || {};
         const acts0 = (ctx.values || {})[f.id + "Actions"] || {};
         el.innerHTML = label + f.items.map((it, i) => '<div class="cl-item" data-i="' + i + '"><div class="cl-row"><div class="cl-t">' + esc(it) + "</div>" + seg(String(i), YNA, v[it], f.badAnswer) + "</div>" +
@@ -414,7 +491,7 @@
   // ---------------------------------------------------------------- screens
   // Forms that live on the QA page (Liam, 20 Nov: no doubling up between QA and Forms). People without QA (operatives)
   // still raise an NCR from Forms.
-  const QA_FORMS = ["handover", "audit", "works", "ncr", "completion"];
+  const QA_FORMS = ["handover", "audit", "works", "supcomp", "ncr", "completion"];
 
   async function viewList() {
     setBar("Forms", IC.can("qa") ? "Safety and day work" : "Safety and reporting", false);
@@ -422,7 +499,7 @@
     const drafts = mine.filter((f) => f.status === "draft"), done = mine.filter((f) => f.status !== "draft").slice(0, 15);
     const allowedT = T.filter((t) => t.id !== "rams" && !t.retired && IC.can("form:" + t.id) && !(IC.can("qa") && QA_FORMS.includes(t.id)));
     const group = (g) => !allowedT.some((t) => t.group === g) ? "" : '<div class="section-h">' + g + "</div>" + allowedT.filter((t) => t.group === g).map((t) =>
-      '<a class="tile-row" href="' + (t.id === "toolbox" ? "#/toolbox" : "#/form-new/" + t.id) + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
+      '<a class="tile-row" href="' + (t.id === "toolbox" ? "#/toolbox" : t.id === "plant" ? "#/plant" : "#/form-new/" + t.id) + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
     const row = (f) => { const t = tpl(f.templateId) || { title: f.templateId };
       return '<a class="tile-row" href="#/form/' + f.id + '"><span class="ti">' + IC.ICON.file + "</span><span><b>" + esc(t.title) + '</b><span class="small">' + esc((f.jobNumber || "No job") + " · " + fmtDay(f.updatedAt) + " " + fmtTime(f.updatedAt)) + "</span></span>" +
         (f.status === "draft" ? '<span class="pill warn">Draft</span>' : f.flags && f.flags.length ? '<span class="pill new">Issue</span>' : '<span class="pill ok">Sent</span>') + "</a>"; };
@@ -434,6 +511,8 @@
   async function viewForm(templateId, existing, prefillJob) {
     const t = tpl(templateId); if (!t) { location.hash = "#/forms"; return; }
     const rec = existing || { templateId, status: "draft", values: {} };
+    const prefill = existing ? {} : IC.LS.get(templateId + "Prefill", null) || {};
+    if (!existing) IC.LS.del(templateId + "Prefill");
     let folder = rec.jobFolder || prefillJob || IC.LS.get("lastJob", "") || "";
     if (!jobByFolder(folder)) folder = (IC.viewableJobs()[0] || {}).folder || "";
     setBar(t.title, t.ref, true);
@@ -443,7 +522,7 @@
     const build = () => {
       const job = jobByFolder($("fJob").value);
       const box = $("fFields"); box.innerHTML = ""; widgets = [];
-      for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values }); w.f = f; widgets.push(w); box.appendChild(w.el); }
+      for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values, prefill }); w.f = f; widgets.push(w); box.appendChild(w.el); }
     };
     build();
     $("fJob").onchange = () => { if (t.id === "rams") build(); };
@@ -475,7 +554,8 @@
       box.hidden = true; $("fSend").disabled = true;
       const saved = await save("submitted");
       toast(t.title + " submitted");
-      if (t.id === "works") { await IC.QA.afterInspection(saved); location.hash = "#/form/" + saved.id; return; }
+      if (t.id === "plant" && saved.values && saved.values.plantRef) { IC.toast("Check saved on the weekly sheet"); location.hash = "#/plant/" + encodeURIComponent(saved.jobFolder || "") + "/" + encodeURIComponent(saved.values.plantKey || saved.values.plantRef); return; }
+      if (t.id === "works" || t.id === "supcomp") { await IC.QA.afterInspection(saved); location.hash = "#/form/" + saved.id; return; }
       const out = (saved.flags || []).filter((x) => x.ncr);
       if (out.length && t.id !== "ncr") {
         const sh = sheet("<h3>" + out.length + " item(s) out of tolerance</h3><p>NSSS 9.4: the Engineer must be told about deviations greater than permitted. Raise a non-conformance report now?</p>" +
@@ -548,7 +628,73 @@
     $("main").innerHTML = extra + (rec.flags && rec.flags.length ? '<div class="warnbox"><b>Flagged for the office</b><br>' + rec.flags.map((x) => esc(x.text)).join("<br>") + "</div>" : "") +
       '<div class="small">' + esc((rec.userName || "") + " · submitted " + fmtDay(rec.submittedAt || rec.updatedAt) + " " + fmtTime(rec.submittedAt || rec.updatedAt)) + "</div>" + parts.join("") +
       (rec.history && rec.history.length ? '<div class="small">' + rec.history.map((h) => esc(fmtDay(h.at) + " · " + (h.by || "") + " · " + h.note)).join("<br>") + "</div>" : "");
+    // email / share the completed form as a PDF (Liam, 20 Nov)
+    $("main").insertAdjacentHTML("beforeend", '<button class="btn block" id="fShare" style="margin-top:12px">Email or share as PDF</button>');
+    $("fShare").onclick = async () => { const b = $("fShare"); b.disabled = true; b.textContent = "Making the PDF…"; try { await IC.FormPdf.share(rec); } catch (e) { console.error(e); toast("Couldn't make the PDF"); } b.disabled = false; b.textContent = "Email or share as PDF"; };
     IC.QA.bindStatus(rec);
+  }
+
+  // Plant (Liam, 20 Nov): each job has a Plant section listing the plant hired to it in iCONSTRUCTE; tap the machine
+  // you're operating and do the day's pre-use check. Checks gather into one weekly sheet per machine (Mon–Sun) that
+  // anyone on the site can add to (a Genie Z45 may be checked by five operators in a week). Each daily check is its own
+  // record, so two phones never overwrite each other. A machine that isn't on a hire in iCONSTRUCTE can still be checked
+  // by typing its reference ("Other machine").
+  const monOf = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  const addD = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const normRef = (r) => String(r || "").trim().toUpperCase().replace(/\s+/g, " ");
+  const keyOf = (c) => c.values.plantKey || "REF:" + normRef(c.values.plantRef);
+  async function plantChecks(folder) { return (await Data.list("forms", "team")).filter((f) => f.templateId === "plant" && f.status !== "draft" && f.jobFolder === folder && f.values && (f.values.plantKey || f.values.plantRef)); }
+  // machines on a job: its hired plant, plus any other machine checked there in the last 4 weeks
+  async function machinesFor(folder) {
+    const j = jobByFolder(folder), list = ((j && j.plant) || []).map((p) => ({ key: p.id, title: p.model || p.description || "Plant " + p.no, sub: [p.type, p.ref ? "ref " + p.ref : "", p.attachments, p.supplier, p.offHire ? "off hire " + fmtDate(p.offHire) : ""].filter(Boolean).join(" · "), hired: p }));
+    const since = addD(monOf(new Date()), -28), checks = await plantChecks(folder);
+    checks.forEach((c) => { const k = keyOf(c); if (!list.some((m) => m.key === k) && new Date(c.submittedAt || c.updatedAt) >= since) list.push({ key: k, title: c.values.plantRef, sub: [c.values.plantType, c.values.plantId].filter(Boolean).join(" · ") }); });
+    return { j, list, checks };
+  }
+  async function plantFolder(args) {
+    let folder = args[0] ? decodeURIComponent(args[0]) : "";
+    if (!folder) { const today = isoDate(new Date()), a = IC.myWeek().find((x) => x.date === today && !x.off && x.folder); folder = (a && a.folder) || IC.LS.get("lastJob", "") || ((IC.viewableJobs()[0] || {}).folder || ""); }
+    return folder;
+  }
+  IC.route("plant", async (args) => {
+    const folder = await plantFolder(args);
+    if (args[1]) return plantSheet(folder, decodeURIComponent(args[1]), args[2] ? +args[2] : 0);
+    const { j, list, checks } = await machinesFor(folder);
+    setBar("Plant", j ? j.jobNumber + " · " + (j.site || "") : "", true);
+    const mon = monOf(new Date()), days = Array.from({ length: 7 }, (_, i) => addD(mon, i));
+    const dot = (k, d) => { const day = checks.filter((c) => keyOf(c) === k && IC.sameDay(c.submittedAt || c.updatedAt, d)); return '<span class="pd ' + (!day.length ? "" : day.some((c) => c.values.safe === "No" || (c.flags || []).length) ? "bad" : "ok") + '">' + d.toLocaleDateString("en-GB", { weekday: "narrow" }) + "</span>"; };
+    $("main").innerHTML = (IC.viewableJobs().length > 1 ? '<label class="fl">Job<select id="pJob">' + jobOptions(folder, false) + "</select></label>" : "") +
+      (list.length ? list.map((m) => '<a class="tile-row" href="#/plant/' + encodeURIComponent(folder) + "/" + encodeURIComponent(m.key) + '"><span class="ti safety">' + IC.ICON.hs + "</span><span><b>" + esc(m.title) + '</b><span class="small">' + esc(m.sub) + '</span><span class="pdots">' + days.map((d) => dot(m.key, d)).join("") + "</span></span>›</a>").join("") : '<div class="empty small">No plant on hire to this job.</div>') +
+      '<button class="btn block" id="pAdd" style="margin-top:10px">Other machine</button>';
+    if ($("pJob")) $("pJob").onchange = (e) => (location.hash = "#/plant/" + encodeURIComponent(e.target.value));
+    $("pAdd").onclick = () => {
+      const sh = sheet('<h3>Which machine?</h3><label class="fl">Machine reference (on the machine)<input type="text" id="pRef" placeholder="e.g. GZ45-0123" autocomplete="off"></label><button class="btn primary block" data-go>Next</button><button class="btn block" data-x>Cancel</button>');
+      const go = () => { const ref = sh.q("#pRef").value.trim(); if (!ref) return; sh.close(); location.hash = "#/plant/" + encodeURIComponent(folder) + "/" + encodeURIComponent("REF:" + normRef(ref)); };
+      sh.q("[data-go]").onclick = go; sh.q("#pRef").onkeydown = (e) => { if (e.key === "Enter") go(); }; sh.q("[data-x]").onclick = sh.close; sh.q("#pRef").focus();
+    };
+  });
+  async function plantSheet(folder, key, weekOff) {
+    const { j, list, checks } = await machinesFor(folder), m = list.find((x) => x.key === key) || { key, title: key.replace(/^REF:/, ""), sub: "" };
+    const mon = addD(monOf(new Date()), weekOff * 7), days = Array.from({ length: 7 }, (_, i) => addD(mon, i));
+    const all = checks.filter((c) => keyOf(c) === key).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || "")), latest = all[0];
+    setBar(m.title, [latest && latest.values.plantRef !== m.title ? latest.values.plantRef : "", j ? j.jobNumber : ""].filter(Boolean).join(" · "), true);
+    const week = all.filter((c) => { const d = new Date(c.submittedAt || c.updatedAt); return d >= mon && d < addD(mon, 7); });
+    const doneToday = week.some((c) => IC.sameDay(c.submittedAt || c.updatedAt, new Date()));
+    const base = "#/plant/" + encodeURIComponent(folder) + "/" + encodeURIComponent(key) + "/";
+    $("main").innerHTML = (m.sub ? '<div class="small" style="margin-bottom:8px">' + esc(m.sub) + "</div>" : "") +
+      '<div class="row nav-week"><a class="btn" href="' + base + (weekOff - 1) + '">‹ Previous</a>' + (weekOff < 0 ? '<a class="btn" href="' + base + (weekOff + 1) + '">Next ›</a>' : "") + "</div>" +
+      '<div class="section-h">Week of ' + esc(fmtDay(mon)) + "</div>" +
+      days.map((d) => { const dc = week.filter((c) => IC.sameDay(c.submittedAt || c.updatedAt, d));
+        return '<div class="pday"><b>' + esc(fmtDay(d)) + "</b>" + (dc.length ? dc.map((c) => { const bad = c.values.safe === "No" || (c.flags || []).length;
+          return '<a class="tile-row" href="#/form/' + c.id + '"><span><b>' + esc(c.values.operator || c.userName || "") + '</b><span class="small">' + esc(fmtTime(c.submittedAt || c.updatedAt) + (c.values.hours ? " · " + c.values.hours + " hrs" : "")) + "</span></span>" + (bad ? '<span class="pill declined">Defect</span>' : '<span class="pill ok">OK</span>') + "</a>"; }).join("") : '<div class="small">Not checked</div>') + "</div>"; }).join("") +
+      (weekOff === 0 ? '<button class="btn primary block" id="pCheck">' + (doneToday ? "Add another check today" : "Check this machine today") + "</button>" : "");
+    if ($("pCheck")) $("pCheck").onclick = () => {
+      const hired = m.hired || {}, d = (hired.description || "") + " " + (hired.model || "");
+      // iCONSTRUCTE records "Cherry picker" / "Scissor lift" only: diesel or electric is picked here on the first check and remembered for the week.
+      const typeGuess = hired.type && PLANT_TYPES.includes(hired.type) ? hired.type : /mini ?crane|spider crane|maeda|jekko|unic/i.test(d) ? "Mini crane" : /superlift/i.test(d) ? "Genie SuperLift" : /telehandler|manitou|jcb 5/i.test(d) ? "Telehandler" : null;
+      IC.LS.set("plantPrefill", { plantKey: key.indexOf("REF:") === 0 ? "" : key, plantRef: latest ? latest.values.plantRef : hired.ref || (key.indexOf("REF:") === 0 ? key.slice(4) : ""), plantType: latest ? latest.values.plantType : typeGuess, plantId: latest ? latest.values.plantId : hired.model || hired.description || "" });
+      location.hash = "#/form-new/plant/" + encodeURIComponent(folder);
+    };
   }
 
   // Toolbox talks (Liam, 20 Nov): the talks the office has published, to read and deliver; then the register that each

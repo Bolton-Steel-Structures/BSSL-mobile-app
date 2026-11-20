@@ -103,7 +103,7 @@
       '<div class="cal-nav"><a class="link" href="#/leave/team/' + (off - 1) + '">‹</a><b>' + monthName(ref.getFullYear(), ref.getMonth()) + '</b><a class="link" href="#/leave/team/' + (off + 1) + '">›</a></div>' +
       monthGrid(ref.getFullYear(), ref.getMonth(), (iso, dt) => { if (dt.getDay() % 6 === 0) return null; const o = offOn(iso); if (isBankHoliday(iso)) return { cls: "bh" };
         if (!o.length) return null; return { cls: o.some((r) => r.status === "pending") ? "pending" : "approved", html: '<span class="who-off">' + o.slice(0, 3).map((r) => initials(r.userName)).join(" ") + (o.length > 3 ? "+" : "") + "</span>" + (o.length >= CFG.maxOffSameDay ? '<span class="busy"></span>' : "") }; }) +
-      '<div class="legend"><span class="approved">Approved</span><span class="pending">Includes waiting</span><span class="bh">Bank holiday</span></div><p class="small">Tap a day to see who\'s off.</p>';
+      '<div class="legend"><span class="approved">Approved</span><span class="pending">Includes waiting</span><span class="bh">Bank holiday</span></div><p class="small" hidden>.</p>';
     document.querySelectorAll(".cal-d[data-d]").forEach((b) => (b.onclick = () => { const o = offOn(b.dataset.d); if (!o.length) return; const sh = sheet("<h3>" + esc(fmtDay(b.dataset.d)) + "</h3>" + o.map((r) => "<p><b>" + esc(r.userName) + "</b> · " + esc(r.type) + " · " + esc(cap(r.status)) + "</p>").join("") + '<button class="btn block" id="x">Close</button>'); $("x").onclick = sh.close; }));
     document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = async () => { await Data.decide("leave", b.dataset.ok, "approved"); toast("Approved"); IC.refreshView(); }));
     document.querySelectorAll("[data-no]").forEach((b) => (b.onclick = () => {

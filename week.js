@@ -74,7 +74,7 @@
         '<div class="small" style="margin-top:10px">' + Object.keys(colours).map((j) => { const a = inWeek.find((x) => !x.off && x.jobNumber === j); return '<span class="wk-job" style="background:' + colours[j] + '">' + esc(j) + "</span> " + esc(a && a.site ? a.site : ""); }).join("<br>") + "</div>"
         : '<div class="empty">No one on the plan this week.</div>';
     }
-    $("main").innerHTML = head + body + '<p class="small" style="margin-top:14px;color:var(--sub)">From the site labour planner. Plans can change: this shows this week only' + (ds.length > 7 ? " and next Monday" : "") + ". Check with your supervisor if in doubt.</p>";
+    $("main").innerHTML = head + body;
     document.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => (location.hash = "#/week/" + b.dataset.v)));
   }
 

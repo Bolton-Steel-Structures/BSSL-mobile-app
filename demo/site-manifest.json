@@ -54,7 +54,48 @@
    "lat": 53.5768,
    "lng": -2.4282,
    "w3w": "filled.count.soap",
-   "pm": "liam.pilkington@boltonstructures.com"
+   "pm": "liam.pilkington@boltonstructures.com",
+   "plant": [
+    {
+     "id": "P501",
+     "no": "PH-0412",
+     "hireNo": "",
+     "description": "Boom lift 45ft",
+     "supplier": "Example Access Hire",
+     "onHire": "2026-11-09",
+     "offHire": "",
+     "type": "Cherry picker",
+     "model": "Genie Z45/25J",
+     "ref": "GZ45-0123",
+     "attachments": ""
+    },
+    {
+     "id": "P502",
+     "no": "PH-0413",
+     "hireNo": "",
+     "description": "Telehandler 14m",
+     "supplier": "Example Plant Hire",
+     "onHire": "2026-11-09",
+     "offHire": "",
+     "type": "Telehandler",
+     "model": "JCB 540-140",
+     "ref": "T1402",
+     "attachments": "Lifting jib, Chains"
+    },
+    {
+     "id": "P504",
+     "no": "PH-0415",
+     "hireNo": "",
+     "description": "Material lift",
+     "supplier": "Example Access Hire",
+     "onHire": "2026-11-16",
+     "offHire": "",
+     "type": "Genie SuperLift",
+     "model": "Genie SLA-20",
+     "ref": "SL-0077",
+     "attachments": ""
+    }
+   ]
   },
   {
    "jobNumber": "2522/004",
@@ -86,7 +127,22 @@
    ],
    "lat": 53.4808,
    "lng": -2.2426,
-   "pm": "liam.pilkington@boltonstructures.com"
+   "pm": "liam.pilkington@boltonstructures.com",
+   "plant": [
+    {
+     "id": "P503",
+     "no": "PH-0420",
+     "hireNo": "",
+     "description": "Scissor lift 19ft",
+     "supplier": "Example Access Hire",
+     "onHire": "2026-11-16",
+     "offHire": "",
+     "type": "Scissor lift",
+     "model": "Genie GS-1932",
+     "ref": "GS19-0456",
+     "attachments": ""
+    }
+   ]
   },
   {
    "jobNumber": "2530/011",

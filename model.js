@@ -42,7 +42,6 @@
     log.slice().sort((a, b) => (a.at < b.at ? -1 : 1)).forEach((e) => { if (e.s === "reset") delete status[e.guid]; else status[e.guid] = { s: e.s, by: e.by, at: e.at }; });
     const mark = can("erect");
     $("main").innerHTML =
-      '<div class="mv-banner">For information: erect from the issued drawings. <b>Test version</b>: the log is kept on this phone only.</div>' +
       '<div class="mv-box" id="mvBox"></div>' +
       '<div class="mv-tools"><button class="btn sm" id="mvFit">Fit</button><button class="btn sm" id="mvBolts">Hide bolts</button><button class="btn sm" id="mvHide">Hide selected</button><button class="btn sm" id="mvShow" hidden>Show all</button><button class="btn sm" id="mvHeavy" hidden></button><button class="btn sm" id="mvClear">Clear selection</button></div>' +
       '<div id="mvSel"></div><div id="mvProg"></div><div id="mvDays"></div><div id="mvList"></div>';
@@ -119,7 +118,7 @@
       const shown = all.filter((p) => filter === "all" || (filter === "none" ? !ctl.status[p.guid] : ctl.status[p.guid] && ctl.status[p.guid].s === filter))
         .sort((a, b) => (a.mark || a.profile).localeCompare(b.mark || b.profile, undefined, { numeric: true }) || b.weight - a.weight);
       $("mvList").innerHTML = '<div class="section-h">' + (ctl.hasAssemblies ? "Assemblies" : "Parts") + " (" + all.length + ")</div>" +
-        (ctl.hasAssemblies ? "" : '<p class="small" style="color:var(--sub);margin:0 0 8px">This file was exported without assemblies, so parts are listed. Export with assemblies to list by erection mark.</p>') + '<div class="chips">' +
+        '<div class="chips">' +
         [["all", "All"], ["none", "Not started"], ["erected", "Erected"], ["checked", "Checked"]].map(([f, t]) => '<button class="chip' + (filter === f ? " on" : "") + '" data-f="' + f + '">' + t + "</button>").join("") + "</div>" +
         shown.map((p) => { const st = ctl.status[p.guid]; return '<button class="todo mv-row' + (ctl.sel.has(p.id) ? " sel" : "") + '" data-id="' + p.id + '"><span><b>' + esc(p.mark || p.profile) + "</b>" + '<span class="small"> ' + esc((p.mark ? p.profile + " · " : "") + (p.asm && p.count > 1 ? p.count + " parts · " : p.length ? Math.round(p.length) + " mm · " : "") + kg(p.weight)) + "</span></span>" +
           '<span class="pill" style="background:' + (st ? (st.s === "checked" ? "#2E9E44" : "#F5A623") : "#A7ADB5") + ';color:' + (st && st.s === "checked" ? "#fff" : "#222") + '">' + (st ? LABEL[st.s] : "Not started") + "</span></button>"; }).join("");
