@@ -386,7 +386,7 @@
     const t = tpl(templateId); if (!t) { location.hash = "#/forms"; return; }
     const rec = existing || { templateId, status: "draft", values: {} };
     let folder = rec.jobFolder || prefillJob || IC.LS.get("lastJob", "") || "";
-    if (!jobByFolder(folder)) folder = (myJobs()[0] || {}).folder || "";
+    if (!jobByFolder(folder)) folder = (IC.viewableJobs()[0] || {}).folder || "";
     setBar(t.title, t.ref, true);
     $("main").innerHTML = '<form class="frm" novalidate><label class="fl">Job<select id="fJob">' + jobOptions(folder, t.id !== "rams") + '</select></label><div class="small" id="fWhen">' + esc(fmtDay(rec.createdAt || new Date()) + " · " + ((Data.profile && Data.profile.name) || "")) + '</div><div id="fFields"></div>' +
       '<div class="err" id="fErr" hidden></div><div class="row sticky-actions"><button type="button" class="btn" id="fDraft">Save draft</button><button type="submit" class="btn primary" id="fSend">Submit</button></div></form>';

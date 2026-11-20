@@ -49,16 +49,8 @@
     }
   }
 
-  // HC2.20: red banner when the drawings list hasn't been checked for more than 12 hours (no signal, app left closed)
-  function staleCheck() {
-    if (!S.user || D.loading) return;
-    const at = LS.get("fetchedAt", null); if (!at) return;
-    const hrs = (Date.now() - new Date(at).getTime()) / 36e5;
-    if (hrs > 12) status("Drawings last checked " + (hrs < 48 ? Math.floor(hrs) + " hours" : Math.floor(hrs / 24) + " days") + " ago. Tap ↻ to check for new drawings before you work from them.", true);
-  }
-
   async function syncOffline() {
-    const jobs = myJobs(), wanted = new Map();
+    const jobs = IC.viewableJobs(), wanted = new Map();
     jobs.forEach((j) => (j.files || []).forEach((f) => wanted.set(fileKey(f), { f, j })));
     for (const k of await Store.keys()) if (!wanted.has(k)) await Store.del(k);
     D.offlineJobs = D.offlineJobs.filter((folder) => jobs.some((j) => j.folder === folder)); LS.set("offlineJobs", D.offlineJobs);
@@ -84,10 +76,10 @@
     setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
     const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && can("form:" + t.id));
-    $("main").innerHTML = (can("manager") ? '<a class="tile-row mgr-entry" href="#/manager"><span class="ti">' + ICON.team + '</span><span><b>Manager tools</b><span class="small">Holidays, expenses, cards and time keeping for your team</span></span>›</a>' : "") +
-      (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
+    $("main").innerHTML = (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
       '<div class="tiles">' +
-      tile("drawings", "#/jobs", ICON.jobs, "Drawings", "My jobs") +
+      tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
+      tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
       (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:toolbox") ? "Safety" : "Report") + "</b><span>" + (can("form:toolbox") ? "RAMS, toolbox talks, checks" : "Near miss, hazard or problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
@@ -97,7 +89,7 @@
       tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …") + "</div>";
     if ($("timeCard")) IC.Time.card($("timeCard"));
     // My week: where the labour planner has me for the next 7 days (W2)
-    const in6 = new Date(); in6.setDate(in6.getDate() + 6); const week = myWeek().filter((a) => a.date <= IC.isoDate(in6));
+    const in6 = new Date(); in6.setDate(in6.getDate() + 6); const week = can("time") ? myWeek().filter((a) => a.date <= IC.isoDate(in6)) : [];
     if (week.length && $("myweek")) {
       $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Details ›</a></div>' + week.map((a) => {
         const d = IC.parseDate(a.date), isToday = a.date === IC.isoDate(new Date()), job = jobByFolder(a.folder);
@@ -127,7 +119,53 @@
   }
 
   // ---------------------------------------------------------------- jobs and drawings
-  function viewJobs() {
+  // Managers (feature all-jobs; Liam 20 Nov): every live project, grouped by project number (the part before "/"),
+  // "My projects" (where they're the job card's PM) first; tap a project for its packages of work.
+  const projectOf = (j) => String(j.jobNumber || "").split("/")[0].trim();
+  function viewProjects(args) {
+    const all = IC.viewableJobs(), me = new Set((S.user && S.user.emails) || []);
+    if (!S.manifest) { $("main").innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const groups = new Map();
+    all.forEach((j) => { const k = projectOf(j); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(j); });
+    const mineOnly = (args[0] || "") !== "all";
+    let keys = [...groups.keys()].sort();
+    const isMine = (k) => groups.get(k).some((j) => me.has(String(j.pm || "").toLowerCase()));
+    const myCount = keys.filter(isMine).length;
+    if (mineOnly) keys = keys.filter(isMine);
+    setBar("Projects", (mineOnly ? myCount + " of mine" : groups.size + " live"), false);
+    $("main").innerHTML = '<div class="tabs"><a' + (mineOnly ? ' class="on"' : "") + ' href="#/jobs">My projects</a><a' + (mineOnly ? "" : ' class="on"') + ' href="#/jobs/all">All live</a></div>' +
+      (keys.length ? keys.map((k) => {
+        const js = groups.get(k).sort((a, b) => String(a.jobNumber).localeCompare(String(b.jobNumber))), f = js[0];
+        const dn = js.reduce((t, j) => t + (j.files || []).filter((x) => x.category !== "H&S").length, 0), n = js.reduce((t, j) => t + (j.files || []).filter(isNew).length, 0);
+        return '<button class="card" data-project="' + esc(k) + '"><div class="card-top"><span class="job-no">' + esc(k) + "</span></div>" +
+          '<div class="job-site">' + esc(f.site || f.customer || "") + "</div>" +
+          '<div class="job-meta">' + esc(f.customer || "") + "</div>" +
+          '<div class="pills"><span class="pill">' + js.length + (js.length === 1 ? " package" : " packages") + '</span><span class="pill">' + dn + (dn === 1 ? " drawing" : " drawings") + "</span>" + (n ? '<span class="pill new">' + n + " new</span>" : "") + "</div></button>";
+      }).join("") : '<div class="empty small">' + (mineOnly ? 'No live projects with you as project manager. <a href="#/jobs/all">See all live projects</a>.' : "No live projects.") + "</div>");
+    document.querySelectorAll("[data-project]").forEach((b) => (b.onclick = () => (location.hash = "#/project/" + encodeURIComponent(b.dataset.project))));
+  }
+
+  function viewProject(args) {
+    const k = decodeURIComponent(args[0] || ""), js = IC.viewableJobs().filter((j) => projectOf(j) === k).sort((a, b) => String(a.jobNumber).localeCompare(String(b.jobNumber)));
+    if (!js.length) { location.hash = "#/jobs"; return; }
+    setBar("Project " + k, js[0].site || js[0].customer || "", true);
+    $("main").innerHTML = '<div class="section-h">Packages of work (' + js.length + ")</div>" + js.map(jobCard).join("");
+    document.querySelectorAll("[data-job]").forEach((b) => (b.onclick = () => (location.hash = "#/job/" + encodeURIComponent(b.dataset.job))));
+  }
+
+  function jobCard(j) {
+    const files = j.files || [], n = files.filter(isNew).length, off = D.offlineJobs.includes(j.folder);
+    const dn = files.filter((f) => f.category !== "H&S").length;
+    return '<button class="card" data-job="' + esc(j.folder) + '"><div class="card-top"><span class="job-no">' + esc(j.jobNumber) + "</span></div>" +
+      '<div class="job-site">' + esc(j.description || j.site || j.customer || "") + "</div>" +
+      '<div class="job-meta">' + esc([j.site, j.customer].filter(Boolean).join(" · ")) + "</div>" +
+      '<div class="pills"><span class="pill">' + dn + (dn === 1 ? " drawing" : " drawings") + "</span>" +
+      (files.some((f) => f.category === "H&S") ? '<span class="pill">RAMS / H&amp;S</span>' : "") +
+      (n ? '<span class="pill new">' + n + " new</span>" : "") + (off ? '<span class="pill ok">Saved offline</span>' : "") + "</div></button>";
+  }
+
+  function viewJobs(args) {
+    if (can("all-jobs")) return viewProjects(args || []);
     setBar("My jobs", S.user ? S.user.name : "", false);
     const jobs = myJobs().sort((a, b) => String(a.jobNumber).localeCompare(String(b.jobNumber)));
     if (!S.manifest) { $("main").innerHTML = '<div class="empty">Loading…</div>'; return; }
@@ -302,7 +340,7 @@
     };
   }
 
-  const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
+  const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
     ["leave", "Holidays", ICON.leave, ["leave", "leave-new"], "leave"], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"], "expenses"]];
   const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && can("form:" + t.id));
   const allowed = (f) => !f || (f === "forms" ? anyForm() : can(f));
@@ -312,7 +350,7 @@
   }
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
-    if (["jobs", "job", "view"].includes(name)) return can("drawings");
+    if (["jobs", "job", "view", "project"].includes(name)) return can("drawings");
     if (["qa", "snag"].includes(name)) return can("qa");
     if (name === "forms") return anyForm();
     if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]);
@@ -334,7 +372,8 @@
     $("sheet").hidden = true;
     if (!permitted(name, args)) { toast("That isn't part of your role in the app"); location.hash = "#/"; return; }
     if (name === "") viewHome();
-    else if (name === "jobs") viewJobs();
+    else if (name === "jobs") viewJobs(args);
+    else if (name === "project" && args[0]) viewProject(args);
     else if (name === "job" && args[0]) viewJob(decodeURIComponent(args[0]));
     else if (name === "view" && args[0]) viewFile(decodeURIComponent(args[0]), decodeURIComponent(args.slice(1).join("/")));
     else if (IC.routes[name]) Promise.resolve(IC.routes[name](args)).catch((e) => { console.error(e); $("main").innerHTML = '<div class="empty">Something went wrong: ' + esc(e.message) + "</div>"; });
@@ -349,8 +388,6 @@
     window.addEventListener("hashchange", route);
     window.addEventListener("online", () => refresh());
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
-    // HC2.20: warn when the last check for drawings is over 12 hours old (push notifications for new drawings come with Azure)
-    setInterval(staleCheck, 60 * 1000);
     if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
     try { D.saved = new Set(await Store.keys()); } catch (e) { /* storage blocked */ }
     IC.loadBankHolidays();

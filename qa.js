@@ -155,7 +155,7 @@
   // ---------------------------------------------------------------- QA page
   route("qa", async (args) => {
     setBar("Quality assurance", "Inspections, snags and handover", false);
-    const jobs = myJobs();
+    const jobs = IC.viewableJobs();
     let folder = args[0] ? decodeURIComponent(args[0]) : LS.get("lastJob", jobs[0] && jobs[0].folder);
     if (!jobByFolder(folder)) folder = (jobs[0] || {}).folder || "";
     const j = jobByFolder(folder);

@@ -181,7 +181,7 @@
 
   // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
   const DEFAULT_ROLES = {
-    Manager: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
+    Manager: ["drawings", "all-jobs", "rams", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:nearmiss", "form:ncr"]
   };
@@ -404,7 +404,7 @@
   const routes = {};
   function route(name, fn) { routes[name] = fn; }
 
-  function status(msg, urgent) { const el = $("status"); el.hidden = !msg; el.textContent = msg || ""; el.classList.toggle("st-urgent", !!(msg && urgent)); }
+  function status(msg) { const el = $("status"); el.hidden = !msg; el.textContent = msg || ""; }
 
   function setBar(title, sub, back) {
     $("barTitle").textContent = title; $("barSub").textContent = sub || "";
@@ -579,7 +579,9 @@
     const mine = new Set(S.user.emails);
     return (S.manifest.jobs || []).filter((j) => (j.operatives || []).some((e) => mine.has(String(e).toLowerCase())));
   }
-  const jobByFolder = (folder) => myJobs().find((j) => j.folder === folder);
+  // jobs this person can open: their own, or every live job for roles with "all-jobs" (managers browsing projects)
+  function viewableJobs() { return S.manifest && S.user && can("all-jobs") ? (S.manifest.jobs || []) : myJobs(); }
+  const jobByFolder = (folder) => viewableJobs().find((j) => j.folder === folder);
   // Site labour planner allocations for me (manifest "allocations", next 14 days; W2)
   function myWeek() {
     if (!S.manifest || !S.user) return [];
@@ -589,12 +591,12 @@
 
   function jobOptions(selected, allowNone) {
     return (allowNone ? '<option value="">No job / yard</option>' : "") +
-      myJobs().map((j) => '<option value="' + esc(j.folder) + '"' + (j.folder === selected ? " selected" : "") + ">" + esc(j.jobNumber + " · " + (j.site || j.customer || "")) + "</option>").join("");
+      viewableJobs().map((j) => '<option value="' + esc(j.folder) + '"' + (j.folder === selected ? " selected" : "") + ">" + esc(j.jobNumber + " · " + (j.site || j.customer || "")) + "</option>").join("");
   }
 
   window.IC = {
     CFG, DEMO, LS, SAMPLES, can, roleOf, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
     Store, Src, Graph, Data, routes, route, status, setBar, sheet, ask, toast, shrinkImage, stampPhoto, fmtStamp, signaturePad, locate,
-    loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, myWeek, jobByFolder, jobOptions, DEMO_TEAM: Demo.team
+    loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, myWeek, jobByFolder, viewableJobs, jobOptions, DEMO_TEAM: Demo.team
   };
 })();
