@@ -181,7 +181,7 @@
 
   // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
   const DEFAULT_ROLES = {
-    Manager: ["drawings", "all-jobs", "rams", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:nearmiss", "form:ncr"]
   };

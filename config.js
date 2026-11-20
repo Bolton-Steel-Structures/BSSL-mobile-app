@@ -43,7 +43,7 @@ window.SITE_CONFIG = {
   //     Safety: toolbox, plant, lifting, handover, nearmiss
   //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
   roles: {
-    Manager: ["drawings", "all-jobs", "rams", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:nearmiss", "form:ncr"]
   },

@@ -80,7 +80,7 @@
       '<div class="tiles">' +
       tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
       tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
-      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:toolbox") ? "Safety" : "Report") + "</b><span>" + (can("form:toolbox") ? "RAMS, toolbox talks, checks" : "Near miss, hazard or problem") + "</span></a>" : "") +
+      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:toolbox") ? "Safety" : "Report") + "</b><span>" + (can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "Near miss, hazard or problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
