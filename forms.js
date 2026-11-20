@@ -73,6 +73,23 @@
         { type: "confirm", id: "understood", text: "I have read and understood the document above, it has been explained to me, and I will work to it. I will stop and tell my supervisor if anything changes on site.", required: true },
         { type: "signature", id: "sig", label: "Your signature", required: true }
       ] },
+    // The supervisor briefs the gang on one document and each person signs on the supervisor's phone (Liam, 20 Nov);
+    // started from the document's briefing register, not the Forms list
+    { id: "ramsbrief", group: "Safety", internal: true, title: "RAMS / crane plan briefing (gang)", ref: "QFC05 Q05.4",
+      blurb: "Brief the gang on the document, then each person signs on this phone.",
+      fields: [
+        { type: "docs", id: "docPath" },
+        { type: "text", id: "by", label: "Briefed by", prefill: "me", required: true },
+        { type: "confirm", id: "understood", text: "Each person signing below has had the document above explained to them, understands it and will work to it.", required: true },
+        { type: "people", id: "attendees", label: "Each person signs", required: true }
+      ] },
+    // The compiled register for one document and issue (made from the signatures, never filled in by hand)
+    { id: "ramsreg", group: "Safety", internal: true, title: "RAMS briefing register", ref: "QFC05 Q05.4",
+      fields: [
+        { type: "text", id: "document", label: "Document" },
+        { type: "text", id: "issue", label: "Issue" },
+        { type: "people", id: "attendees", label: "Read, understood and signed by" }
+      ] },
     { id: "toolbox", group: "Safety", title: "Toolbox talk", ref: "QFC05 Q05.7",
       blurb: "Pick the talk, deliver it, then each operative signs the register.",
       fields: [
@@ -285,10 +302,25 @@
   const docKind = (x) => (/crane|lift(ing)? plan|\b(LP|CP)[-_ ]?\d*\b/i.test(x.name || "") ? "crane plan" : "RAMS");
   async function ramsStatus(j) {
     const hs = (j.files || []).filter((f) => f.category === "H&S"); if (!hs.length) return { needed: false, docs: [], unsigned: [] };
-    const mine = (await Data.list("forms")).filter((f) => f.templateId === "rams" && f.jobFolder === j.folder && f.status === "submitted" && f.docsKey);
+    const me = String((Data.profile && Data.profile.name) || "").trim().toLowerCase();
+    const mine = (await Data.list("forms", "team")).filter((f) => f.jobFolder === j.folder && f.status === "submitted" && f.docsKey &&
+      ((f.templateId === "rams" && (!f.user || f.user === (Data.profile || {}).email)) || (f.templateId === "ramsbrief" && me && (f.values.attendees || []).some((p) => String(p.name).trim().toLowerCase() === me))));
     const docs = hs.map((x) => ({ file: x, kind: docKind(x), signed: mine.filter((f) => f.docsKey.split("|").includes(docKey(x))).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0] || null }));
     const unsigned = docs.filter((d) => !d.signed);
     return { needed: true, docs, unsigned, signed: unsigned.length ? null : docs[0].signed };
+  }
+  // One register per document and issue (Liam, 20 Nov): signatures from people's own phones and from gang briefings on
+  // the supervisor's phone, one line per person (their first signature)
+  async function ramsRegister(j, x) {
+    const key = docKey(x), recs = (await Data.list("forms", "team")).filter((f) => f.jobFolder === j.folder && f.status === "submitted" && f.docsKey && f.docsKey.split("|").includes(key));
+    const rows = [];
+    recs.forEach((f) => {
+      if (f.templateId === "rams") rows.push({ name: f.userName || "", sig: f.values.sig, at: f.submittedAt, how: "own phone" });
+      if (f.templateId === "ramsbrief") (f.values.attendees || []).forEach((p) => rows.push({ name: p.name, sig: p.sig, at: f.submittedAt, how: "briefed by " + (f.values.by || f.userName || "") }));
+    });
+    rows.sort((a, b) => (a.at || "").localeCompare(b.at || ""));
+    const seen = new Set();
+    return rows.filter((r) => { const k = String(r.name).trim().toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; });
   }
 
   const docLink = (job, x) => '<a class="doc-link" href="#/view/' + encodeURIComponent(job.folder) + "/" + encodeURIComponent(x.path) + '">' + esc(x.name) + ' <span class="small">issued ' + esc(fmtDate(x.issued)) + "</span></a>";
@@ -516,7 +548,7 @@
     setBar("Forms", IC.can("qa") ? "Safety and day work" : "Safety and reporting", false);
     const mine = (await Data.list("forms")).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
     const drafts = mine.filter((f) => f.status === "draft"), done = mine.filter((f) => f.status !== "draft").slice(0, 15);
-    const allowedT = T.filter((t) => t.id !== "rams" && !t.retired && IC.can("form:" + t.id) && !(IC.can("qa") && QA_FORMS.includes(t.id)));
+    const allowedT = T.filter((t) => t.id !== "rams" && !t.retired && !t.internal && IC.can("form:" + t.id) && !(IC.can("qa") && QA_FORMS.includes(t.id)));
     const group = (g) => !allowedT.some((t) => t.group === g) ? "" : '<div class="section-h">' + g + "</div>" + allowedT.filter((t) => t.group === g).map((t) =>
       '<a class="tile-row" href="' + (t.id === "toolbox" ? "#/toolbox" : t.id === "plant" ? "#/plant" : "#/form-new/" + t.id) + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
     const row = (f) => { const t = tpl(f.templateId) || { title: f.templateId };
@@ -544,18 +576,18 @@
       for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values, prefill }); w.f = f; widgets.push(w); box.appendChild(w.el); }
     };
     build();
-    $("fJob").onchange = () => { if (t.id === "rams") build(); };
+    $("fJob").onchange = () => { if (t.id === "rams" || t.id === "ramsbrief") build(); };
     const collect = async () => { const v = {}; for (const w of widgets) if (w.f.id) { v[w.f.id] = await w.get(); if (w.extra) Object.assign(v, await w.extra()); } return v; };
     const save = async (status) => {
       const job = jobByFolder($("fJob").value);
       rec.values = await collect(); rec.status = status; rec.jobFolder = job ? job.folder : ""; rec.jobNumber = job ? job.jobNumber : ""; rec.site = job ? job.site || job.customer : "";
       rec.templateTitle = t.title; rec.ref = t.ref;
-      if (t.id === "rams" && job) {
+      if ((t.id === "rams" || t.id === "ramsbrief") && job) {
         // record exactly which document (and which issue) was signed for
         const d = (job.files || []).find((x) => x.category === "H&S" && x.path === rec.values.docPath);
         rec.docsKey = d ? docKey(d) : "";
         rec.values.docs = d ? [{ name: d.name, issued: d.issued, issuedBy: d.issuedBy || "" }] : [];
-        rec.templateTitle = d && docKind(d) === "crane plan" ? "Crane plan briefing" : "RAMS briefing";
+        rec.templateTitle = (d && docKind(d) === "crane plan" ? "Crane plan briefing" : "RAMS briefing") + (t.id === "ramsbrief" ? " (gang)" : "");
       }
       rec.flags = flagsFor(t, rec.values);
       if (status === "submitted") rec.submittedAt = new Date().toISOString();
@@ -569,7 +601,7 @@
         if (w.f.requiredIf) { const want = valueOf(w.f.requiredIf[0]) === w.f.requiredIf[1]; w.f.required = want; if (!want) return ""; }
         return w.check();
       }).filter(Boolean);
-      if (!$("fJob").value && t.id === "rams") errs.unshift("Choose the job");
+      if (!$("fJob").value && (t.id === "rams" || t.id === "ramsbrief")) errs.unshift("Choose the job");
       const box = $("fErr");
       if (errs.length) { box.hidden = false; box.innerHTML = "<b>Please finish:</b><br>" + errs.map(esc).join("<br>"); box.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
       box.hidden = true; $("fSend").disabled = true;
@@ -609,7 +641,7 @@
     const t = tpl(rec.templateId) || { title: rec.templateTitle, fields: [] };
     setBar(t.title, (rec.jobNumber || "") + " · " + fmtDate(rec.submittedAt || rec.updatedAt), true);
     const parts = [];
-    if (rec.templateId === "rams" && rec.values.docs && rec.values.docs.length) {
+    if ((rec.templateId === "rams" || rec.templateId === "ramsbrief") && rec.values.docs && rec.values.docs.length) {
       parts.push('<div class="done-f"><div class="ff-l">Documents signed for</div>' + rec.values.docs.map((d) => "<div>" + esc(d.name) + ' <span class="small">issued ' + esc(fmtDate(d.issued)) + "</span></div>").join("") + "</div>");
     }
     for (const f of t.fields) {
@@ -726,6 +758,29 @@
     $("main").querySelectorAll("[data-late]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); startCheck(a.dataset.late); }));
   }
 
+  // Briefing register for one document (supervisors and managers): everyone who has signed for this issue, from their
+  // own phone or at a gang briefing; brief the gang on this phone; share the register as one PDF
+  IC.route("register", async (args) => {
+    const folder = decodeURIComponent(args[0] || ""), path = decodeURIComponent(args[1] || ""), j = jobByFolder(folder);
+    const x = j && (j.files || []).find((f) => f.category === "H&S" && f.path === path);
+    if (!x) { location.hash = "#/job/" + encodeURIComponent(folder) + "/rams"; return; }
+    const kind = docKind(x), rows = await ramsRegister(j, x);
+    setBar(kind === "crane plan" ? "Crane plan register" : "RAMS register", j.jobNumber, true);
+    const sigs = await Promise.all(rows.map(async (r) => (r.sig ? await Data.blobUrl(r.sig) : "")));
+    $("main").innerHTML = '<div class="card"><b>' + esc(x.name) + '</b><div class="small">Issued ' + esc(fmtDate(x.issued)) + " · " + rows.length + " signed</div></div>" +
+      (rows.length ? rows.map((r, i) => '<div class="ppl-done reg-row"><span><b>' + esc(r.name) + '</b><span class="small"> ' + esc(fmtDay(r.at) + " " + fmtTime(r.at) + " · " + r.how) + "</span></span>" + (sigs[i] ? '<img class="sig-img sm" src="' + sigs[i] + '">' : "") + "</div>").join("") : '<div class="empty small">Nobody has signed for this issue yet.</div>') +
+      '<a class="btn primary block" href="#/form-new/ramsbrief/' + encodeURIComponent(folder) + "/" + encodeURIComponent(path) + '">Brief the gang (sign on this phone)</a>' +
+      (rows.length ? '<button class="btn block" id="regShare">Share register (PDF)</button>' : "");
+    if ($("regShare")) $("regShare").onclick = async () => {
+      const b = $("regShare"); b.disabled = true; b.textContent = "Making the PDF…";
+      try {
+        await IC.FormPdf.share({ templateId: "ramsreg", jobFolder: j.folder, jobNumber: j.jobNumber, site: j.site, userName: (Data.profile || {}).name || "", submittedAt: new Date().toISOString(),
+          values: { document: x.name + (kind === "crane plan" ? " (crane plan)" : " (RAMS)"), issue: "Issued " + fmtDate(x.issued), attendees: rows.map((r) => ({ name: r.name + "  " + fmtDay(r.at) + " " + fmtTime(r.at), sig: r.sig })) } });
+      } catch (e) { toast("Couldn't make the PDF: " + e.message); }
+      b.disabled = false; b.textContent = "Share register (PDF)";
+    };
+  });
+
   // Toolbox talks (Liam, 20 Nov): the talks the office has published, to read and deliver; then the register that each
   // operative signs (supervisors and managers run it on their phone or tablet).
   IC.route("toolbox", (args) => {
@@ -748,10 +803,10 @@
     const id = args[0];
     if ((tpl(id) || {}).retired) { IC.toast("That check is now part of the site inspection / handover in QA"); location.hash = "#/qa" + (args[1] ? "/" + args[1] : ""); return; }
     if (id === "ncr") { const p = IC.LS.get("ncrPrefill", null); IC.LS.del("ncrPrefill"); if (p) return viewForm("ncr", { templateId: "ncr", status: "draft", values: { what: p.what, where: p.where, clause: p.clause }, jobFolder: p.jobFolder }); }
-    if (id === "rams" && args[2]) IC.LS.set("ramsPrefill", { docPath: decodeURIComponent(args[2]) });
+    if ((id === "rams" || id === "ramsbrief") && args[2]) IC.LS.set(id + "Prefill", { docPath: decodeURIComponent(args[2]) });
     return viewForm(id, null, args[1] ? decodeURIComponent(args[1]) : "");
   });
   IC.route("form", (args) => viewDone(args[0]));
 
-  IC.Forms = { templates: T, tpl, ramsStatus, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
+  IC.Forms = { templates: T, tpl, ramsStatus, ramsRegister, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
 })();

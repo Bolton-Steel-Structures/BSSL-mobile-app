@@ -1,7 +1,7 @@
 // iCONSTRUCTE Site service worker: keeps the app itself available offline.
 // Drawings are NOT cached here (the app stores offline copies itself and removes superseded ones).
 // API calls (/api/) are never cached: forms, check-ins and claims are queued on the phone by the app instead.
-const VERSION = "icsite-v37";
+const VERSION = "icsite-v38";
 const SHELL = ["./", "index.html", "app.css", "core.js", "time.js", "forms.js", "leave.js", "expenses.js", "cards.js", "manager.js", "week.js", "xlsx.js", "model.js", "cert.js", "formpdf.js", "qa.js", "app.js", "config.js", "manifest.webmanifest",
   "vendor/msal-browser.min.js", "vendor/pdf.min.js", "vendor/pdf.worker.min.js", "vendor/jspdf.umd.min.js", "icons/bss-logo.jpg",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "icons/mark.png", "icons/iconstructe-logo.png"];

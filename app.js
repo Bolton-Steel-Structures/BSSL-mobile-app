@@ -75,7 +75,7 @@
     const p = Data.profile || {}, h = new Date().getHours();
     setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
-    const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && can("form:" + t.id));
+    const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
     $("main").innerHTML = (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
       '<div class="tiles">' +
       tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
@@ -240,7 +240,8 @@
     if (section === "rams") {
       setBar("RAMS & crane plan", j.jobNumber, true);
       // each document signed for on its own (RAMS, crane plan)
-      $("main").innerHTML = hs.length ? rams.docs.map((d) => fileRow(d.file) + (can("rams") ? (d.signed ? '<div class="signed">✓ You signed the ' + esc(d.kind) + " on " + esc(fmtDate(d.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + "/" + encodeURIComponent(d.file.path) + '">Read &amp; sign the ' + esc(d.kind) + "</a>") : "")).join("") : '<div class="empty">No RAMS issued yet.</div>';
+      $("main").innerHTML = hs.length ? rams.docs.map((d) => fileRow(d.file) + (can("rams") ? (d.signed ? '<div class="signed">✓ You signed the ' + esc(d.kind) + " on " + esc(fmtDate(d.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + "/" + encodeURIComponent(d.file.path) + '">Read &amp; sign the ' + esc(d.kind) + "</a>") : "") +
+        (can("qa") ? '<a class="tile-row" href="#/register/' + f + "/" + encodeURIComponent(d.file.path) + '"><span><b>Briefing register</b><span class="small">Who has signed this issue · brief the gang</span></span>›</a>' : "")).join("") : '<div class="empty">No RAMS issued yet.</div>';
       return bindFiles();
     }
     if (section === "model") {
@@ -397,7 +398,7 @@
 
   const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
     ["leave", "Holidays", ICON.leave, ["leave", "leave-new"], "leave"], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"], "expenses"]];
-  const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && can("form:" + t.id));
+  const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
   const allowed = (f) => !f || (f === "forms" ? anyForm() : can(f));
   function drawNav(name) {
     $("nav").hidden = false;
@@ -406,7 +407,7 @@
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
     if (["jobs", "job", "view", "project"].includes(name)) return can("drawings");
-    if (["qa", "snag"].includes(name)) return can("qa");
+    if (["qa", "snag", "register"].includes(name)) return can("qa");
     if (name === "forms") return anyForm();
     if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]);
     if (name === "toolbox") return can("form:toolbox");
