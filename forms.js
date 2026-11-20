@@ -67,10 +67,10 @@
   const T = [
     // ----- SAFETY
     { id: "rams", group: "Safety", title: "RAMS & crane plan briefing", ref: "QFC05 Q05.4", perPerson: true,
-      blurb: "Read the RAMS and crane plan for the job and sign that you understand them.",
+      blurb: "Read each document issued for the job (RAMS, crane plan) and sign for each one separately.",
       fields: [
-        { type: "docs" },
-        { type: "confirm", id: "understood", text: "I have read and understood the RAMS and crane plan listed above, they have been explained to me, and I will work to them. I will stop and tell my supervisor if anything changes on site.", required: true },
+        { type: "docs", id: "docPath" },
+        { type: "confirm", id: "understood", text: "I have read and understood the document above, it has been explained to me, and I will work to it. I will stop and tell my supervisor if anything changes on site.", required: true },
         { type: "signature", id: "sig", label: "Your signature", required: true }
       ] },
     { id: "toolbox", group: "Safety", title: "Toolbox talk", ref: "QFC05 Q05.7",
@@ -277,13 +277,20 @@
   const tpl = (id) => T.find((t) => t.id === id);
 
   // RAMS sign-off is tied to the current issue of the job's H&S documents. A new RAMS revision needs a new signature.
+  // Each H&S document (RAMS, crane plan) is signed for separately (Liam, 20 Nov: not one signature for both), and a
+  // new issue of a document needs a new signature. Earlier records signed for several at once still count for each.
   const hsKey = (j) => (j.files || []).filter((f) => f.category === "H&S").map((f) => f.path + "@" + f.issued).sort().join("|");
+  const docKey = (x) => x.path + "@" + x.issued;
+  const docKind = (x) => (/crane|lift(ing)? plan/i.test(x.name || "") ? "crane plan" : "RAMS");
   async function ramsStatus(j) {
-    const key = hsKey(j); if (!key) return { needed: false };
-    const forms = await Data.list("forms");
-    const signed = forms.find((f) => f.templateId === "rams" && f.jobFolder === j.folder && f.status === "submitted" && f.docsKey === key);
-    return { needed: true, signed: signed || null };
+    const hs = (j.files || []).filter((f) => f.category === "H&S"); if (!hs.length) return { needed: false, docs: [], unsigned: [] };
+    const mine = (await Data.list("forms")).filter((f) => f.templateId === "rams" && f.jobFolder === j.folder && f.status === "submitted" && f.docsKey);
+    const docs = hs.map((x) => ({ file: x, kind: docKind(x), signed: mine.filter((f) => f.docsKey.split("|").includes(docKey(x))).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0] || null }));
+    const unsigned = docs.filter((d) => !d.signed);
+    return { needed: true, docs, unsigned, signed: unsigned.length ? null : docs[0].signed };
   }
+
+  const docLink = (job, x) => '<a class="doc-link" href="#/view/' + encodeURIComponent(job.folder) + "/" + encodeURIComponent(x.path) + '">' + esc(x.name) + ' <span class="small">issued ' + esc(fmtDate(x.issued)) + "</span></a>";
 
   // ---------------------------------------------------------------- field widgets
   function seg(name, options, value, badAnswer) {
@@ -313,6 +320,15 @@
       case "note": el.innerHTML = '<div class="note">' + esc(f.text) + "</div>"; return { el, get: () => undefined, check: () => "" };
       case "docs": {
         const hs = ((ctx.job && ctx.job.files) || []).filter((x) => x.category === "H&S");
+        // one document per signature: the one asked for, else the first
+        const want = val || (ctx.prefill || {}).docPath, d = hs.find((x) => x.path === want) || hs[0];
+        if (f.id === "docPath") {
+          el.innerHTML = '<div class="ff-l">Document</div>' + (hs.length > 1 ? '<select data-doc>' + hs.map((x) => "<option value=\"" + esc(x.path) + "\"" + (x === d ? " selected" : "") + ">" + esc(docKind(x) === "crane plan" ? "Crane plan: " : "RAMS: ") + esc(x.name) + "</option>").join("") + "</select>" : "") +
+            '<div data-doclink>' + (d ? docLink(ctx.job, d) : '<div class="small">No RAMS have been issued for this job yet.</div>') + "</div>";
+          const sel = el.querySelector("[data-doc]"); let cur = d;
+          if (sel) sel.onchange = () => { cur = hs.find((x) => x.path === sel.value); el.querySelector("[data-doclink]").innerHTML = docLink(ctx.job, cur); };
+          return { el, get: () => (cur ? cur.path : ""), check: () => (cur ? "" : "No RAMS have been issued for this job") };
+        }
         el.innerHTML = '<div class="ff-l">Documents</div>' + (hs.length ? hs.map((x) => '<a class="doc-link" href="#/view/' + encodeURIComponent(ctx.job.folder) + "/" + encodeURIComponent(x.path) + '">' + esc(x.name) + ' <span class="small">issued ' + esc(fmtDate(x.issued)) + "</span></a>").join("") : '<div class="small">No RAMS issued for this job yet.</div>');
         return { el, get: () => undefined, check: () => (hs.length ? "" : "No RAMS have been issued for this job") };
       }
@@ -534,9 +550,11 @@
       rec.values = await collect(); rec.status = status; rec.jobFolder = job ? job.folder : ""; rec.jobNumber = job ? job.jobNumber : ""; rec.site = job ? job.site || job.customer : "";
       rec.templateTitle = t.title; rec.ref = t.ref;
       if (t.id === "rams" && job) {
-        rec.docsKey = hsKey(job);
-        // record exactly which documents (and which issue) were signed for
-        rec.values.docs = (job.files || []).filter((x) => x.category === "H&S").map((x) => ({ name: x.name, issued: x.issued, issuedBy: x.issuedBy || "" }));
+        // record exactly which document (and which issue) was signed for
+        const d = (job.files || []).find((x) => x.category === "H&S" && x.path === rec.values.docPath);
+        rec.docsKey = d ? docKey(d) : "";
+        rec.values.docs = d ? [{ name: d.name, issued: d.issued, issuedBy: d.issuedBy || "" }] : [];
+        rec.templateTitle = d && docKind(d) === "crane plan" ? "Crane plan briefing" : "RAMS briefing";
       }
       rec.flags = flagsFor(t, rec.values);
       if (status === "submitted") rec.submittedAt = new Date().toISOString();
@@ -729,9 +747,10 @@
     const id = args[0];
     if ((tpl(id) || {}).retired) { IC.toast("That check is now part of the site inspection / handover in QA"); location.hash = "#/qa" + (args[1] ? "/" + args[1] : ""); return; }
     if (id === "ncr") { const p = IC.LS.get("ncrPrefill", null); IC.LS.del("ncrPrefill"); if (p) return viewForm("ncr", { templateId: "ncr", status: "draft", values: { what: p.what, where: p.where, clause: p.clause }, jobFolder: p.jobFolder }); }
+    if (id === "rams" && args[2]) IC.LS.set("ramsPrefill", { docPath: decodeURIComponent(args[2]) });
     return viewForm(id, null, args[1] ? decodeURIComponent(args[1]) : "");
   });
   IC.route("form", (args) => viewDone(args[0]));
 
-  IC.Forms = { templates: T, tpl, ramsStatus, hsKey, photoStrip, flagsFor, field, QA_FORMS };
+  IC.Forms = { templates: T, tpl, ramsStatus, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
 })();

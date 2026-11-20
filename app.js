@@ -104,7 +104,7 @@
     const todaySites = await sitesToday();
     for (const j of can("rams") ? myJobs().filter((x) => todaySites.has(x.folder)) : []) {
       const r = await IC.Forms.ramsStatus(j);
-      if (r.needed && !r.signed) todo.push('<a class="todo" href="#/form-new/rams/' + encodeURIComponent(j.folder) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Sign the RAMS for " + esc(j.jobNumber) + '</b><span class="small">' + esc(j.site || "") + " · new or updated RAMS</span></span>›</a>");
+      for (const d of r.unsigned || []) todo.push('<a class="todo" href="#/form-new/rams/' + encodeURIComponent(j.folder) + "/" + encodeURIComponent(d.file.path) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Sign the " + esc(d.kind) + " for " + esc(j.jobNumber) + '</b><span class="small">' + esc(d.file.name) + "</span></span>›</a>");
     }
     // POWRA every day (Liam, 20 Nov): supervisors carry one out each working day on the site they're on; the to-do stays
     // until they've submitted one for that job today
@@ -239,8 +239,8 @@
     }
     if (section === "rams") {
       setBar("RAMS & crane plan", j.jobNumber, true);
-      $("main").innerHTML = (hs.length ? hs.map(fileRow).join("") : '<div class="empty">No RAMS issued yet.</div>') +
-        (hs.length && can("rams") ? (rams.signed ? '<div class="signed">✓ You signed these on ' + esc(fmtDate(rams.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + '">Read &amp; sign the RAMS</a>') : "");
+      // each document signed for on its own (RAMS, crane plan)
+      $("main").innerHTML = hs.length ? rams.docs.map((d) => fileRow(d.file) + (can("rams") ? (d.signed ? '<div class="signed">✓ You signed the ' + esc(d.kind) + " on " + esc(fmtDate(d.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + "/" + encodeURIComponent(d.file.path) + '">Read &amp; sign the ' + esc(d.kind) + "</a>") : "")).join("") : '<div class="empty">No RAMS issued yet.</div>';
       return bindFiles();
     }
     if (section === "model") {
@@ -267,7 +267,7 @@
       '<div class="tiles">' +
       t(true, "#/job/" + f + "/drawings", ICON.file, "Drawings", dr.length + (dr.length === 1 ? " drawing" : " drawings"), nNew ? nNew + " new" : "") +
       t(models.length && can("model"), models.length === 1 ? "#/model/" + f + "/0" : "#/job/" + f + "/model", ICON.jobs, "3D model", can("erect") ? "View and mark erected" : "View the model") +
-      t(hs.length || can("rams"), "#/job/" + f + "/rams", ICON.hs, "RAMS", hs.length ? (can("rams") ? (rams.signed ? "Signed" : "Read and sign") : hs.length + " document" + (hs.length > 1 ? "s" : "")) : "None issued", can("rams") && rams.needed && !rams.signed ? "Sign" : "") +
+      t(hs.length || can("rams"), "#/job/" + f + "/rams", ICON.hs, "RAMS", hs.length ? (can("rams") ? (rams.signed ? "Signed" : rams.unsigned.length + " to sign") : hs.length + " document" + (hs.length > 1 ? "s" : "")) : "None issued", can("rams") && rams.needed && !rams.signed ? "Sign" : "") +
       t(can("form:plant") && (j.plant || []).length, "#/plant/" + f, ICON.check, "Plant checks", (j.plant || []).length + " machine" + ((j.plant || []).length === 1 ? "" : "s")) +
       t(can("qa"), "#/qa/" + f, ICON.check, "QA", "Handover, audit, snags") +
       t(true, "#/job/" + f + "/forms", ICON.forms, "Forms", "Toolbox, POWRA, day work") +
