@@ -52,6 +52,7 @@
 | **Manager tools** (site app) and roles | **Built as a demo**; waiting for Liam's tick-box role schedule and Azure. |
 | Staff personal data in Access (2.1 / HC2.18), hard-coded database driver (HC2.12) | **Not started.** |
 | QFC process review (QFC01–06) | **Not started**; QFC04 first. See "Process review". |
+| **Approvals (external suitability checks)** | **List made 20 Nov** (A1–A19, under "Waiting on Liam"): SCCS, RWC, H&S adviser, hire companies, principal contractors, data protection, payroll, accountant, IT. None started. |
 | Overview and AI handover brief | **Done**: `docs/iCONSTRUCTE-OVERVIEW.md` (project doc `claude/iCONSTRUCTE-OVERVIEW.md`). |
 | Delivery calendar weekly spreadsheet (Friday task) | **Paused** (replaced by Goods In). |
 | ISO 9001 customer retention tables | **Done** (spreadsheets delivered). |
@@ -100,6 +101,43 @@
   - forms: NCR, goods-in / traceability record, inspection and test plan, current site forms (MEWP check, bolt torque, line/level/plumb, permits), approved supplier list;
   - standards: BS EN 1090-2:2018 (Sections 5 and 12 most useful), BCSA Model Specification for structural bolting / holding-down bolts;
   - live `iCONSTRUCTE.exe.config` (0.4), van registration and drivers.
+
+### Approvals: external suitability checks (20 Nov 2026)
+
+What iCONSTRUCTE and the site app now do that someone outside BSS should confirm as suitable before it is relied on. **Before trial** = before the site app is used on a live site (pilot, Stage 3.5 / 5); **Before go-live** = before desktop 1.8 goes live (1.4) or the site app is rolled out beyond the pilot. Internal sign-off by the named BSS person comes first in each case, then the external check. Each item is closed with who confirmed it, the date, and any changes they asked for.
+
+**Quality system and BS EN 1090 (certification body: SCCS, ISO 9001 certificate Q 113, FPC / welding certificate 2273-CPR-0113)**
+- [ ] **A1 Digital records replacing paper (before go-live).** Site QA forms (safe site handover, site inspection / handover, Supervisors Completion, site audit, NCR, completion certificate), the ITP made from WM 14-8, delivery notes and signed copies, plant registers and toolbox talk registers become electronic records with electronic signatures, filed in the job folders. *Check:* SCCS content that these meet the FPC record requirements (BS EN 1090-1 FPC, BS EN 1090-2 records, ISO 9001 7.5 documented information): signatures, who / when, no later editing, retention period, backup. *Internal first:* QA Manager and RWC (John Turner). Tell SCCS before go-live; confirm at the next surveillance visit.
+- [ ] **A2 QFC Rev C changes (before go-live).** QFC01 (quote from email), QFC03 (Goods In), QFC04 (Fab Issue, delivery notes and Goods Out, Q04.9 / Q04.10), QFC05 (site app forms, POWRA, plant checks), QFC06 (records list). *Check:* SCCS accept the revised flowcharts and procedures (QP01, QP05, QP08) as part of the certified system. *Internal first:* QA Manager.
+- [ ] **A3 Order standard notes and Execution Class wording (before go-live).** BS EN 1090-2 material, bolt (NHSS 3, NSSS 2.4.2), galvanising and painting blocks; EXC3 / EXC4 traceability line. *Check:* RWC, then SCCS at audit; bolt suppliers (BAPP / Whites) confirm they can certify to the wording.
+- [ ] **A4 ITP from WM 14-8 (per job).** Prefilled ITP in 09 - QA Docs. *Check:* RWC once for the master; the client / Engineer accepts each job's ITP (hold and witness points are theirs to agree).
+
+**Bolting and site work (NSSS Section 6 and 9; Project Specification overrides)**
+- [ ] **A5 Preloaded bolts: "indicator" wording (before trial).** The site inspection treats HSFG / TCB as indicator bolts and asks for a torque only for bolts tightened by torque. NSSS 6.3.2 allows torque, combined, DTI or HRC tightening, and NSSS Table 2.4 note 3 says HRC (TCB) assemblies depend on controlled torque-tension characteristics "as with other torque methods"; HSFG is the old name for preloaded bolts in general (NSSS 2.4.5), so an HSFG bolt is only "indicating" when fitted with DTIs. Inspection is to BS EN 1090-2 for EXC2 unless specified (NSSS 6.3.3). *Check:* RWC, then the bolt supplier (tightening method, DTI acceptance per NSSS 6.3.3, calibrated wrench for HRC) and the Engineer where the Project Specification sets the method. Likely change: the line asks the tightening method (HRC sheared / DTI gaps / torque / combined) and records the right evidence for each.
+- [ ] **A6 Site weld coating repairs (before trial).** Site inspection: "where any site welding was done, coatings repaired". *Check:* the coating specification on each job (paint manufacturer's repair procedure; galvanising repair to BS EN ISO 1461) and the RWC for the weld itself (WPS, qualified welder, NSSS 5).
+- [ ] **A7 Line / level / plumb instruments (before trial).** Spirit level and laser line added as accepted instruments. *Check:* RWC / Contracts Manager that they are accurate enough for the NSSS Section 9 permitted deviations on the structures BSS erects (spirit level for short members only), and calibration records.
+
+**Plant and lifting (LOLER, PUWER, BS 7121)**
+- [ ] **A8 Daily check sheets per machine type (before trial).** Telehandler (lifting jib, chains, forks), cherry picker and scissor lift (diesel / electric), Genie SuperLift, mini crane. *Check:* each against the manufacturer's operator manual pre-use list and current guidance (CPA telehandler and mini crane guidance, IPAF pre-use inspection guidance), by BSS's H&S adviser and a main hire company (their competent person). Includes the weekly-sheet approach (one sheet per machine, several operators) and the decision not to ask for operator cards on the sheet (competence held centrally).
+- [ ] **A9 Cranes left out of BSS checks (before trial).** The crane company's driver does the daily checks. *Check:* the hire terms on each job: on a **contract lift** the crane company plans and runs the lift; on a **CPA hire with operator** BSS keeps the lift planning duty (Appointed Person, lift plan, BS 7121-1) even though the driver checks the crane. H&S adviser to confirm wording in RAMS and the hire order.
+- [ ] **A10 Mini crane (before trial).** BSS-operated, so BSS does the daily check, lift plan and Appointed Person. *Check:* the hire company / manufacturer's pre-use list and BS 7121 (and any CPA mini crane guidance), and that thorough examination dates (12 months machine, 6 months accessories) are captured from the hire certificates.
+
+**Health and safety on site (CDM 2015)**
+- [ ] **A11 POWRA, toolbox talks register, site audit, safe site handover, RAMS read-and-sign on the phone (before trial).** *Check:* BSS's H&S adviser (competent person) approves the forms and the toolbox talk library content; principal contractors on the pilot job accept phone briefings and signatures in place of their paper registers (some insist on their own forms).
+- [ ] **A12 Emailing / sharing completed forms as PDFs to clients (before trial).** *Check:* clients / principal contractors accept the PDF layout and electronic signatures; nothing personal goes on a shared form.
+
+**People, personal data and pay (UK GDPR, employment)**
+- [ ] **A13 Data protection impact assessment (before trial, required).** Check-in locations, competency card photos, holidays, expenses, the 9am check-in alert, WhatsApp instructions to personal mobiles, phones used for work. *Check:* a data protection adviser / solicitor reviews the DPIA, the staff notice (4.4), retention periods and the ICO registration; employees told before the pilot. The rule already in place (no personal data in the Access file or on the Actions list) stays.
+- [ ] **A14 Hours booked and the Timesheet (before go-live).** 10 h local / 12 h away per day, overtime rounding, two jobs a day split. *Check:* HR / employment adviser against contracts and the Working Time Regulations (daily rest, 48-hour average); the payroll provider or accountant confirms the Payroll sheet is what they need.
+- [ ] **A15 Staff personal data in Access (2.1 / HC2.18) (before go-live).** NI numbers, bank details, date of birth. *Check:* data protection adviser on moving them out or locking them down.
+
+**Money**
+- [ ] **A16 Supplier invoice matching (P7, before it is used).** Automatic approval on PO / supplier / value / goods received / no duplicate. *Check:* the accountant (and auditor if there is one) agrees the controls, tolerance and who may approve, and the Excel layout for the accounts package.
+- [ ] **A17 Tonnes erected from the 3D model for valuations (5.8, before it is used).** *Check:* the client's QS accepts model weights as the measure on each contract.
+
+**IT and security**
+- [ ] **A18 Microsoft 365 / Azure set-up (Stage 3–4, before trial).** SharePoint permissions (`Sites.Selected`, HC2.21), MFA, second admin, backups, the API filtering each person's data (HC2.22). *Check:* BSS's IT provider, then a short independent security review before rolling out beyond the pilot (and Cyber Essentials if customers ask for it).
+- [ ] **A19 Our van payload 1,600 kg (before go-live).** *Check:* the van's plated weight and kerb weight (V5 / plate, or a weighbridge) so the delivery note check uses the true payload.
 
 **Source code** is backed up privately on GitHub (Bolton-Steel-Structures/iconstruct) and every change is pushed there. The live database backup (0.3) isn't needed until go-live, which is a while off; it's a condition of step 1.4.
 
@@ -1159,3 +1197,4 @@ A **Team** page in iCONSTRUCTE for managers, as a starting point covering **expe
 | 20 Nov 2026 | Manager tools **Plant checks** (Liam): every job's machines, this week's checks, not checked today, defects today; managers can complete checks | Built, in the preview |
 | 20 Nov 2026 | Site app job page as **tiles** (Liam): Drawings (new badge), 3D model, RAMS (Sign badge), Plant checks, QA, Forms, each opening its own page; sw v30 | Built, in the preview |
 | 20 Nov 2026 | 1.8 test build 15 packaged; site app preview and trial repo (BSSL-mobile-app) updated with everything held since 21:40 | In test (1.8 test build 15) |
+| 20 Nov 2026 | Approvals list added (A1–A19): items needing an outside check before trial or go-live: SCCS (digital FPC records, QFC Rev C, order notes), RWC / bolt supplier (preloaded bolt "indicator" wording against NSSS 6.3, coating repairs, instruments), hire companies and H&S adviser (check sheets, crane contract type, mini crane), principal contractors (digital briefings and signatures), DPIA and employment / payroll, accountant (invoice matching), client QS (model tonnes), IT (Azure), van payload | Waiting on Liam |
