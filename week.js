@@ -8,7 +8,6 @@
   "use strict";
   const { $, esc, isoDate, S, can, jobByFolder, setBar, route } = IC;
 
-  const DAY = 864e5;
   const monday = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   const dayName = (d) => d.toLocaleDateString("en-GB", { weekday: "short" });

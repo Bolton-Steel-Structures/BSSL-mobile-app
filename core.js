@@ -404,7 +404,7 @@
   const routes = {};
   function route(name, fn) { routes[name] = fn; }
 
-  function status(msg) { const el = $("status"); el.hidden = !msg; el.textContent = msg || ""; }
+  function status(msg, urgent) { const el = $("status"); el.hidden = !msg; el.textContent = msg || ""; el.classList.toggle("st-urgent", !!(msg && urgent)); }
 
   function setBar(title, sub, back) {
     $("barTitle").textContent = title; $("barSub").textContent = sub || "";

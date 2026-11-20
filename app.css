@@ -357,3 +357,6 @@ td.cc a { text-decoration: none; color: inherit; font-weight: 600; }
 .todo.alert-row { border-left: 4px solid var(--danger); }
 .todo.alert-row b { color: var(--danger); }
 .ok-card { color: var(--ok); }
+
+/* HC2.20: drawings not checked for over 12 hours */
+#status.st-urgent { background: #b91c1c; color: #fff; font-weight: 600; }

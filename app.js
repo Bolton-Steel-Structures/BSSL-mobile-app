@@ -49,6 +49,14 @@
     }
   }
 
+  // HC2.20: red banner when the drawings list hasn't been checked for more than 12 hours (no signal, app left closed)
+  function staleCheck() {
+    if (!S.user || D.loading) return;
+    const at = LS.get("fetchedAt", null); if (!at) return;
+    const hrs = (Date.now() - new Date(at).getTime()) / 36e5;
+    if (hrs > 12) status("Drawings last checked " + (hrs < 48 ? Math.floor(hrs) + " hours" : Math.floor(hrs / 24) + " days") + " ago. Tap ↻ to check for new drawings before you work from them.", true);
+  }
+
   async function syncOffline() {
     const jobs = myJobs(), wanted = new Map();
     jobs.forEach((j) => (j.files || []).forEach((f) => wanted.set(fileKey(f), { f, j })));
@@ -56,8 +64,15 @@
     D.offlineJobs = D.offlineJobs.filter((folder) => jobs.some((j) => j.folder === folder)); LS.set("offlineJobs", D.offlineJobs);
     const have = new Set(await Store.keys());
     for (const [k, v] of wanted) {
-      if (D.offlineJobs.includes(v.j.folder) && !have.has(k)) {
-        try { await Store.put({ key: k, path: v.f.path, issued: v.f.issued, blob: await Src.blob(v.f.path), savedAt: Date.now() }); } catch (e) { console.warn("offline save failed", v.f.path, e); }
+      if (!D.offlineJobs.includes(v.j.folder)) continue;
+      // HC2.19: a saved copy whose size doesn't match the issued file is replaced, never shown
+      if (have.has(k) && v.f.size) { const cur = await Store.get(k); if (cur && cur.blob && cur.blob.size !== v.f.size) { await Store.del(k); have.delete(k); } }
+      if (!have.has(k)) {
+        try {
+          const blob = await Src.blob(v.f.path);
+          if (v.f.size && blob.size !== v.f.size) throw new Error("incomplete download (" + blob.size + " of " + v.f.size + " bytes)");
+          await Store.put({ key: k, path: v.f.path, issued: v.f.issued, blob, savedAt: Date.now() });
+        } catch (e) { console.warn("offline save failed", v.f.path, e); }
       }
     }
     D.saved = new Set(await Store.keys());
@@ -82,7 +97,7 @@
       tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …") + "</div>";
     if ($("timeCard")) IC.Time.card($("timeCard"));
     // My week: where the labour planner has me for the next 7 days (W2)
-    const week = myWeek().filter((a) => a.date <= IC.isoDate(new Date(Date.now() + 6 * 864e5)));
+    const in6 = new Date(); in6.setDate(in6.getDate() + 6); const week = myWeek().filter((a) => a.date <= IC.isoDate(in6));
     if (week.length && $("myweek")) {
       $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Details ›</a></div>' + week.map((a) => {
         const d = IC.parseDate(a.date), isToday = a.date === IC.isoDate(new Date()), job = jobByFolder(a.folder);
@@ -334,6 +349,9 @@
     window.addEventListener("hashchange", route);
     window.addEventListener("online", () => refresh());
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
+    // HC2.20: check for new drawings every 15 minutes while the app is open; warn when the last check is over 12 hours old
+    setInterval(() => { if (document.visibilityState === "visible" && S.user) refresh(); }, 15 * 60 * 1000);
+    setInterval(staleCheck, 60 * 1000);
     if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
     try { D.saved = new Set(await Store.keys()); } catch (e) { /* storage blocked */ }
     IC.loadBankHolidays();

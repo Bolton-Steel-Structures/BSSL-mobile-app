@@ -16,7 +16,7 @@
   // Valid / expiring (within 60 days) / expired, from the expiry date.
   function state(c) {
     if (!c.expiry) return { cls: "", label: "No expiry date" };
-    const days = Math.floor((parseDate(c.expiry) - parseDate(isoDate(new Date()))) / 864e5);
+    const days = Math.round((parseDate(c.expiry) - parseDate(isoDate(new Date()))) / 864e5); // round: a day is 23 or 25 h at the clock change
     if (days < 0) return { cls: "declined", label: "Expired " + fmtDate(c.expiry), days };
     if (days <= SOON_DAYS) return { cls: "pending", label: "Expires in " + days + " day" + (days === 1 ? "" : "s"), days };
     return { cls: "approved", label: "Valid to " + fmtDate(c.expiry), days };

@@ -113,7 +113,7 @@
     const onSite = states.filter((s) => s.cls === "on").length;
     const ws = weekStart(new Date()), lastWs = new Date(ws); lastWs.setDate(lastWs.getDate() - 7);
     const toApprove = d.team.filter((p) => d.time.some((e) => e.user === p.email && new Date(e.at) >= lastWs && new Date(e.at) < ws) && !d.weeks.some((w) => w.user === p.email && w.weekStart === isoDate(lastWs)));
-    const offSoon = d.leave.filter((r) => r.status === "approved" && r.to >= isoDate(new Date()) && r.from <= isoDate(new Date(Date.now() + 13 * 864e5))).sort((a, b) => a.from.localeCompare(b.from));
+    const offSoon = d.leave.filter((r) => r.status === "approved" && r.to >= isoDate(new Date()) && r.from <= isoDate(((x) => (x.setDate(x.getDate() + 13), x))(new Date()))).sort((a, b) => a.from.localeCompare(b.from));
 
     const r9 = roll(d);
     const link = (href, icon, title, sub, n) => '<a class="tile-row" href="' + href + '"><span class="ti">' + icon + "</span><span><b>" + esc(title) + '</b><span class="small">' + esc(sub) + "</span></span>" + (n ? '<span class="pill pending">' + n + "</span>" : "") + "›</a>";
