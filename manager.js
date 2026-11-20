@@ -220,7 +220,7 @@
     let missingToday = 0, defects = 0;
     const rows = jobs.map((j) => '<div class="section-h">' + esc(j.jobNumber + " · " + (j.site || "")) + "</div>" + j.plant.map((p) => {
       const mine = checks.filter((c) => c.jobFolder === j.folder && c.values.plantKey === p.id);
-      const dayState = (d) => { const dc = mine.filter((c) => IC.sameDay(c.submittedAt || c.updatedAt, d)); return !dc.length ? "" : dc.some((c) => c.values.safe === "No" || (c.flags || []).length) ? "bad" : "ok"; };
+      const dayState = (d) => { const dc = mine.filter((c) => IC.sameDay(IC.plantCheckDay(c), d)); return !dc.length ? "" : dc.some((c) => c.values.safe === "No" || (c.flags || []).length) ? "bad" : "ok"; };
       const today = dayState(new Date()); if (!today) missingToday++; if (today === "bad") defects++;
       return '<a class="tile-row" href="#/plant/' + encodeURIComponent(j.folder) + "/" + encodeURIComponent(p.id) + '"><span><b>' + esc(p.model || p.description || "Plant") + '</b><span class="small">' + esc([p.type, p.ref].filter(Boolean).join(" · ")) + '</span><span class="pdots">' +
         days.map((d) => '<span class="pd ' + dayState(d) + '">' + d.toLocaleDateString("en-GB", { weekday: "narrow" }) + "</span>").join("") + "</span></span>" +

@@ -91,7 +91,8 @@
         y += 35;
       } else if (f.type === "rows") {
         val.forEach((r, i) => para((i + 1) + ". " + f.columns.map((c) => (r[c.id] ? c.label + ": " + r[c.id] : "")).filter(Boolean).join(" · "), M, 180));
-      } else if (f.type === "talk") para(val.title, M, 180, 10);
+      } else if (f.type === "date") para(IC.fmtDay(IC.parseDate(val)), M, 180, 10);
+      else if (f.type === "talk") para(val.title, M, 180, 10);
       else if (f.type === "confirm") para(val ? "✓ " + f.text : "Not confirmed", M, 180);
       else if (f.type === "tolerance") val.forEach((r) => para((r.loc || "") + " " + r.check + ": " + r.dev + " mm (permitted " + r.permitted + ")", M, 180, 9.5, "normal", r.ok === false ? [197, 15, 31] : [33, 33, 33]));
       else para(typeof val === "object" ? JSON.stringify(val) : val, M, 180);

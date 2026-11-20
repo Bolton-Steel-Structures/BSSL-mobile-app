@@ -87,6 +87,7 @@
       blurb: "Daily check before use. Each machine has a weekly sheet anyone on the site can add to.",
       fields: [
         { type: "hidden", id: "plantKey" },
+        { type: "date", id: "checkDate", label: "Date of check", prefill: "today", max: "today", back: 7, required: true, hint: "Today unless you're recording a check done earlier" },
         { type: "text", id: "plantRef", label: "Machine reference (fleet / hire no. on the machine)", required: true },
         { type: "select", id: "plantType", label: "Machine", options: PLANT_TYPES, required: true },
         { type: "text", id: "plantId", label: "Make / model", placeholder: "e.g. Genie Z45" },
@@ -318,10 +319,12 @@
       }
       case "text": case "number": case "date": case "time": {
         const pre = (ctx.prefill || {})[f.id];
-        const v = val != null ? val : pre != null ? pre : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : "";
-        el.innerHTML = label + (f.multiline ? '<textarea rows="3">' + esc(v) + "</textarea>" : '<input type="' + (f.type === "text" ? "text" : f.type) + '"' + (f.type === "number" ? ' inputmode="decimal" step="any"' : "") + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : "") + ' value="' + esc(v) + '">');
+        const v = val != null ? val : pre != null ? pre : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : f.prefill === "today" ? isoDate(new Date()) : "";
+        // date limits: not in the future (max "today"), and no more than f.back days ago
+        const dMax = f.type === "date" && f.max === "today" ? isoDate(new Date()) : "", dMin = f.type === "date" && f.back ? isoDate(addD(new Date(), -f.back)) : "";
+        el.innerHTML = label + (f.multiline ? '<textarea rows="3">' + esc(v) + "</textarea>" : '<input type="' + (f.type === "text" ? "text" : f.type) + '"' + (f.type === "number" ? ' inputmode="decimal" step="any"' : "") + (dMax ? ' max="' + dMax + '"' : "") + (dMin ? ' min="' + dMin + '"' : "") + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : "") + ' value="' + esc(v) + '">') + (f.hint ? '<div class="small">' + esc(f.hint) + "</div>" : "");
         const inp = el.querySelector("input,textarea");
-        return { el, get: () => inp.value.trim(), check: () => need(inp.value.trim()) };
+        return { el, get: () => inp.value.trim(), check: () => { const x = inp.value.trim(), n = need(x); if (n || !x || f.type !== "date") return n; if (dMax && x > dMax) return f.label + " can't be in the future"; if (dMin && x < dMin) return f.label + " must be within the last " + f.back + " days"; return ""; } };
       }
       case "select": {
         if (val == null && ctx.prefill && ctx.prefill[f.id] != null) val = ctx.prefill[f.id];
@@ -599,6 +602,7 @@
       else if (f.type === "confirm") body = v ? "✓ " + esc(f.text) : "Not confirmed";
       else if (f.type === "checklist") { const acts = rec.values[f.id + "Actions"] || {}; body = Object.entries(v).map(([k, a]) => '<div class="cl-done ' + (a === f.badAnswer ? "bad" : "") + '"><span>' + esc(k) + (acts[k] ? '<span class="small act-done">Action: ' + esc(acts[k]) + "</span>" : "") + "</span><b>" + esc(a) + "</b></div>").join(""); }
       else if (f.type === "yesno") body = esc(v) + (rec.values[f.id + "Action"] ? '<div class="small act-done">Action: ' + esc(rec.values[f.id + "Action"]) + "</div>" : "");
+      else if (f.type === "date") body = esc(fmtDay(IC.parseDate(v)))
       else if (f.type === "talk") body = esc(v.title) + (v.other ? ' <span class="small">(other topic)</span>' : "");
       else if (f.type === "people") body = (await Promise.all(v.map(async (p) => { const u = p.sig ? await Data.blobUrl(p.sig) : ""; return '<div class="ppl-done">' + esc(p.name) + (u ? '<img class="sig-img sm" src="' + u + '">' : "") + "</div>"; }))).join("");
       else if (f.type === "rows") body = '<table class="tbl"><tr>' + f.columns.map((c) => "<th>" + esc(c.label) + "</th>").join("") + "</tr>" + v.map((r) => "<tr>" + f.columns.map((c) => '<td class="' + (c.badAnswer && r[c.id] === c.badAnswer ? "bad" : "") + '">' + esc(r[c.id] || "") + "</td>").join("") + "</tr>").join("") + "</table>";
@@ -643,12 +647,16 @@
   const addD = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   const normRef = (r) => String(r || "").trim().toUpperCase().replace(/\s+/g, " ");
   const keyOf = (c) => c.values.plantKey || "REF:" + normRef(c.values.plantRef);
+  // the day a check counts for: the date of check (can be set back up to 7 days), else when it was submitted
+  const checkDay = (c) => (c.values.checkDate ? IC.parseDate(c.values.checkDate) : new Date(c.submittedAt || c.updatedAt));
+  const lateEntry = (c) => c.values.checkDate && c.submittedAt && c.values.checkDate !== isoDate(new Date(c.submittedAt));
+  IC.plantCheckDay = checkDay;
   async function plantChecks(folder) { return (await Data.list("forms", "team")).filter((f) => f.templateId === "plant" && f.status !== "draft" && f.jobFolder === folder && f.values && (f.values.plantKey || f.values.plantRef)); }
   // machines on a job: its hired plant, plus any other machine checked there in the last 4 weeks
   async function machinesFor(folder) {
     const j = jobByFolder(folder), list = ((j && j.plant) || []).map((p) => ({ key: p.id, title: p.model || p.description || "Plant " + p.no, sub: [p.type, p.ref ? "ref " + p.ref : "", p.attachments, p.supplier, p.offHire ? "off hire " + fmtDate(p.offHire) : ""].filter(Boolean).join(" · "), hired: p }));
     const since = addD(monOf(new Date()), -28), checks = await plantChecks(folder);
-    checks.forEach((c) => { const k = keyOf(c); if (!list.some((m) => m.key === k) && new Date(c.submittedAt || c.updatedAt) >= since) list.push({ key: k, title: c.values.plantRef, sub: [c.values.plantType, c.values.plantId].filter(Boolean).join(" · ") }); });
+    checks.forEach((c) => { const k = keyOf(c); if (!list.some((m) => m.key === k) && checkDay(c) >= since) list.push({ key: k, title: c.values.plantRef, sub: [c.values.plantType, c.values.plantId].filter(Boolean).join(" · ") }); });
     return { j, list, checks };
   }
   async function plantFolder(args) {
@@ -662,7 +670,7 @@
     const { j, list, checks } = await machinesFor(folder);
     setBar("Plant", j ? j.jobNumber + " · " + (j.site || "") : "", true);
     const mon = monOf(new Date()), days = Array.from({ length: 7 }, (_, i) => addD(mon, i));
-    const dot = (k, d) => { const day = checks.filter((c) => keyOf(c) === k && IC.sameDay(c.submittedAt || c.updatedAt, d)); return '<span class="pd ' + (!day.length ? "" : day.some((c) => c.values.safe === "No" || (c.flags || []).length) ? "bad" : "ok") + '">' + d.toLocaleDateString("en-GB", { weekday: "narrow" }) + "</span>"; };
+    const dot = (k, d) => { const day = checks.filter((c) => keyOf(c) === k && IC.sameDay(checkDay(c), d)); return '<span class="pd ' + (!day.length ? "" : day.some((c) => c.values.safe === "No" || (c.flags || []).length) ? "bad" : "ok") + '">' + d.toLocaleDateString("en-GB", { weekday: "narrow" }) + "</span>"; };
     $("main").innerHTML = (IC.viewableJobs().length > 1 ? '<label class="fl">Job<select id="pJob">' + jobOptions(folder, false) + "</select></label>" : "") +
       (list.length ? list.map((m) => '<a class="tile-row" href="#/plant/' + encodeURIComponent(folder) + "/" + encodeURIComponent(m.key) + '"><span class="ti safety">' + IC.ICON.hs + "</span><span><b>" + esc(m.title) + '</b><span class="small">' + esc(m.sub) + '</span><span class="pdots">' + days.map((d) => dot(m.key, d)).join("") + "</span></span>›</a>").join("") : '<div class="empty small">No plant on hire to this job.</div>') +
       '<button class="btn block" id="pAdd" style="margin-top:10px">Other machine</button>';
@@ -676,25 +684,28 @@
   async function plantSheet(folder, key, weekOff) {
     const { j, list, checks } = await machinesFor(folder), m = list.find((x) => x.key === key) || { key, title: key.replace(/^REF:/, ""), sub: "" };
     const mon = addD(monOf(new Date()), weekOff * 7), days = Array.from({ length: 7 }, (_, i) => addD(mon, i));
-    const all = checks.filter((c) => keyOf(c) === key).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || "")), latest = all[0];
+    const all = checks.filter((c) => keyOf(c) === key).sort((a, b) => checkDay(b) - checkDay(a) || (b.submittedAt || "").localeCompare(a.submittedAt || "")), latest = all[0];
     setBar(m.title, [latest && latest.values.plantRef !== m.title ? latest.values.plantRef : "", j ? j.jobNumber : ""].filter(Boolean).join(" · "), true);
-    const week = all.filter((c) => { const d = new Date(c.submittedAt || c.updatedAt); return d >= mon && d < addD(mon, 7); });
-    const doneToday = week.some((c) => IC.sameDay(c.submittedAt || c.updatedAt, new Date()));
+    const week = all.filter((c) => { const d = checkDay(c); return d >= mon && d < addD(mon, 7); });
+    const doneToday = week.some((c) => IC.sameDay(checkDay(c), new Date()));
+    const today0 = IC.parseDate(isoDate(new Date())), oldest = addD(today0, -7);
     const base = "#/plant/" + encodeURIComponent(folder) + "/" + encodeURIComponent(key) + "/";
     $("main").innerHTML = (m.sub ? '<div class="small" style="margin-bottom:8px">' + esc(m.sub) + "</div>" : "") +
       '<div class="row nav-week"><a class="btn" href="' + base + (weekOff - 1) + '">‹ Previous</a>' + (weekOff < 0 ? '<a class="btn" href="' + base + (weekOff + 1) + '">Next ›</a>' : "") + "</div>" +
       '<div class="section-h">Week of ' + esc(fmtDay(mon)) + "</div>" +
-      days.map((d) => { const dc = week.filter((c) => IC.sameDay(c.submittedAt || c.updatedAt, d));
+      days.map((d) => { const dc = week.filter((c) => IC.sameDay(checkDay(c), d)), canLate = d < today0 && d >= oldest;
         return '<div class="pday"><b>' + esc(fmtDay(d)) + "</b>" + (dc.length ? dc.map((c) => { const bad = c.values.safe === "No" || (c.flags || []).length;
-          return '<a class="tile-row" href="#/form/' + c.id + '"><span><b>' + esc(c.values.operator || c.userName || "") + '</b><span class="small">' + esc(fmtTime(c.submittedAt || c.updatedAt) + (c.values.hours ? " · " + c.values.hours + " hrs" : "")) + "</span></span>" + (bad ? '<span class="pill declined">Defect</span>' : '<span class="pill ok">OK</span>') + "</a>"; }).join("") : '<div class="small">Not checked</div>') + "</div>"; }).join("") +
+          return '<a class="tile-row" href="#/form/' + c.id + '"><span><b>' + esc(c.values.operator || c.userName || "") + '</b><span class="small">' + esc((lateEntry(c) ? "entered " + fmtDay(c.submittedAt) : fmtTime(c.submittedAt || c.updatedAt)) + (c.values.hours ? " · " + c.values.hours + " hrs" : "")) + "</span></span>" + (bad ? '<span class="pill declined">Defect</span>' : '<span class="pill ok">OK</span>') + "</a>"; }).join("") : '<div class="small">Not checked' + (canLate ? ' · <a href="#" data-late="' + isoDate(d) + '">Record a check for this day</a>' : "") + "</div>") + "</div>"; }).join("") +
       (weekOff === 0 ? '<button class="btn primary block" id="pCheck">' + (doneToday ? "Add another check today" : "Check this machine today") + "</button>" : "");
-    if ($("pCheck")) $("pCheck").onclick = () => {
+    const startCheck = (date) => {
       const hired = m.hired || {}, d = (hired.description || "") + " " + (hired.model || "");
       // iCONSTRUCTE records "Cherry picker" / "Scissor lift" only: diesel or electric is picked here on the first check and remembered for the week.
       const typeGuess = hired.type && PLANT_TYPES.includes(hired.type) ? hired.type : /mini ?crane|spider crane|maeda|jekko|unic/i.test(d) ? "Mini crane" : /superlift/i.test(d) ? "Genie SuperLift" : /telehandler|manitou|jcb 5/i.test(d) ? "Telehandler" : null;
-      IC.LS.set("plantPrefill", { plantKey: key.indexOf("REF:") === 0 ? "" : key, plantRef: latest ? latest.values.plantRef : hired.ref || (key.indexOf("REF:") === 0 ? key.slice(4) : ""), plantType: latest ? latest.values.plantType : typeGuess, plantId: latest ? latest.values.plantId : hired.model || hired.description || "" });
+      IC.LS.set("plantPrefill", { plantKey: key.indexOf("REF:") === 0 ? "" : key, plantRef: latest ? latest.values.plantRef : hired.ref || (key.indexOf("REF:") === 0 ? key.slice(4) : ""), plantType: latest ? latest.values.plantType : typeGuess, plantId: latest ? latest.values.plantId : hired.model || hired.description || "", checkDate: date || isoDate(new Date()) });
       location.hash = "#/form-new/plant/" + encodeURIComponent(folder);
     };
+    if ($("pCheck")) $("pCheck").onclick = () => startCheck();
+    $("main").querySelectorAll("[data-late]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); startCheck(a.dataset.late); }));
   }
 
   // Toolbox talks (Liam, 20 Nov): the talks the office has published, to read and deliver; then the register that each
