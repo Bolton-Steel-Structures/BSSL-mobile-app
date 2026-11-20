@@ -349,8 +349,7 @@
     window.addEventListener("hashchange", route);
     window.addEventListener("online", () => refresh());
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
-    // HC2.20: check for new drawings every 15 minutes while the app is open; warn when the last check is over 12 hours old
-    setInterval(() => { if (document.visibilityState === "visible" && S.user) refresh(); }, 15 * 60 * 1000);
+    // HC2.20: warn when the last check for drawings is over 12 hours old (push notifications for new drawings come with Azure)
     setInterval(staleCheck, 60 * 1000);
     if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
     try { D.saved = new Set(await Store.keys()); } catch (e) { /* storage blocked */ }
