@@ -281,7 +281,8 @@
   // new issue of a document needs a new signature. Earlier records signed for several at once still count for each.
   const hsKey = (j) => (j.files || []).filter((f) => f.category === "H&S").map((f) => f.path + "@" + f.issued).sort().join("|");
   const docKey = (x) => x.path + "@" + x.issued;
-  const docKind = (x) => (/crane|lift(ing)? plan/i.test(x.name || "") ? "crane plan" : "RAMS");
+  // crane plan: "crane", "lift plan", "lifting plan", or LP / CP as a reference (LP, LP01, CP-02; not CPCS)
+  const docKind = (x) => (/crane|lift(ing)? plan|\b(LP|CP)[-_ ]?\d*\b/i.test(x.name || "") ? "crane plan" : "RAMS");
   async function ramsStatus(j) {
     const hs = (j.files || []).filter((f) => f.category === "H&S"); if (!hs.length) return { needed: false, docs: [], unsigned: [] };
     const mine = (await Data.list("forms")).filter((f) => f.templateId === "rams" && f.jobFolder === j.folder && f.status === "submitted" && f.docsKey);
