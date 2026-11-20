@@ -53,8 +53,9 @@
         const h = '<div class="section-h"' + (iso === today ? ' style="color:var(--brand-orange)"' : past ? ' style="opacity:.6"' : "") + ">" + esc(dayName(d) + " " + dayNum(d)) + (iso === today ? " · today" : iso > isoDate(ds[6]) ? " · next week" : "") + "</div>";
         if (!items.length) return h + '<div class="card small" style="color:var(--sub)">Not on the plan</div>';
         return h + items.map((a) => {
+          if (a.off) return '<div class="todo info"' + (past ? ' style="opacity:.6"' : "") + '><span><b>Off</b><br><span class="small">On the planner as off</span></span></div>';
           const job = jobByFolder(a.folder);
-          const crew = can("crew") ? inWeek.filter((x) => x.date === iso && x.jobNumber === a.jobNumber && !me().includes(String(x.email).toLowerCase())).map((x) => nameFor(x.email)) : [];
+          const crew = can("crew") ? inWeek.filter((x) => !x.off && x.date === iso && x.jobNumber === a.jobNumber && !me().includes(String(x.email).toLowerCase())).map((x) => nameFor(x.email)) : [];
           return '<a class="todo' + (iso === today ? "" : " info") + '"' + (past ? ' style="opacity:.6"' : "") + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + "><span><b>" + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + '</b><br><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span>" +
             (can("crew") ? '<br><span class="small">' + (crew.length ? "With you: " + esc(crew.join(", ")) : "No one else on the plan") + "</span>" : "") + "</span>" + (job ? "›" : "") + "</a>";
         }).join("");
@@ -67,11 +68,11 @@
       const cell = (email, d) => {
         const items = inWeek.filter((a) => String(a.email).toLowerCase() === email && a.date === isoDate(d));
         if (!items.length) return '<td class="wk-off"></td>';
-        return "<td>" + items.map((a) => '<span class="wk-job" style="background:' + colourFor(a.jobNumber, colours) + '" title="' + esc((a.site || "") + (a.start ? " · start " + a.start : "")) + '">' + esc(a.jobNumber) + "</span>").join("") + (items.length > 1 ? '<span class="wk-clash">2 jobs</span>' : "") + "</td>";
+        return "<td>" + items.map((a) => a.off ? '<span class="wk-job" style="background:#E1E1EB">Off</span>' : '<span class="wk-job" style="background:' + colourFor(a.jobNumber, colours) + '" title="' + esc((a.site || "") + (a.start ? " · start " + a.start : "")) + '">' + esc(a.jobNumber) + "</span>").join("") + (items.length > 1 ? '<span class="wk-clash">2 jobs</span>' : "") + "</td>";
       };
       body = people.length ? '<div class="wk-wrap"><table class="wk"><colgroup><col class="wk-namecol"></colgroup><thead><tr><th></th>' + showDays.map((d) => "<th" + (isoDate(d) === today ? ' class="wk-today"' : "") + ">" + esc(dayName(d)) + "<br><span>" + esc(String(d.getDate())) + "</span></th>").join("") + "</tr></thead><tbody>" +
         people.map((p) => '<tr><th class="wk-name">' + esc(shortName(nameFor(p))) + "</th>" + showDays.map((d) => cell(p, d)).join("") + "</tr>").join("") + "</tbody></table></div>" +
-        '<div class="small" style="margin-top:10px">' + Object.keys(colours).map((j) => { const a = inWeek.find((x) => x.jobNumber === j); return '<span class="wk-job" style="background:' + colours[j] + '">' + esc(j) + "</span> " + esc(a && a.site ? a.site : ""); }).join("<br>") + "</div>"
+        '<div class="small" style="margin-top:10px">' + Object.keys(colours).map((j) => { const a = inWeek.find((x) => !x.off && x.jobNumber === j); return '<span class="wk-job" style="background:' + colours[j] + '">' + esc(j) + "</span> " + esc(a && a.site ? a.site : ""); }).join("<br>") + "</div>"
         : '<div class="empty">No one on the plan this week.</div>';
     }
     $("main").innerHTML = head + body + '<p class="small" style="margin-top:14px;color:var(--sub)">From the site labour planner. Plans can change: this shows this week only' + (ds.length > 7 ? " and next Monday" : "") + ". Check with your supervisor if in doubt.</p>";

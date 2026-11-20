@@ -86,6 +86,7 @@
     if (week.length && $("myweek")) {
       $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Details ›</a></div>' + week.map((a) => {
         const d = IC.parseDate(a.date), isToday = a.date === IC.isoDate(new Date()), job = jobByFolder(a.folder);
+        if (a.off) return '<div class="todo info"><span class="ti">' + ICON.leave + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ': Off</b><span class="small">On the planner as off</span></span></div>';
         return '<a class="todo' + (isToday ? "" : " info") + '"' + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + '><span class="ti">' + ICON.jobs + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ": " + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + '</b><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span></span>" + (job ? "›" : "") + "</a>";
       }).join("");
     }
@@ -102,6 +103,8 @@
     if (p.isManager) {
       const l = await IC.Leave.pendingForManager(), e = await IC.Expenses.pendingForManager();
       if (l) todo.push('<a class="todo" href="#/leave/team"><span class="ti">' + ICON.leave + "</span><span><b>" + l + " holiday request" + (l > 1 ? "s" : "") + ' to review</b><span class="small">Team calendar</span></span>›</a>');
+      const late = await IC.Manager.lateCheckIns();
+      if (late.length) todo.push('<a class="todo alert-row" href="#/manager/live"><span class="ti">' + ICON.clock + "</span><span><b>" + late.length + " not checked in by " + esc(late.by) + '</b><span class="small">' + esc(late.map((x) => x.p.name).join(", ")) + "</span></span>›</a>");
       if (e) todo.push('<a class="todo" href="#/expenses/team"><span class="ti">' + ICON.money + "</span><span><b>" + e + " expense claim" + (e > 1 ? "s" : "") + ' to approve</b></span>›</a>');
     }
     if (Data.pending) todo.push('<div class="todo info"><span class="ti">' + ICON.clock + "</span><span><b>" + Data.pending + ' item(s) waiting to send</b><span class="small">They\'ll go when you have signal</span></span></div>');

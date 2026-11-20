@@ -32,9 +32,73 @@
     if (open) { state = "On site · " + (open.in.site || open.in.jobNumber || "") + " since " + fmtTime(open.in.at); cls = "on"; }
     else if (todays.length) { state = "Checked out " + fmtTime(todays[todays.length - 1].out.at) + " · " + fmtHours(todays.reduce((t, x) => t + x.ms, 0)); cls = "done"; }
     else if (leave) { state = "On holiday" + (leave.to !== leave.from ? " until " + fmtDay(leave.to) : " today"); cls = "off"; }
+    else if (planned(p.email).off) { state = "Off (on the planner)"; cls = "off"; }
     else { state = "Not checked in"; cls = "none"; }
     const flags = todays.flatMap((x) => [x.in, x.out]).filter((e) => e && e.flagged);
     return { state, cls, open, missed, flags, ms: todays.reduce((t, x) => t + x.ms, 0) };
+  }
+
+  // ---------------------------------------------------------------- 9am check-in and who's on site (Liam, 20 Nov)
+  // Site staff (operatives and supervisors) not checked in by 09:00 on a working day are flagged, unless on approved
+  // holiday or on the planner's Off row (manifest allocations with off: true). Set the time with checkInBy in config.js.
+  // Live: the Azure API runs the same check at 09:00 and sends it to the managers (push / email); here it shows when the
+  // app is opened.
+  const SITE_ROLE = /operative|supervisor/i;
+  function checkInBy() {
+    const t = String((window.SITE_CONFIG || {}).checkInBy || "09:00").split(":"), x = new Date();
+    x.setHours(Number(t[0]) || 9, Number(t[1]) || 0, 0, 0);
+    return x;
+  }
+  function planned(email) {
+    const iso = isoDate(new Date()), e = String(email).toLowerCase();
+    const al = ((IC.S.manifest && IC.S.manifest.allocations) || []).filter((a) => a.date === iso && String(a.email).toLowerCase() === e);
+    return { off: al.some((a) => a.off), jobs: al.filter((a) => !a.off) };
+  }
+  function roll(d) {
+    const now = new Date(), iso = isoDate(now), by = checkInBy(), working = IC.isWorkingDay(now);
+    const rows = d.team.map((p) => ({ p, t: today(d, p), pl: planned(p.email), hol: onLeave(d.leave, p.email, iso), siteStaff: SITE_ROLE.test(p.role || "") }));
+    const isOff = (r) => !!(r.hol || r.pl.off);
+    return {
+      by, late: now >= by, working, rows,
+      onSite: rows.filter((r) => r.t.cls === "on"),
+      out: rows.filter((r) => r.t.cls === "done"),
+      off: rows.filter((r) => r.t.cls !== "on" && r.t.cls !== "done" && isOff(r)),
+      missing: working ? rows.filter((r) => r.siteStaff && r.t.cls === "none" && !isOff(r)) : [],
+      notIn: rows.filter((r) => !r.siteStaff && r.t.cls === "none" && !isOff(r))
+    };
+  }
+  const plannedText = (r) => r.pl.jobs.length ? "Planned: " + r.pl.jobs.map((a) => a.jobNumber + (a.site ? " " + a.site : "")).join(", ") : "Not on today's plan";
+  const hhmm = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+  let liveTimer = null;
+  window.addEventListener("hashchange", () => { if (liveTimer && location.hash !== "#/manager/live") { clearInterval(liveTimer); liveTimer = null; } });
+
+  async function viewLive() {
+    setBar("Who's on site", "Live · updates every minute", true);
+    const draw = async () => {
+      const d = await load(), r = roll(d);
+      // group open check-ins by site
+      const sites = {};
+      r.onSite.forEach((x) => { const k = x.t.open.in.site || x.t.open.in.jobNumber || "Site not given"; (sites[k] = sites[k] || []).push(x); });
+      const person = (x, sub, cls) => '<a class="tile-row mt-' + cls + '" href="#/manager/person/' + encodeURIComponent(x.p.email) + '/0"><span class="avatar">' + esc(initials(x.p.name)) + "</span><span><b>" + esc(x.p.name) + '</b><span class="small">' + sub + "</span>" +
+        x.t.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") + "</span>›</a>";
+      const elsewhere = (x) => { const j = x.t.open.in.jobNumber; return x.pl.jobs.length && j && !x.pl.jobs.some((a) => a.jobNumber === j) ? '<span class="flag">Planned on ' + esc(x.pl.jobs.map((a) => a.jobNumber).join(", ")) + "</span>" : ""; };
+      const missingHead = r.late ? "Not checked in by " + hhmm(r.by) : "Not in yet (due by " + hhmm(r.by) + ")";
+      if (!$("liveBox")) return;
+      $("liveBox").innerHTML =
+        '<div class="stats"><div><b>' + r.onSite.length + '</b><span>on site</span></div><div' + (r.late && r.missing.length ? ' class="st-bad"' : "") + "><b>" + r.missing.length + "</b><span>" + (r.late ? "not in by " + hhmm(r.by) : "not in yet") + "</span></div><div><b>" + r.off.length + "</b><span>off today</span></div><div><b>" + r.out.length + "</b><span>checked out</span></div></div>" +
+        (r.missing.length ? '<div class="section-h' + (r.late ? " sh-bad" : "") + '">' + esc(missingHead) + "</div>" + r.missing.map((x) => person(x, esc(plannedText(x)), r.late ? "late" : "none")).join("") : (r.working ? '<div class="card small ok-card">Everyone due on site has checked in' + (r.late ? "" : " so far") + ".</div>" : "")) +
+        Object.keys(sites).sort().map((k) => '<div class="section-h">' + esc(k) + " · " + sites[k].length + "</div>" + sites[k].map((x) => person(x, "In at " + esc(fmtTime(x.t.open.in.at)) + (x.t.open.in.jobNumber ? " · " + esc(x.t.open.in.jobNumber) : "") + elsewhere(x), "on")).join("")).join("") +
+        (r.out.length ? '<div class="section-h">Checked out</div>' + r.out.map((x) => person(x, esc(x.t.state), "done")).join("") : "") +
+        (r.off.length ? '<div class="section-h">Off today</div>' + r.off.map((x) => person(x, x.hol ? "On holiday" + (x.hol.to !== x.hol.from ? " until " + esc(fmtDay(x.hol.to)) : "") : "Off (on the planner)", "off")).join("") : "") +
+        (r.notIn.length ? '<div class="section-h">Office and others not checked in</div>' + r.notIn.map((x) => person(x, esc(plannedText(x)), "none")).join("") : "") +
+        '<p class="small" style="color:var(--sub)">Updated ' + esc(hhmm(new Date())) + ". Site staff not checked in by " + esc(hhmm(r.by)) + " are flagged unless on holiday or on the planner's Off row.</p>";
+    };
+    $("main").innerHTML = '<div id="liveBox"><div class="empty">Loading…</div></div><button class="btn block" id="liveRefresh" style="margin-top:8px">Refresh now</button>';
+    $("liveRefresh").onclick = async () => { try { await IC.Data.flush(); await IC.Data.pull(); } catch (e) { /* offline: show what we have */ } draw(); };
+    await draw();
+    if (liveTimer) clearInterval(liveTimer);
+    liveTimer = setInterval(() => { if (location.hash === "#/manager/live") draw(); }, 60000);
   }
 
   // ---------------------------------------------------------------- dashboard
@@ -51,10 +115,13 @@
     const toApprove = d.team.filter((p) => d.time.some((e) => e.user === p.email && new Date(e.at) >= lastWs && new Date(e.at) < ws) && !d.weeks.some((w) => w.user === p.email && w.weekStart === isoDate(lastWs)));
     const offSoon = d.leave.filter((r) => r.status === "approved" && r.to >= isoDate(new Date()) && r.from <= isoDate(new Date(Date.now() + 13 * 864e5))).sort((a, b) => a.from.localeCompare(b.from));
 
+    const r9 = roll(d);
     const link = (href, icon, title, sub, n) => '<a class="tile-row" href="' + href + '"><span class="ti">' + icon + "</span><span><b>" + esc(title) + '</b><span class="small">' + esc(sub) + "</span></span>" + (n ? '<span class="pill pending">' + n + "</span>" : "") + "›</a>";
     $("main").innerHTML =
       '<div class="stats"><div><b>' + onSite + "/" + d.team.length + '</b><span>on site now</span></div><div><b>' + pendLeave.length + "</b><span>holiday requests</span></div>" +
       "<div><b>" + pendExp.length + "</b><span>claims to approve</span></div><div><b>" + cardsDue.length + "</b><span>cards expiring / expired</span></div></div>" +
+      (r9.late && r9.missing.length ? '<a class="todo alert-row" href="#/manager/live"><span class="ti">' + IC.ICON.clock + "</span><span><b>" + r9.missing.length + " not checked in by " + esc(hhmm(r9.by)) + '</b><span class="small">' + esc(r9.missing.map((x) => x.p.name).join(", ")) + "</span></span>›</a>" : "") +
+      link("#/manager/live", IC.ICON.clock, "Who's on site (live)", r9.onSite.length + " on site" + (r9.missing.length ? " · " + r9.missing.length + (r9.late ? " not in by " : " due by ") + hhmm(r9.by) : "") + (r9.off.length ? " · " + r9.off.length + " off" : ""), r9.late ? r9.missing.length : 0) +
       '<div class="section-h">Waiting for you</div>' +
       link("#/leave/team", IC.ICON.leave, "Holiday requests", pendLeave.length ? pendLeave.map((r) => r.userName.split(" ")[0]).join(", ") : "None waiting · team calendar", pendLeave.length) +
       link("#/expenses/team", IC.ICON.money, "Expense claims", pendExp.length ? fmtMoney(pendExp.reduce((t, e) => t + e.amount, 0)) + " to approve" + (toPay.length ? " · " + fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "") : (toPay.length ? fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "None waiting"), pendExp.length) +
@@ -141,8 +208,12 @@
     };
   }
 
+  // for Home's to-do list: who's late in (empty before the check-in time or on a non-working day)
+  IC.Manager = { async lateCheckIns() { const r = roll(await load()); const list = r.late ? r.missing : []; list.by = hhmm(r.by); return list; } };
+
   route("manager", async (args) => {
     if (!Data.profile || !Data.profile.isManager) { location.hash = "#/"; return; }
+    if (args[0] === "live") return viewLive();
     if (args[0] === "time") return viewTime(Number(args[1] || 0));
     if (args[0] === "cards") return viewCards();
     if (args[0] === "person" && args[1]) return viewPerson(decodeURIComponent(args[1]), Number(args[2] || 0));

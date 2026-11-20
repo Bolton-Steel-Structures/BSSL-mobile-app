@@ -166,6 +166,8 @@
         const span = [5, 6, 0].includes(new Date().getDay()) ? 6 : 5;
         for (; days.length < span; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) days.push(isoDate(d));
         m.allocations = [];
+        // the planner's Off row: Lee is off all week (as typed on the bottom row in iCONSTRUCTE)
+        days.forEach((day) => m.allocations.push({ email: "l.hart@example.com", date: day, off: true }));
         Object.entries(P).forEach(([email, list]) => list.forEach((jn, i) => { const j = jobs[jn]; if (j) m.allocations.push({ email, date: days[i], jobNumber: jn, folder: j.folder, site: j.site, description: j.description, start: jn === "2530/011" ? "08:00" : "07:30", workingAway: jn === "2522/004" }); }));
       }
       // demo 3D model (roadmap 5.8 test): Tekla IFC sample on the first job (stored as .ifc.txt: the preview host serves no .ifc)
@@ -346,7 +348,7 @@
   const Demo = {
     // the manager's team (everyone except Liam), with two extra sample people so the team screens have something in them
     team: [["ian.jones@boltonstructures.com", "Ian Jones", "Supervisor"], ["daniel.wiseman@boltonstructures.com", "Daniel Wiseman", "Operative"],
-      ["s.khan@example.com", "Sam Khan", "Operative"], ["m.wilson@example.com", "Mark Wilson", "Operative (welder)"]],
+      ["s.khan@example.com", "Sam Khan", "Operative"], ["m.wilson@example.com", "Mark Wilson", "Operative (welder)"], ["l.hart@example.com", "Lee Hart", "Operative"]],
     async seed() {
       if (LS.get("demoSeeded", 0) === 5) return;
       await Data.clearAll();

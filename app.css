@@ -347,3 +347,13 @@ td.cc a { text-decoration: none; color: inherit; font-weight: 600; }
 .mv-days .mv-day:last-child { border-bottom: 0; }
 .mv-dayh { margin-bottom: 4px; }
 .mv-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+/* who's on site / 9am check-in (manager.js) */
+.stats .st-bad { border-color: var(--danger); }
+.stats .st-bad b { color: var(--danger); }
+.section-h.sh-bad { color: var(--danger); }
+.tile-row.mt-late .avatar { background: #FDE2E1; color: var(--danger); }
+.tile-row.mt-late { border-left: 4px solid var(--danger); }
+.todo.alert-row { border-left: 4px solid var(--danger); }
+.todo.alert-row b { color: var(--danger); }
+.ok-card { color: var(--ok); }
