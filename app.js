@@ -75,7 +75,7 @@
     const p = Data.profile || {}, h = new Date().getHours();
     setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
-    const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && can("form:" + t.id));
+    const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && can("form:" + t.id));
     $("main").innerHTML = (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
       '<div class="tiles">' +
       tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
@@ -215,8 +215,8 @@
       ((j.models || []).length && can("model") ? '<div class="section-h">3D model</div>' + j.models.map((mo, i) => '<a class="todo info" href="#/model/' + f + "/" + i + '"><span><b>' + esc(mo.name.replace(/\.ifc$/i, "")) + '</b><span class="small">' + (can("erect") ? "View and mark steel erected" : "View the model") + (mo.issued ? " · issued " + esc(fmtDate(mo.issued)) : "") + "</span></span>›</a>").join("") : "") +
       '<div class="section-h">Drawings (' + dr.length + ")</div>" + (dr.length ? dr.map(fileRow).join("") : '<div class="empty">No drawings issued yet.</div>') +
       '<div class="section-h">Forms for this job</div><div class="chips">' +
-      [["nearmiss", "Near miss / hazard"], ["toolbox", "Toolbox talk"], ["plant", "Plant check"], ["daywork", "Day work sheet"], ["erection", "Line, level & plumb"], ["bolting", "Bolting check"], ["ncr", "Report a problem (NCR)"], ["completion", "Handover certificate"]]
-        .filter(([id]) => can("form:" + id)).map(([id, t]) => '<a class="chip" href="#/form-new/' + id + "/" + f + '">' + esc(t) + "</a>").join("") + (can("qa") ? '<a class="chip" href="#/qa/' + f + '">QA for this job ›</a>' : "") + '<a class="chip" href="#/forms">All forms ›</a></div>' +
+      [["nearmiss", "Near miss / hazard"], ["toolbox", "Toolbox talk"], ["plant", "Plant check"], ["daywork", "Day work sheet"], ["ncr", "Report a problem (NCR)"]]
+        .filter(([id]) => can("form:" + id) && !(can("qa") && IC.Forms.QA_FORMS.includes(id))).map(([id, t]) => '<a class="chip" href="#/form-new/' + id + "/" + f + '">' + esc(t) + "</a>").join("") + (can("qa") ? '<a class="chip" href="#/qa/' + f + '">QA for this job ›</a>' : "") + '<a class="chip" href="#/forms">All forms ›</a></div>' +
       '<p class="small">Only the current issue of each drawing is shown. Superseded drawings are removed automatically, including offline copies.</p>';
     document.querySelectorAll("[data-path]").forEach((b) => (b.onclick = () => (location.hash = "#/view/" + f + "/" + encodeURIComponent(b.dataset.path))));
     $("btnOffline").onclick = () => toggleOffline(j);
@@ -342,7 +342,7 @@
 
   const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
     ["leave", "Holidays", ICON.leave, ["leave", "leave-new"], "leave"], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"], "expenses"]];
-  const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && can("form:" + t.id));
+  const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && can("form:" + t.id));
   const allowed = (f) => !f || (f === "forms" ? anyForm() : can(f));
   function drawNav(name) {
     $("nav").hidden = false;

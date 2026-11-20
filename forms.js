@@ -111,7 +111,7 @@
         { type: "photos", id: "photos", label: "Photos" },
         { type: "signature", id: "sig", label: "Checked by", required: true }
       ] },
-    { id: "erection", group: "Quality", title: "Erection check: line, level & plumb", ref: "NSSS 8.6, 9.3, 9.6",
+    { id: "erection", group: "Quality", retired: true, title: "Erection check: line, level & plumb", ref: "NSSS 8.6, 9.3, 9.6",
       fields: [
         { type: "select", id: "instrument", label: "Instrument", options: ["Total station", "Laser level", "Optical level", "Plumb line and tape", "Other"], required: true },
         { type: "text", id: "instrumentId", label: "Instrument ID and calibration date", required: true },
@@ -121,7 +121,7 @@
         { type: "photos", id: "photos", label: "Photos" },
         { type: "signature", id: "sig", label: "Checked by", required: true }
       ] },
-    { id: "bolting", group: "Quality", title: "Bolting check", ref: "NSSS 6, 8.8",
+    { id: "bolting", group: "Quality", retired: true, title: "Bolting check", ref: "NSSS 6, 8.8",
       fields: [
         { type: "rows", id: "connections", label: "Connections", required: true, columns: [
           { id: "ref", label: "Grid / connection", type: "text" }, { id: "bolt", label: "Size & grade", type: "text" },
@@ -131,7 +131,7 @@
         { type: "checklist", id: "checks", label: "Checks", items: ["All connections visually checked after local alignment (8.8)", "Preloaded joints: plies drawn together, gaps over 1 mm packed (6.4.1)", "Any preloaded assembly slackened after tightening has been scrapped (6.3.4)"], badAnswer: "No" },
         { type: "signature", id: "sig", label: "Checked by", required: true }
       ] },
-    { id: "welding", group: "Quality", title: "Site welding record", ref: "NSSS 5, 8.7",
+    { id: "welding", group: "Quality", retired: true, title: "Site welding record", ref: "NSSS 5, 8.7",
       fields: [
         { type: "note", text: "The welder must hold a current qualification (WQ) for the WPS being used. Check the WPS / PQR / WQ register." },
         { type: "text", id: "welder", label: "Welder", required: true },
@@ -144,7 +144,7 @@
         { type: "photos", id: "photos", label: "Photos" },
         { type: "signature", id: "sig", label: "Signed", required: true }
       ] },
-    { id: "snag", group: "Quality", title: "Snagging list", ref: "QFC05 Q05.7",
+    { id: "snag", group: "Quality", retired: true, title: "Snagging list", ref: "QFC05 Q05.7",
       fields: [
         { type: "rows", id: "snags", label: "Snags", required: true, columns: [{ id: "where", label: "Location", type: "text" }, { id: "what", label: "Snag", type: "text" }, { id: "status", label: "Status", type: "select", options: ["Open", "Done"] }] },
         { type: "photos", id: "photos", label: "Photos" }
@@ -170,7 +170,8 @@
           "All bolts installed", "Beam connection – bolts tight", "HSFG / TCB bolts torqued", "Beams level",
           "Top flanges unpainted where decking is fixed", "Finishes (paint / galv) undamaged", "All flooring installed",
           "All purlins installed", "All side rails installed", "Isolation packs installed", "PC stair free of spalled edges",
-          "Steel stair fixed", "Balustrade / handrail complete", "Edge protection complete", "Metal deck complete", "Siteworks repaired"] },
+          "Steel stair fixed", "Balustrade / handrail complete", "Edge protection complete", "Metal deck complete", "Siteworks repaired",
+          "Site welds complete and visually acceptable (NSSS 5, 8.7)"] },
         { type: "text", id: "comments", label: "Comments", multiline: true },
         { type: "photos", id: "photos", label: "Photos" },
         { type: "text", id: "bssName", label: "BSSL representative (printed name)", prefill: "me", required: true },
@@ -367,17 +368,21 @@
   }
 
   // ---------------------------------------------------------------- screens
+  // Forms that live on the QA page (Liam, 20 Nov: no doubling up between QA and Forms). People without QA (operatives)
+  // still raise an NCR from Forms.
+  const QA_FORMS = ["handover", "foundation", "works", "ncr", "completion"];
+
   async function viewList() {
-    setBar("Forms", "Safety and quality", false);
+    setBar("Forms", IC.can("qa") ? "Safety and day work" : "Safety and reporting", false);
     const mine = (await Data.list("forms")).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
     const drafts = mine.filter((f) => f.status === "draft"), done = mine.filter((f) => f.status !== "draft").slice(0, 15);
-    const allowedT = T.filter((t) => t.id !== "rams" && IC.can("form:" + t.id));
+    const allowedT = T.filter((t) => t.id !== "rams" && !t.retired && IC.can("form:" + t.id) && !(IC.can("qa") && QA_FORMS.includes(t.id)));
     const group = (g) => !allowedT.some((t) => t.group === g) ? "" : '<div class="section-h">' + g + "</div>" + allowedT.filter((t) => t.group === g).map((t) =>
       '<a class="tile-row" href="#/form-new/' + t.id + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
     const row = (f) => { const t = tpl(f.templateId) || { title: f.templateId };
       return '<a class="tile-row" href="#/form/' + f.id + '"><span class="ti">' + IC.ICON.file + "</span><span><b>" + esc(t.title) + '</b><span class="small">' + esc((f.jobNumber || "No job") + " · " + fmtDay(f.updatedAt) + " " + fmtTime(f.updatedAt)) + "</span></span>" +
         (f.status === "draft" ? '<span class="pill warn">Draft</span>' : f.flags && f.flags.length ? '<span class="pill new">Issue</span>' : '<span class="pill ok">Sent</span>') + "</a>"; };
-    $("main").innerHTML = (drafts.length ? '<div class="section-h">Drafts</div>' + drafts.map(row).join("") : "") + group("Safety") + group("Quality") +
+    $("main").innerHTML = (drafts.length ? '<div class="section-h">Drafts</div>' + drafts.map(row).join("") : "") + group("Safety") + group("Quality").replace('<div class="section-h">Quality</div>', '<div class="section-h">' + (IC.can("qa") ? "Day work" : "Quality") + "</div>") +
       (done.length ? '<div class="section-h">Recently completed</div>' + done.map(row).join("") : "");
   }
   IC.route("forms", viewList);
@@ -502,10 +507,11 @@
 
   IC.route("form-new", (args) => {
     const id = args[0];
+    if ((tpl(id) || {}).retired) { IC.toast("That check is now part of the site inspection / handover in QA"); location.hash = "#/qa" + (args[1] ? "/" + args[1] : ""); return; }
     if (id === "ncr") { const p = IC.LS.get("ncrPrefill", null); IC.LS.del("ncrPrefill"); if (p) return viewForm("ncr", { templateId: "ncr", status: "draft", values: { what: p.what, where: p.where, clause: p.clause }, jobFolder: p.jobFolder }); }
     return viewForm(id, null, args[1] ? decodeURIComponent(args[1]) : "");
   });
   IC.route("form", (args) => viewDone(args[0]));
 
-  IC.Forms = { templates: T, tpl, ramsStatus, hsKey, photoStrip, flagsFor, field };
+  IC.Forms = { templates: T, tpl, ramsStatus, hsKey, photoStrip, flagsFor, field, QA_FORMS };
 })();

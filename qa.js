@@ -1,23 +1,18 @@
 /* iCONSTRUCTE Site: QA (quality assurance) section: BSS Works Inspection, snag list with close-out, completion certificates.
- * Kept lean (Liam, 20 Nov): only the checks with a working form, in erection order (QFC05, NSSS 5, 6, 8, 9):
- * before erection, erection, close-out (site inspection with snags, NCR, completion certificate).
+ * Kept lean (Liam, 20 Nov): before erection (safe site handover, foundation check) and close-out (site inspection /
+ * handover covering line, level & plumb, bolting and site welding, with snags; NCR; completion certificate).
  */
 (function () {
   "use strict";
   const { $, esc, Data, myJobs, jobByFolder, jobOptions, setBar, route, LS } = IC;
 
-  // Trimmed 20 Nov (Liam: too onerous): only checks with a working form, in erection order (QFC05). The planned
-  // placeholders (pre-site inspection, ITP, delivery / traceability / bolt batch records, preloaded bolt inspection,
-  // welder & WPS check, packs & shims, protective treatment, QA dossier) are off the screen; they stay on the roadmap.
+  // Trimmed 20 Nov (Liam: too onerous). Deliveries and protective coatings are office / workshop records, not site;
+  // line / level / plumb, bolting and site welding are covered by the site inspection / handover sheet (welding added
+  // to it); welder & WPS and packs & shims dropped. So: before erection, then close-out.
   const STAGES = [
     { title: "1. Before erection", items: [
       { name: "Safe site handover", ref: "NSSS 8.2, 8.3", form: "handover" },
       { name: "Foundation check", ref: "NSSS 9.1, 9.2", form: "foundation" }
-    ] },
-    { title: "2. Erection", items: [
-      { name: "Line, level & plumb", ref: "NSSS 8.6, 9.3, 9.6", form: "erection" },
-      { name: "Bolting check", ref: "NSSS 6, 8.8", form: "bolting" },
-      { name: "Site welding", ref: "NSSS 5, 8.7", form: "welding" }
     ] }
   ];
   const CLOSE_OUT = [
@@ -162,8 +157,8 @@
       (jobs.length ? '<label class="fl">Job<select id="qaJob">' + jobOptions(folder, false) + "</select></label>" : "") +
       (j ? '<div class="qa-job"><div><b>' + esc(j.jobNumber) + '</b> <span class="small">' + esc(j.site || j.customer || "") + '</span></div><div class="small">' + forms.length + " QA record" + (forms.length === 1 ? "" : "s") + " · " + open.length + " open snag" + (open.length === 1 ? "" : "s") + "</div></div>" : "") +
       STAGES.map((st) => '<div class="section-h">' + esc(st.title) + "</div>" + st.items.map(item).join("")).join("") +
-      '<div class="section-h">3. Close-out</div>' +
-      (folder ? '<a class="tile-row qa-item" href="#/form-new/works/' + encodeURIComponent(folder) + '"><span class="ti quality">' + IC.ICON.check + '</span><span><b>Site inspection / handover</b><span class="small">Any N becomes a snag below</span></span><span class="pill ok">Start</span></a>' : "") +
+      '<div class="section-h">2. Close-out</div>' +
+      (folder ? '<a class="tile-row qa-item" href="#/form-new/works/' + encodeURIComponent(folder) + '"><span class="ti quality">' + IC.ICON.check + '</span><span><b>Site inspection / handover</b><span class="small">Line, level &amp; plumb, bolting, site welds and finishes: any N becomes a snag below</span></span><span class="pill ok">Start</span></a>' : "") +
       (inspections.length ? inspections.map(insRow).join("") : "") +
       '<div class="small" style="margin:8px 2px 4px;font-weight:600">Snags (' + open.length + " open)</div>" + (open.length ? open.map(snagRow).join("") : '<div class="empty small">No open snags.</div>') +
       (closed.length ? '<details class="closed-snags"><summary>' + closed.length + " closed snag" + (closed.length > 1 ? "s" : "") + "</summary>" + closed.map(snagRow).join("") + "</details>" : "") +
