@@ -121,7 +121,6 @@
       blurb: "Before starting the task: check the hazards where you're working, then the team signs.",
       fields: [
         { type: "text", id: "task", label: "Task", required: true },
-        { type: "text", id: "where", label: "Where on site", required: true },
         { type: "checklist", id: "checks", label: "Before starting", badAnswer: "No", required: true, items: [
           "Briefed on the RAMS for this task", "Safe access and egress to the work area", "Working at height controls in place (MEWP, edge protection, harness)",
           "Lift planned, exclusion zone set and slinger / signaller in place", "Plant checked", "Weather suitable (wind, rain, ice)",
