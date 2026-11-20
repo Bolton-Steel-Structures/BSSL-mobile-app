@@ -358,3 +358,21 @@ td.cc a { text-decoration: none; color: inherit; font-weight: 600; }
 .todo.alert-row b { color: var(--danger); }
 .ok-card { color: var(--ok); }
 
+
+/* per-item action box when an answer isn't the right one (Liam, 20 Nov) */
+.act { width: 100%; margin: 2px 0 8px; border: 1px solid var(--danger); border-radius: 8px; padding: 8px 10px; font: inherit; }
+.act[hidden] { display: none !important; }
+.cl-item { border-bottom: 1px solid var(--line); }
+.cl-item .cl-row { border-bottom: 0; }
+.act-done { display: block; color: var(--danger); }
+.ins-x { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.ins-x select, .ins-x input { flex: 1; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+/* toolbox talks list */
+.talks { max-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; margin: 6px 0; }
+.talk-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.talk-row span { flex: 1; text-align: left; }
+.talk-row input[type="radio"] { width: 20px; height: 20px; flex: none; margin: 0; }
+.talk-chosen { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin: 6px 0; }
+.talk-chosen b { flex: 1; }
+.talk-pick[hidden] { display: none !important; }
+.talk-q, .talk-other { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; margin: 6px 0; }

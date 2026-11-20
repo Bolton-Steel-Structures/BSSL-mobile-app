@@ -44,12 +44,13 @@
         { type: "signature", id: "sig", label: "Your signature", required: true }
       ] },
     { id: "toolbox", group: "Safety", title: "Toolbox talk", ref: "QFC05 Q05.7",
+      blurb: "Pick the talk, deliver it, then each operative signs the register.",
       fields: [
-        { type: "text", id: "topic", label: "Topic", required: true },
+        { type: "talk", id: "talk", label: "Talk", required: true },
         { type: "text", id: "by", label: "Delivered by", prefill: "me", required: true },
         { type: "number", id: "mins", label: "Duration", unit: "minutes" },
         { type: "text", id: "points", label: "Key points covered", multiline: true },
-        { type: "people", id: "attendees", label: "Attendees (each person signs)", required: true },
+        { type: "people", id: "attendees", label: "Register: each operative signs", required: true },
         { type: "photos", id: "photos", label: "Photos (optional)" }
       ] },
     { id: "plant", group: "Safety", title: "Plant pre-use check", ref: "QFC05 Q05.8 · Plant register",
@@ -58,7 +59,7 @@
         { type: "text", id: "plantId", label: "Make / model and fleet or hire no.", required: true },
         { type: "number", id: "hours", label: "Hour meter", unit: "hrs" },
         { type: "checklist", id: "checks", label: "Checks", items: ["Thorough examination (LOLER) certificate in date", "Operator holds a valid card for this plant (IPAF / CPCS / NPORS)", "Tyres, tracks and wheels in good condition", "No hydraulic, fuel or oil leaks", "Ground, outriggers and stabilisers suitable", "Controls and emergency stop working", "Emergency lowering checked", "Alarms, lights and beacon working", "Guardrails, gates and harness anchor points intact", "SWL plate / load chart visible"], badAnswer: "No", required: true },
-        { type: "text", id: "defects", label: "Defects found", multiline: true },
+        { type: "text", id: "defects", label: "Other comments", multiline: true },
         { type: "yesno", id: "safe", label: "Safe to use?", badAnswer: "No", required: true, warn: "Do not use. Tag it out of use and tell your supervisor and the hire company." },
         { type: "photos", id: "photos", label: "Photos" },
         { type: "signature", id: "sig", label: "Checked by", required: true }
@@ -75,7 +76,7 @@
     { id: "handover", group: "Safety", title: "Safe site handover", ref: "NSSS 8.2, 8.3 · Table 1.5(x)",
       fields: [
         { type: "checklist", id: "checks", label: "Site conditions", items: ["Access route and hardstanding suitable for deliveries and cranes", "Working area firm, level and clear of obstructions", "Foundations and holding-down bolts complete and accessible", "Underground services and overhead cables identified", "Exclusion zones and segregation agreed", "Welfare facilities available", "Inductions and permits completed", "Interfaces with other contractors agreed"], badAnswer: "No", required: true },
-        { type: "text", id: "issues", label: "Issues or restrictions", multiline: true },
+        { type: "text", id: "issues", label: "Other comments", multiline: true },
         { type: "yesno", id: "accepted", label: "Site accepted as safe to start erection?", badAnswer: "No", required: true, warn: "Don't start. Tell the Projects & Estimating Manager." },
         { type: "photos", id: "photos", label: "Photos" },
         { type: "text", id: "pcName", label: "Principal Contractor representative", required: true },
@@ -103,7 +104,7 @@
         { type: "signature", id: "clientSig", label: "Client signature", required: true },
         { type: "signature", id: "sig", label: "BSS supervisor signature", required: true }
       ] },
-    { id: "foundation", group: "Quality", title: "Foundation check before erection", ref: "NSSS 9.1, 9.2",
+    { id: "foundation", group: "Quality", retired: true, title: "Foundation check before erection", ref: "NSSS 9.1, 9.2",
       fields: [
         { type: "note", text: "Any deviation outside NSSS 9.1 must be reported before erection starts (NSSS 9.2)." },
         { type: "tolerance", id: "survey", label: "Survey", only: ["9.1.1"] },
@@ -166,12 +167,12 @@
         { type: "text", id: "glRef", label: "GL ref (grid lines / area inspected)", required: true },
         { type: "text", id: "stage", label: "Work stage", required: true, placeholder: "e.g. Phase 1 frame, GL A–F" },
         { type: "inspect", id: "areas", label: "Areas inspected / snags & defects noted", required: true, items: [
-          "HD bolts tight", "Proprietary anchors installed", "All steelwork fitted", "Columns lined, levelled & plumbed on grid",
-          "All bolts installed", "Beam connection – bolts tight", "HSFG / TCB bolts torqued", "Beams level",
+          "HD bolts tight", "Proprietary anchors installed", "All steelwork fitted", { t: "Columns lined, levelled & plumbed on grid", x: { label: "Checked with", options: ["Total station", "Laser level", "Laser line", "Spirit level", "Optical level", "Plumb line and tape"] } },
+          "All bolts installed", "Beam connection – bolts tight", { t: "HSFG / TCB bolts torqued", x: { label: "Torque (Nm), if required", number: true } }, "Beams level",
           "Top flanges unpainted where decking is fixed", "Finishes (paint / galv) undamaged", "All flooring installed",
           "All purlins installed", "All side rails installed", "Isolation packs installed", "PC stair free of spalled edges",
           "Steel stair fixed", "Balustrade / handrail complete", "Edge protection complete", "Metal deck complete", "Siteworks repaired",
-          "Site welds complete and visually acceptable (NSSS 5, 8.7)"] },
+          "Site welds: where any site welding has been done, coatings repaired (N/A if none)"] },
         { type: "text", id: "comments", label: "Comments", multiline: true },
         { type: "photos", id: "photos", label: "Photos" },
         { type: "text", id: "bssName", label: "BSSL representative (printed name)", prefill: "me", required: true },
@@ -180,6 +181,22 @@
         { type: "text", id: "clientName", label: "Client representative (printed name)", requiredIf: ["clientMode", "Client signed on site"] },
         { type: "signature", id: "clientSig", label: "Signed by client representative", requiredIf: ["clientMode", "Client signed on site"] },
         { type: "note", text: "This document will be presented to a suitable client representative for handing over on partial or full completion. If the client is unable to complete it with the BSSL representative, it will be left with the client and a 5 day period will be permitted before acceptance is deemed granted if not returned prior." }
+      ] },
+    { id: "audit", group: "Quality", title: "Site audit (during erection)", ref: "QFC05 · NSSS 8, 9",
+      blurb: "A general look at progress and quality while erection is under way. Anything marked No needs an action.",
+      fields: [
+        { type: "text", id: "area", label: "Area / phase looked at", required: true, placeholder: "e.g. Phase 1, GL A–F" },
+        { type: "select", id: "progress", label: "Progress", options: ["Ahead of programme", "On programme", "Behind programme"], required: true },
+        { type: "text", id: "progressNotes", label: "Progress notes", multiline: true },
+        { type: "checklist", id: "checks", label: "Quality and site", badAnswer: "No", required: true, items: [
+          "Erecting to the current drawings (latest revision on site)", "Bolts in every connection as erection proceeds (no loose members left)",
+          "Temporary stability: bracing / guys in place as the method statement", "Line, level and plumb checked as bays are completed",
+          "Steelwork and coatings undamaged, or damage marked for repair", "Materials stored off the ground, stacked safely",
+          "Exclusion zones and lifting areas controlled", "Working at height: MEWPs, edge protection and harnesses used correctly",
+          "RAMS being followed; any changes briefed", "Work area tidy, waste removed"] },
+        { type: "photos", id: "photos", label: "Photos" },
+        { type: "text", id: "comments", label: "Other comments", multiline: true },
+        { type: "signature", id: "sig", label: "Audited by", required: true }
       ] },
     { id: "completion", group: "Quality", title: "Completion & handover certificate", ref: "NSSS 8.9 · QFC05 Q05.11",
       fields: [
@@ -246,40 +263,67 @@
       }
       case "yesno": {
         const opts = f.na === false ? ["Yes", "No"] : YNA;
-        el.innerHTML = label + seg(f.id, opts, val, f.badAnswer) + (f.warn ? '<div class="warnbox" hidden>' + esc(f.warn) + "</div>" : "");
-        const w = el.querySelector(".warnbox");
-        bindSeg(el, f.badAnswer, (k, v) => { if (w) w.hidden = v !== f.badAnswer; });
+        const act0 = (ctx.values || {})[f.id + "Action"] || "";
+        el.innerHTML = label + seg(f.id, opts, val, f.badAnswer) + (f.warn ? '<div class="warnbox" hidden>' + esc(f.warn) + "</div>" : "") +
+          (f.badAnswer ? '<input type="text" class="act" placeholder="Action needed" value="' + esc(act0) + '"' + (val === f.badAnswer ? "" : " hidden") + ">" : "");
+        const w = el.querySelector(".warnbox"), act = el.querySelector(".act");
+        bindSeg(el, f.badAnswer, (k, v) => { if (w) w.hidden = v !== f.badAnswer; if (act) act.hidden = v !== f.badAnswer; });
         if (w) w.hidden = val !== f.badAnswer;
-        const s = el.querySelector(".seg"); return { el, get: () => s.dataset.value || "", check: () => need(s.dataset.value) };
+        const s = el.querySelector(".seg");
+        return { el, get: () => s.dataset.value || "", extra: () => (act ? { [f.id + "Action"]: s.dataset.value === f.badAnswer ? act.value.trim() : "" } : {}),
+          check: () => need(s.dataset.value) || (act && s.dataset.value === f.badAnswer && !act.value.trim() ? (f.label || "This") + ": say what action is needed" : "") };
       }
       case "checklist": {
         const v = val || {};
-        el.innerHTML = label + f.items.map((it, i) => '<div class="cl-row"><div class="cl-t">' + esc(it) + "</div>" + seg(String(i), YNA, v[it], f.badAnswer) + "</div>").join("") +
+        const acts0 = (ctx.values || {})[f.id + "Actions"] || {};
+        el.innerHTML = label + f.items.map((it, i) => '<div class="cl-item" data-i="' + i + '"><div class="cl-row"><div class="cl-t">' + esc(it) + "</div>" + seg(String(i), YNA, v[it], f.badAnswer) + "</div>" +
+          (f.badAnswer ? '<input type="text" class="act" placeholder="Action needed" value="' + esc(acts0[it] || "") + '"' + (v[it] === f.badAnswer ? "" : " hidden") + ">" : "") + "</div>").join("") +
           '<button type="button" class="link" data-all>Mark all Yes</button>';
-        bindSeg(el, f.badAnswer);
+        bindSeg(el, f.badAnswer, (k, a) => { const box = el.querySelector('.cl-item[data-i="' + k + '"] .act'); if (box) box.hidden = a !== f.badAnswer; });
         el.querySelector("[data-all]").onclick = () => el.querySelectorAll(".seg").forEach((s) => { const b = s.querySelector('[data-v="Yes"]'); if (b && !s.dataset.value) b.click(); });
         const get = () => { const o = {}; el.querySelectorAll(".seg").forEach((s) => (o[f.items[+s.dataset.seg]] = s.dataset.value || "")); return o; };
-        return { el, get, check: () => (f.required && Object.values(get()).some((x) => !x) ? "Answer every check in " + f.label : "") };
+        const acts = () => { const o = {}; el.querySelectorAll(".cl-item").forEach((r) => { const it = f.items[+r.dataset.i], a = r.querySelector(".seg").dataset.value, box = r.querySelector(".act"); if (box && a === f.badAnswer) o[it] = box.value.trim(); }); return o; };
+        return { el, get, extra: () => (f.badAnswer ? { [f.id + "Actions"]: acts() } : {}),
+          check: () => { if (f.required && Object.values(get()).some((x) => !x)) return "Answer every check in " + f.label; const miss = Object.entries(acts()).find(([, t]) => !t); return miss ? "Say what action is needed: " + miss[0] : ""; } };
       }
       case "inspect": {
         // one row per area: Y / N / N/A, comment (needed for N), date cleared once a snag is put right
         const v = val || {};
-        el.innerHTML = label + f.items.map((it, i) => { const r = v[it] || {};
+        const itemText = (it) => (typeof it === "string" ? it : it.t);
+        const xField = (it, r) => { if (typeof it === "string" || !it.x) return ""; const x = it.x;
+          return '<label class="ins-x"><span class="small">' + esc(x.label) + "</span>" + (x.options ? '<select data-k="x"><option value=""></option>' + x.options.map((o) => "<option" + (o === r.x ? " selected" : "") + ">" + esc(o) + "</option>").join("") + "</select>" : '<input type="number" inputmode="decimal" step="any" data-k="x" value="' + esc(r.x || "") + '">') + "</label>"; };
+        el.innerHTML = label + f.items.map((it0, i) => { const it = itemText(it0), r = v[it] || {};
           return '<div class="ins-row" data-i="' + i + '"><div class="cl-row"><div class="cl-t">' + esc(it) + "</div>" + seg(String(i), YNA.map((x) => (x === "Yes" ? "Y" : x === "No" ? "N" : x)), r.a, "N") + "</div>" +
-            '<div class="ins-more"' + (r.a === "N" || r.c ? "" : " hidden") + '><input type="text" data-k="c" placeholder="Comment / snag / defect" value="' + esc(r.c || "") + '">' +
+            xField(it0, r) +
+            '<div class="ins-more"' + (r.a === "N" || r.c ? "" : " hidden") + '><input type="text" data-k="c" placeholder="Snag / defect and action needed" value="' + esc(r.c || "") + '">' +
             '<label class="ins-clr">Already cleared on <input type="date" data-k="d" value="' + esc(r.d || "") + '"></label></div>' +
             '<div class="ins-ph"><div class="thumbs" data-th></div><label class="btn sm ins-cam"><input type="file" accept="image/*" capture="environment" multiple hidden>Photo</label></div></div>'; }).join("") +
           '<button type="button" class="link" data-all>Mark all unanswered Y</button>';
         bindSeg(el, "N", (k, a) => { const row = el.querySelector('.ins-row[data-i="' + k + '"]'); row.querySelector(".ins-more").hidden = a !== "N" && !row.querySelector('[data-k="c"]').value; });
         // photos for each area
-        const pics = f.items.map((it) => ((v[it] || {}).p || []).slice());
+        const pics = f.items.map((it) => ((v[itemText(it)] || {}).p || []).slice());
         const drawPics = async (i) => { const th = el.querySelector('.ins-row[data-i="' + i + '"] [data-th]'); th.innerHTML = await photoStrip(pics[i]);
           th.querySelectorAll("img").forEach((img, n) => (img.onclick = async () => { if (await IC.ask("Remove this photo?", "Remove")) { pics[i].splice(n, 1); drawPics(i); } })); };
         el.querySelectorAll(".ins-row").forEach((row) => { const i = +row.dataset.i; drawPics(i);
           row.querySelector(".ins-cam input").onchange = async (e) => { for (const file of e.target.files) pics[i].push(await Data.putPhoto(file, ctx.job)); e.target.value = ""; drawPics(i); }; });
         el.querySelector("[data-all]").onclick = () => el.querySelectorAll(".seg").forEach((sg) => { const b = sg.querySelector('[data-v="Y"]'); if (b && !sg.dataset.value) b.click(); });
-        const get = () => { const o = {}; el.querySelectorAll(".ins-row").forEach((row) => { const i = +row.dataset.i, it = f.items[i], prev = v[it] || {}; o[it] = { a: row.querySelector(".seg").dataset.value || "", c: row.querySelector('[data-k="c"]').value.trim(), d: row.querySelector('[data-k="d"]').value, p: pics[i], snagId: prev.snagId }; }); return o; };
-        return { el, get, check: () => { const o = get(); if (f.required && Object.values(o).some((r) => !r.a)) return "Mark every area Y, N or N/A"; const bad = Object.entries(o).find(([, r]) => r.a === "N" && !r.c); return bad ? "Add a comment for the snag: " + bad[0] : ""; } };
+        const get = () => { const o = {}; el.querySelectorAll(".ins-row").forEach((row) => { const i = +row.dataset.i, it = itemText(f.items[i]), prev = v[it] || {}, xe = row.querySelector('[data-k="x"]'); o[it] = { a: row.querySelector(".seg").dataset.value || "", c: row.querySelector('[data-k="c"]').value.trim(), d: row.querySelector('[data-k="d"]').value, p: pics[i], snagId: prev.snagId }; if (xe && xe.value) o[it].x = xe.value; }); return o; };
+        return { el, get, check: () => { const o = get(); if (f.required && Object.values(o).some((r) => !r.a)) return "Mark every area Y, N or N/A"; const bad = Object.entries(o).find(([, r]) => r.a === "N" && !r.c); return bad ? "Say what the snag is and the action needed: " + bad[0] : ""; } };
+      }
+      case "talk": {
+        const talks = (IC.S.manifest && IC.S.manifest.toolboxTalks) || [], cur = val || IC.LS.get("talkPrefill", null) || {};
+        IC.LS.del("talkPrefill");
+        el.innerHTML = label + (cur.title && !cur.other ? '<div class="talk-chosen"><b>' + esc(cur.title) + '</b><button type="button" class="link" data-change>Change</button></div>' : "") +
+          '<div class="talk-pick"' + (cur.title && !cur.other ? " hidden" : "") + ">" + (talks.length ? '<input type="search" class="talk-q" placeholder="Search talks">' + '<div class="talks">' + talks.map((t, i) =>
+          '<label class="talk-row"><input type="radio" name="talk-' + f.id + '" value="' + i + '"' + (cur.title === t.title ? " checked" : "") + "><span>" + esc(t.title) + "</span>" +
+          "</label>").join("") + "</div>" : '<div class="small">No talks from the office yet.</div>') +
+          '<label class="talk-row"><input type="radio" name="talk-' + f.id + '" value="other"' + (cur.other ? " checked" : "") + '><span>Other topic</span></label><input type="text" class="talk-other" placeholder="Topic" value="' + esc(cur.other ? cur.title : "") + '"' + (cur.other ? "" : " hidden") + "></div>";
+        const other = el.querySelector(".talk-other"), q = el.querySelector(".talk-q"), ch = el.querySelector("[data-change]");
+        if (ch) ch.onclick = () => { el.querySelector(".talk-chosen").remove(); el.querySelector(".talk-pick").hidden = false; };
+        el.querySelectorAll('input[type="radio"]').forEach((r) => (r.onchange = () => { other.hidden = r.value !== "other" || !r.checked; }));
+        if (q) q.oninput = () => { const t = q.value.toLowerCase(); el.querySelectorAll(".talks .talk-row").forEach((row) => (row.hidden = !row.textContent.toLowerCase().includes(t))); };
+        const get = () => { const r = el.querySelector('input[type="radio"]:checked'); if (!r) return null; if (r.value === "other") return other.value.trim() ? { title: other.value.trim(), other: true } : null; const t = talks[+r.value]; return { title: t.title, path: t.path || "" }; };
+        return { el, get, check: () => (f.required && !get() ? "Pick the talk (or Other topic and type it)" : "") };
       }
       case "confirm": {
         el.innerHTML = '<label class="confirm"><input type="checkbox"' + (val ? " checked" : "") + "><span>" + esc(f.text) + "</span></label>";
@@ -370,7 +414,7 @@
   // ---------------------------------------------------------------- screens
   // Forms that live on the QA page (Liam, 20 Nov: no doubling up between QA and Forms). People without QA (operatives)
   // still raise an NCR from Forms.
-  const QA_FORMS = ["handover", "foundation", "works", "ncr", "completion"];
+  const QA_FORMS = ["handover", "audit", "works", "ncr", "completion"];
 
   async function viewList() {
     setBar("Forms", IC.can("qa") ? "Safety and day work" : "Safety and reporting", false);
@@ -378,7 +422,7 @@
     const drafts = mine.filter((f) => f.status === "draft"), done = mine.filter((f) => f.status !== "draft").slice(0, 15);
     const allowedT = T.filter((t) => t.id !== "rams" && !t.retired && IC.can("form:" + t.id) && !(IC.can("qa") && QA_FORMS.includes(t.id)));
     const group = (g) => !allowedT.some((t) => t.group === g) ? "" : '<div class="section-h">' + g + "</div>" + allowedT.filter((t) => t.group === g).map((t) =>
-      '<a class="tile-row" href="#/form-new/' + t.id + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
+      '<a class="tile-row" href="' + (t.id === "toolbox" ? "#/toolbox" : "#/form-new/" + t.id) + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
     const row = (f) => { const t = tpl(f.templateId) || { title: f.templateId };
       return '<a class="tile-row" href="#/form/' + f.id + '"><span class="ti">' + IC.ICON.file + "</span><span><b>" + esc(t.title) + '</b><span class="small">' + esc((f.jobNumber || "No job") + " · " + fmtDay(f.updatedAt) + " " + fmtTime(f.updatedAt)) + "</span></span>" +
         (f.status === "draft" ? '<span class="pill warn">Draft</span>' : f.flags && f.flags.length ? '<span class="pill new">Issue</span>' : '<span class="pill ok">Sent</span>') + "</a>"; };
@@ -399,11 +443,11 @@
     const build = () => {
       const job = jobByFolder($("fJob").value);
       const box = $("fFields"); box.innerHTML = ""; widgets = [];
-      for (const f of t.fields) { const w = field(f, rec.values[f.id], { job }); w.f = f; widgets.push(w); box.appendChild(w.el); }
+      for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values }); w.f = f; widgets.push(w); box.appendChild(w.el); }
     };
     build();
     $("fJob").onchange = () => { if (t.id === "rams") build(); };
-    const collect = async () => { const v = {}; for (const w of widgets) if (w.f.id) v[w.f.id] = await w.get(); return v; };
+    const collect = async () => { const v = {}; for (const w of widgets) if (w.f.id) { v[w.f.id] = await w.get(); if (w.extra) Object.assign(v, await w.extra()); } return v; };
     const save = async (status) => {
       const job = jobByFolder($("fJob").value);
       rec.values = await collect(); rec.status = status; rec.jobFolder = job ? job.folder : ""; rec.jobNumber = job ? job.jobNumber : ""; rec.site = job ? job.site || job.customer : "";
@@ -449,8 +493,8 @@
     const out = [];
     for (const f of t.fields) {
       const val = v[f.id];
-      if (f.type === "yesno" && f.badAnswer && val === f.badAnswer) out.push({ text: f.label + ": " + val });
-      if (f.type === "checklist" && val) Object.entries(val).forEach(([k, a]) => { if (a === f.badAnswer) out.push({ text: k + ": " + a }); });
+      if (f.type === "yesno" && f.badAnswer && val === f.badAnswer) out.push({ text: f.label + ": " + val + (v[f.id + "Action"] ? " (action: " + v[f.id + "Action"] + ")" : "") });
+      if (f.type === "checklist" && val) Object.entries(val).forEach(([k, a]) => { const act = (v[f.id + "Actions"] || {})[k]; if (a === f.badAnswer) out.push({ text: k + ": " + a + (act ? " (action: " + act + ")" : "") }); });
       if (f.type === "rows" && val) f.columns.filter((c) => c.badAnswer).forEach((c) => val.forEach((r) => { if (r[c.id] === c.badAnswer) out.push({ text: (r[f.columns[0].id] || "Row") + " – " + c.label + ": " + r[c.id] }); }));
       if (f.type === "inspect" && val) Object.entries(val).forEach(([k, r]) => { if (r.a === "N" && !r.d) out.push({ snag: true, text: "Snag – " + k + ": " + r.c }); });
       if (f.type === "tolerance" && val) val.filter((r) => r.ok === false).forEach((r) => { const c = CHECKS.find((x) => x.id === r.check); out.push({ ncr: true, where: r.loc, clause: "NSSS " + r.check, text: (r.loc ? r.loc + ": " : "") + (c ? c.label : r.check) + " measured " + r.dev + " mm, permitted " + r.permitted }); });
@@ -473,16 +517,18 @@
       if (f.type === "signature") { const u = await Data.blobUrl(v); body = u ? '<img class="sig-img" src="' + u + '" alt="signature">' : "Signed"; }
       else if (f.type === "photos") body = '<div class="thumbs">' + (await photoStrip(v)) + "</div>";
       else if (f.type === "confirm") body = v ? "✓ " + esc(f.text) : "Not confirmed";
-      else if (f.type === "checklist") body = Object.entries(v).map(([k, a]) => '<div class="cl-done ' + (a === f.badAnswer ? "bad" : "") + '"><span>' + esc(k) + "</span><b>" + esc(a) + "</b></div>").join("");
+      else if (f.type === "checklist") { const acts = rec.values[f.id + "Actions"] || {}; body = Object.entries(v).map(([k, a]) => '<div class="cl-done ' + (a === f.badAnswer ? "bad" : "") + '"><span>' + esc(k) + (acts[k] ? '<span class="small act-done">Action: ' + esc(acts[k]) + "</span>" : "") + "</span><b>" + esc(a) + "</b></div>").join(""); }
+      else if (f.type === "yesno") body = esc(v) + (rec.values[f.id + "Action"] ? '<div class="small act-done">Action: ' + esc(rec.values[f.id + "Action"]) + "</div>" : "");
+      else if (f.type === "talk") body = esc(v.title) + (v.other ? ' <span class="small">(other topic)</span>' : "");
       else if (f.type === "people") body = (await Promise.all(v.map(async (p) => { const u = p.sig ? await Data.blobUrl(p.sig) : ""; return '<div class="ppl-done">' + esc(p.name) + (u ? '<img class="sig-img sm" src="' + u + '">' : "") + "</div>"; }))).join("");
       else if (f.type === "rows") body = '<table class="tbl"><tr>' + f.columns.map((c) => "<th>" + esc(c.label) + "</th>").join("") + "</tr>" + v.map((r) => "<tr>" + f.columns.map((c) => '<td class="' + (c.badAnswer && r[c.id] === c.badAnswer ? "bad" : "") + '">' + esc(r[c.id] || "") + "</td>").join("") + "</tr>").join("") + "</table>";
       else if (f.type === "inspect") {
         const snags = await Data.list("snags", "team");
         body = '<table class="tbl"><tr><th>Area inspected</th><th>Accept</th><th>Comments / snags / defects</th><th>Cleared</th></tr>';
-        for (const it of f.items) {
-          const r = v[it] || {}, sn = r.snagId ? snags.find((x) => x.id === r.snagId) : null;
+        for (const it0 of f.items) {
+          const it = typeof it0 === "string" ? it0 : it0.t, r = v[it] || {}, sn = r.snagId ? snags.find((x) => x.id === r.snagId) : null;
           const cleared = r.d ? fmtDate(r.d) : sn && sn.status === "closed" ? fmtDate(sn.closeOut.closedAt) : r.a === "N" ? "Open" : "";
-          body += '<tr class="' + (r.a === "N" && cleared === "Open" ? "bad" : "") + '"><td>' + esc(it) + "</td><td>" + esc(r.a || "") + "</td><td>" + esc(r.c || "") +
+          body += '<tr class="' + (r.a === "N" && cleared === "Open" ? "bad" : "") + '"><td>' + esc(it) + "</td><td>" + esc(r.a || "") + "</td><td>" + (r.x ? '<span class="small">' + esc((it0.x || {}).label || "") + ": " + esc(r.x) + "</span> " : "") + esc(r.c || "") +
             ((r.p || []).length ? '<div class="thumbs sm">' + (await photoStrip(r.p)) + "</div>" : "") + "</td><td>" + esc(cleared) + "</td></tr>";
         }
         body += "</table>";
@@ -504,6 +550,24 @@
       (rec.history && rec.history.length ? '<div class="small">' + rec.history.map((h) => esc(fmtDay(h.at) + " · " + (h.by || "") + " · " + h.note)).join("<br>") + "</div>" : "");
     IC.QA.bindStatus(rec);
   }
+
+  // Toolbox talks (Liam, 20 Nov): the talks the office has published, to read and deliver; then the register that each
+  // operative signs (supervisors and managers run it on their phone or tablet).
+  IC.route("toolbox", (args) => {
+    const folder = args[0] ? decodeURIComponent(args[0]) : "", talks = (IC.S.manifest && IC.S.manifest.toolboxTalks) || [];
+    setBar("Toolbox talks", talks.length + " available", true);
+    $("main").innerHTML = '<input type="search" class="talk-q" id="tq" placeholder="Search talks">' +
+      (talks.length ? talks.map((t, i) => '<div class="tile-row talk-item"><span class="ti safety">' + IC.ICON.hs + '</span><span><b>' + esc(t.title) + "</b>" + (t.issued ? '<span class="small">Updated ' + esc(fmtDate(t.issued)) + "</span>" : "") + "</span>" +
+        (t.path ? '<a class="btn sm" href="#/view/_toolbox/' + encodeURIComponent(t.path) + '">Read</a>' : "") + '<button class="btn sm primary" data-use="' + i + '">Deliver</button></div>').join("")
+        : '<div class="empty small">No toolbox talks from the office yet.</div>') +
+      '<div class="section-h">Something else</div><button class="btn block" data-use="other">Another topic</button>';
+    $("tq").oninput = (e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll(".talk-item").forEach((r) => (r.hidden = !r.textContent.toLowerCase().includes(q))); };
+    document.querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => {
+      const t = talks[+b.dataset.use];
+      IC.LS.set("talkPrefill", b.dataset.use === "other" ? { other: true, title: "" } : { title: t.title, path: t.path || "" });
+      location.hash = "#/form-new/toolbox" + (folder ? "/" + encodeURIComponent(folder) : "");
+    }));
+  });
 
   IC.route("form-new", (args) => {
     const id = args[0];

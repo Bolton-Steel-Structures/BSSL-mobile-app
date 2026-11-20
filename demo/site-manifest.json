@@ -121,5 +121,37 @@
    "operatives": [],
    "files": []
   }
+ ],
+ "toolboxTalks": [
+  {
+   "title": "Working at height - MEWPs and harnesses",
+   "path": "_toolbox/Working at height MEWPs and harnesses.pdf",
+   "issued": "2026-11-02T09:00:00"
+  },
+  {
+   "title": "Slinging and signalling",
+   "path": "_toolbox/Slinging and signalling.pdf",
+   "issued": "2026-11-02T09:00:00"
+  },
+  {
+   "title": "Exclusion zones during lifts",
+   "path": "_toolbox/Exclusion zones during lifts.pdf",
+   "issued": "2026-11-02T09:00:00"
+  },
+  {
+   "title": "Manual handling of steel",
+   "path": "_toolbox/Manual handling of steel.pdf",
+   "issued": "2026-11-02T09:00:00"
+  },
+  {
+   "title": "Impact wrenches, noise and vibration (HAVS)",
+   "path": "_toolbox/Impact wrenches noise and vibration HAVS.pdf",
+   "issued": "2026-11-02T09:00:00"
+  },
+  {
+   "title": "Temporary stability during erection",
+   "path": "_toolbox/Temporary stability during erection.pdf",
+   "issued": "2026-11-02T09:00:00"
+  }
  ]
 }

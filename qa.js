@@ -6,13 +6,15 @@
   "use strict";
   const { $, esc, Data, myJobs, jobByFolder, jobOptions, setBar, route, LS } = IC;
 
-  // Trimmed 20 Nov (Liam: too onerous). Deliveries and protective coatings are office / workshop records, not site;
-  // line / level / plumb, bolting and site welding are covered by the site inspection / handover sheet (welding added
-  // to it); welder & WPS and packs & shims dropped. So: before erection, then close-out.
+  // Trimmed 20 Nov (Liam). Deliveries and protective coatings are office / workshop records; the foundation check is
+  // part of the safe site handover; line / level / plumb, bolting and site welding are on the site inspection / handover
+  // sheet. So: before erection (safe site handover), during erection (site audit), close-out.
   const STAGES = [
     { title: "1. Before erection", items: [
-      { name: "Safe site handover", ref: "NSSS 8.2, 8.3", form: "handover" },
-      { name: "Foundation check", ref: "NSSS 9.1, 9.2", form: "foundation" }
+      { name: "Safe site handover", ref: "NSSS 8.2, 8.3 · includes foundations and holding-down bolts", form: "handover" }
+    ] },
+    { title: "2. During erection", items: [
+      { name: "Site audit", ref: "Progress and quality overview", form: "audit" }
     ] }
   ];
   const CLOSE_OUT = [
@@ -157,7 +159,7 @@
       (jobs.length ? '<label class="fl">Job<select id="qaJob">' + jobOptions(folder, false) + "</select></label>" : "") +
       (j ? '<div class="qa-job"><div><b>' + esc(j.jobNumber) + '</b> <span class="small">' + esc(j.site || j.customer || "") + '</span></div><div class="small">' + forms.length + " QA record" + (forms.length === 1 ? "" : "s") + " · " + open.length + " open snag" + (open.length === 1 ? "" : "s") + "</div></div>" : "") +
       STAGES.map((st) => '<div class="section-h">' + esc(st.title) + "</div>" + st.items.map(item).join("")).join("") +
-      '<div class="section-h">2. Close-out</div>' +
+      '<div class="section-h">3. Close-out</div>' +
       (folder ? '<a class="tile-row qa-item" href="#/form-new/works/' + encodeURIComponent(folder) + '"><span class="ti quality">' + IC.ICON.check + '</span><span><b>Site inspection / handover</b><span class="small">Line, level &amp; plumb, bolting, site welds and finishes: any N becomes a snag below</span></span><span class="pill ok">Start</span></a>' : "") +
       (inspections.length ? inspections.map(insRow).join("") : "") +
       '<div class="small" style="margin:8px 2px 4px;font-weight:600">Snags (' + open.length + " open)</div>" + (open.length ? open.map(snagRow).join("") : '<div class="empty small">No open snags.</div>') +

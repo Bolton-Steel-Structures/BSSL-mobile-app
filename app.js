@@ -216,7 +216,7 @@
       '<div class="section-h">Drawings (' + dr.length + ")</div>" + (dr.length ? dr.map(fileRow).join("") : '<div class="empty">No drawings issued yet.</div>') +
       '<div class="section-h">Forms for this job</div><div class="chips">' +
       [["nearmiss", "Near miss / hazard"], ["toolbox", "Toolbox talk"], ["plant", "Plant check"], ["daywork", "Day work sheet"], ["ncr", "Report a problem (NCR)"]]
-        .filter(([id]) => can("form:" + id) && !(can("qa") && IC.Forms.QA_FORMS.includes(id))).map(([id, t]) => '<a class="chip" href="#/form-new/' + id + "/" + f + '">' + esc(t) + "</a>").join("") + (can("qa") ? '<a class="chip" href="#/qa/' + f + '">QA for this job ›</a>' : "") + '<a class="chip" href="#/forms">All forms ›</a></div>' +
+        .filter(([id]) => can("form:" + id) && !(can("qa") && IC.Forms.QA_FORMS.includes(id))).map(([id, t]) => '<a class="chip" href="' + (id === "toolbox" ? "#/toolbox/" : "#/form-new/" + id + "/") + f + '">' + esc(t) + "</a>").join("") + (can("qa") ? '<a class="chip" href="#/qa/' + f + '">QA for this job ›</a>' : "") + '<a class="chip" href="#/forms">All forms ›</a></div>' +
       '<p class="small">Only the current issue of each drawing is shown. Superseded drawings are removed automatically, including offline copies.</p>';
     document.querySelectorAll("[data-path]").forEach((b) => (b.onclick = () => (location.hash = "#/view/" + f + "/" + encodeURIComponent(b.dataset.path))));
     $("btnOffline").onclick = () => toggleOffline(j);
@@ -243,8 +243,10 @@
 
   // ---------------------------------------------------------------- viewer
   let viewerState = null;
+  // the office's toolbox talks (manifest toolboxTalks) open in the same viewer as drawings
+  const talkLibrary = () => ({ jobNumber: "Toolbox talk", folder: "_toolbox", files: ((S.manifest && S.manifest.toolboxTalks) || []).map((t) => ({ name: t.title, path: t.path, issued: t.issued })) });
   async function viewFile(folder, path) {
-    const j = jobByFolder(folder), f = j && (j.files || []).find((x) => x.path === path);
+    const j = folder === "_toolbox" ? talkLibrary() : jobByFolder(folder), f = j && (j.files || []).find((x) => x.path === path);
     if (!f) { location.hash = j ? "#/job/" + encodeURIComponent(folder) : "#/jobs"; return; }
     $("main").innerHTML = "";
     const v = document.createElement("div"); v.className = "viewer";
@@ -354,6 +356,7 @@
     if (["qa", "snag"].includes(name)) return can("qa");
     if (name === "forms") return anyForm();
     if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]);
+    if (name === "toolbox") return can("form:toolbox");
     if (["leave", "leave-new"].includes(name)) return can("leave");
     if (["expenses", "expense", "expense-new"].includes(name)) return can("expenses");
     if (name === "time") return can("time");

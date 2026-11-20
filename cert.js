@@ -50,7 +50,7 @@
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = 210, M = 15, R = W - M, BOTTOM = 280;
     const job = IC.jobByFolder(rec.jobFolder) || { jobNumber: rec.jobNumber, site: rec.site, customer: "" };
-    const v = rec.values || {}, t = IC.Forms.tpl("works"), items = t.fields.find((f) => f.type === "inspect").items;
+    const v = rec.values || {}, t = IC.Forms.tpl("works"), itemsRaw = t.fields.find((f) => f.type === "inspect").items, items = itemsRaw.map((x) => (typeof x === "string" ? x : x.t)), xLabel = (it) => { const o = itemsRaw.find((x) => typeof x !== "string" && x.t === it); return o && o.x ? o.x.label : ""; };
     const co = Object.assign({}, FALLBACK, (S.manifest && S.manifest.company) || {});
     let y = M;
     const need = (h) => { if (y + h > BOTTOM) { doc.addPage(); y = M; } };
@@ -90,7 +90,7 @@
     for (const it of items) {
       const r = v.areas && v.areas[it] || {}, sn = r.snagId ? snags.find((x) => x.id === r.snagId) : null;
       const cleared = r.d ? fmtDate(r.d) : sn && sn.closeOut ? fmtDate(sn.closeOut.closedAt) : "";
-      const comment = doc.splitTextToSize(r.c || "", colW[2] - 2), area = doc.splitTextToSize(it, colW[0] - 2);
+      const comment = doc.splitTextToSize((r.x ? xLabel(it) + ": " + r.x + (r.c ? ". " : "") : "") + (r.c || ""), colW[2] - 2), area = doc.splitTextToSize(it, colW[0] - 2);
       const h = Math.max(comment.length, area.length, 1) * 4 + 2.5;
       if (y + h > BOTTOM) { doc.addPage(); y = M; head(); }
       doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(33, 33, 33);
