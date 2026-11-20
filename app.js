@@ -106,6 +106,13 @@
       const r = await IC.Forms.ramsStatus(j);
       if (r.needed && !r.signed) todo.push('<a class="todo" href="#/form-new/rams/' + encodeURIComponent(j.folder) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Sign the RAMS for " + esc(j.jobNumber) + '</b><span class="small">' + esc(j.site || "") + " · new or updated RAMS</span></span>›</a>");
     }
+    // POWRA every day (Liam, 20 Nov): supervisors carry one out each working day on the site they're on; the to-do stays
+    // until they've submitted one for that job today
+    if (roleOf(Data.profile) === "Supervisor" && can("form:powra")) {
+      const mineToday = (await Data.list("forms")).filter((f) => f.templateId === "powra" && f.status !== "draft" && IC.sameDay(f.submittedAt || f.updatedAt, new Date()));
+      for (const j of myJobs().filter((x) => todaySites.has(x.folder) && !mineToday.some((f) => f.jobFolder === x.folder)))
+        todo.push('<a class="todo" href="#/form-new/powra/' + encodeURIComponent(j.folder) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Today's POWRA for " + esc(j.jobNumber) + '</b><span class="small">' + esc(j.site || "") + " · before work starts</span></span>›</a>");
+    }
     const drafts = (await Data.list("forms")).filter((f) => f.status === "draft").length;
     if (drafts) todo.push('<a class="todo" href="#/forms"><span class="ti">' + ICON.forms + "</span><span><b>" + drafts + " form" + (drafts > 1 ? "s" : "") + ' not finished</b><span class="small">Saved as drafts</span></span>›</a>');
     const myDue = !can("cards") ? [] : (await Data.list("cards")).filter((c) => IC.Cards.live(c) && (IC.Cards.state(c).days ?? 999) <= IC.Cards.SOON_DAYS);
