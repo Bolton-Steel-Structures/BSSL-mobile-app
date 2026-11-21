@@ -122,6 +122,8 @@
       if (sh.q("#fabGo")) sh.q("#fabGo").onclick = async () => { const q = sh.q("#fabQty") ? Math.max(1, Math.min(r, Math.round(Number(sh.q("#fabQty").value) || 0))) : 1; sh.close(); await add(l, s, q); after(); };
       if (sh.q("#fabUndo")) sh.q("#fabUndo").onclick = async () => { sh.close(); await add(l, s, -lastRec.qty); after(); };
     }));
+    // the filter buttons swap the view without adding steps to Back: one press of Back returns to the screen before
+    $("main").querySelectorAll(".fab-filter a").forEach((x) => (x.onclick = (e) => { e.preventDefault(); location.replace(x.getAttribute("href")); }));
     if ($("fabAll")) $("fabAll").onclick = async () => {
       let n = 0, skipped = 0;
       for (const l of shown) { const r = room(l, t.done[l.mark], filter); if (!r) continue; if (blocked(l, filter)) { skipped++; continue; } await add(l, filter, r); n++; }

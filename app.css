@@ -417,3 +417,14 @@ a.card.fab-job, a.card.fab-job * { text-decoration: none; } a.card.fab-job { col
 @media (min-width: 900px) { .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; align-items: start; } .board .stats { grid-column: 1 / -1; }
   .board .fab-bar { grid-template-columns: 120px 1fr 64px; font-size: 18px; margin-top: 10px; } .board .fab-bar-t { height: 18px; } .board .small { font-size: 15px; } }
 main:has(.board) { max-width: none; }
+
+/* App shell (21 Nov 2026): the page itself never scrolls, only <main> does, so the top bar and the bottom menu can't move
+   while scrolling (in Safari a fixed bottom bar shifts as the browser's own toolbar hides and shows). */
+html, body { height: 100%; overflow: hidden; }
+body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overscroll-behavior: none; }
+.bar, .status, .tabbar { flex: none; }
+.tabbar { position: static; }
+main { flex: 1 1 auto; min-height: 0; width: 100%; max-width: none; margin: 0; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: 12px max(16px, calc((100% - 900px) / 2 + 16px)) 24px; }
+main:has(.board) { padding-left: 16px; padding-right: 16px; }
+.sticky-actions { bottom: 0; }

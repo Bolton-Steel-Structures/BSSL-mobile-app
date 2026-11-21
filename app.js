@@ -446,7 +446,7 @@
   }
 
   function route() {
-    closeViewer(); window.scrollTo(0, 0);
+    closeViewer(); window.scrollTo(0, 0); $("main").scrollTop = 0; // the page itself never scrolls: only main does (see app.css, app shell)
     if (!S.user) { viewSignIn(); return; }
     const parts = location.hash.replace(/^#\/?/, "").split("/"), name = parts[0] || "", args = parts.slice(1);
     drawNav(name);

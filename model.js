@@ -123,7 +123,7 @@
         shown.map((p) => { const st = ctl.status[p.guid]; return '<button class="todo mv-row' + (ctl.sel.has(p.id) ? " sel" : "") + '" data-id="' + p.id + '"><span><b>' + esc(p.mark || p.profile) + "</b>" + '<span class="small"> ' + esc((p.mark ? p.profile + " · " : "") + (p.asm && p.count > 1 ? p.count + " parts · " : p.length ? Math.round(p.length) + " mm · " : "") + kg(p.weight)) + "</span></span>" +
           '<span class="pill" style="background:' + (st ? (st.s === "checked" ? "#2E9E44" : "#F5A623") : "#A7ADB5") + ';color:' + (st && st.s === "checked" ? "#fff" : "#222") + '">' + (st ? LABEL[st.s] : "Not started") + "</span></button>"; }).join("");
       document.querySelectorAll("#mvList [data-f]").forEach((b) => (b.onclick = () => { filter = b.dataset.f; refresh(); }));
-      document.querySelectorAll(".mv-row").forEach((b) => (b.onclick = () => { const id = Number(b.dataset.id); ctl.select([id], true); ctl.zoomTo(id); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+      document.querySelectorAll(".mv-row").forEach((b) => (b.onclick = () => { const id = Number(b.dataset.id); ctl.select([id], true); ctl.zoomTo(id); $("main").scrollTo({ top: 0, behavior: "smooth" }); }));
     }
     // per day: an assembly counts as ERECTED on the day it first went erected (or straight to checked), and as CHECKED on
     // the day it went checked; a Reset takes back that assembly's earlier lines (counted as a correction on its day)
