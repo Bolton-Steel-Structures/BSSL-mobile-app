@@ -188,7 +188,7 @@
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
     "Workshop Manager": ["workshop", "fab-mark", "fab-correct", "fab-ready", "leave", "expenses", "cards", "form:ncr"],
-    "Workshop Admin": ["workshop", "fab-ready", "time", "leave", "expenses", "cards", "form:ncr"],
+    "Workshop Admin": ["workshop", "fab-ready", "leave", "expenses", "cards", "form:ncr"],
     "Workshop Supervisor": ["workshop", "fab-mark", "fab-correct", "time", "leave", "expenses", "cards", "form:ncr"],
     "Fabricator/Welder": ["workshop", "fab-mark", "time", "leave", "expenses", "cards", "form:ncr"]
   };

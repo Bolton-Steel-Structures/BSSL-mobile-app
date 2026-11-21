@@ -25,6 +25,12 @@ window.SITE_CONFIG = {
   // Check in / out: flag (not block) check-ins further than this from the site
   checkInRadiusM: 500,
 
+  // Workshop clocking (Liam, 21 Nov): workshop staff can only clock in at the premises. Set lat / lng from the Google Maps
+  // pin of the workshop (right-click the door > the two numbers). Clock in is refused further away than radiusM (plus the
+  // phone's stated accuracy, to a limit of 100 m) or with location off; clocking out away is allowed but flagged with a reason.
+  // Only the distance is kept, never the position. Until lat / lng are set there is no check (the demo has none).
+  workshopLocation: { lat: null, lng: null, radiusM: 150 },
+
   // Holidays: month the leave year starts (1 = January); warn when this many people are already off
   leaveYearStartMonth: 1,
   maxOffSameDay: 2,
@@ -52,7 +58,7 @@ window.SITE_CONFIG = {
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
     "Workshop Manager": ["workshop", "fab-mark", "fab-correct", "fab-ready", "leave", "expenses", "cards", "form:ncr"],
-    "Workshop Admin": ["workshop", "fab-ready", "time", "leave", "expenses", "cards", "form:ncr"],
+    "Workshop Admin": ["workshop", "fab-ready", "leave", "expenses", "cards", "form:ncr"],
     "Workshop Supervisor": ["workshop", "fab-mark", "fab-correct", "time", "leave", "expenses", "cards", "form:ncr"],
     "Fabricator/Welder": ["workshop", "fab-mark", "time", "leave", "expenses", "cards", "form:ncr"]
   },

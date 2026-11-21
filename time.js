@@ -58,8 +58,24 @@
   const atWorkshop = () => can("workshop") && !can("drawings");
   async function check(type, folder, open) {
     if (atWorkshop()) {
-      const r = await Data.save("time", { type, at: new Date().toISOString(), jobFolder: "", jobNumber: "", site: "Workshop", flagged: false });
-      toast((type === "in" ? "Clocked in " : "Clocked out ") + fmtTime(r.at)); IC.refreshView(); return;
+      // at the premises only (config workshopLocation): in is refused away from the workshop or with location off;
+      // out is allowed but flagged with a reason. Only the distance is kept, never the position.
+      const w = CFG.workshopLocation || {}, rec = { type, at: new Date().toISOString(), jobFolder: "", jobNumber: "", site: "Workshop", flagged: false, locationChecked: false };
+      const done = async () => { const r = await Data.save("time", rec); toast((type === "in" ? "Clocked in " : "Clocked out ") + fmtTime(r.at)); IC.refreshView(); };
+      if (w.lat == null || w.lng == null) return done();
+      const sh = sheet("<h3>" + (type === "in" ? "Clocking in" : "Clocking out") + '</h3><p>Checking you are at the workshop…</p><div class="progress"><div class="indet"></div></div>');
+      const pos = await locate(), dist = pos.error ? null : distanceM(pos, w), ok = dist != null && dist <= (w.radiusM || 150) + Math.min(pos.accuracy || 0, 100);
+      rec.locationChecked = true; rec.distanceM = dist == null ? null : Math.round(dist); rec.locationError = pos.error || "";
+      if (ok) { sh.close(); return done(); }
+      const why = pos.error || "You are " + fmtDistance(dist) + " from the workshop.";
+      if (type === "in") {
+        sh.el.querySelector(".sheet-panel").innerHTML = "<h3>Can't clock in here</h3><p>" + esc(why) + " You can only clock in at the workshop. If you are there, check location is on for this app and try again, or see your supervisor.</p><button class=\"btn block\" id=\"wsNo\">Close</button>";
+        sh.q("#wsNo").onclick = () => sh.close(); return;
+      }
+      sh.el.querySelector(".sheet-panel").innerHTML = "<h3>Clocking out away from the workshop</h3><p>" + esc(why) + ' You can still clock out, but it will be flagged to the workshop manager.</p><label class="fl">Reason<textarea id="wsWhy" rows="2" placeholder="e.g. forgot to clock out when I left"></textarea></label><button class="btn primary block" id="wsGo">Clock out</button><button class="btn block" id="wsNo">Cancel</button>';
+      sh.q("#wsNo").onclick = () => sh.close();
+      sh.q("#wsGo").onclick = async () => { const t = sh.q("#wsWhy").value.trim(); if (!t) { toast("Give a reason"); return; } rec.flagged = true; rec.reason = t; sh.close(); await done(); };
+      return;
     }
     const j = folder ? jobByFolder(folder) : null;
     if (type === "in") LS.set("lastJob", folder);

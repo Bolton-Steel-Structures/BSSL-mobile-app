@@ -76,7 +76,15 @@
     setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
     const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
-    $("main").innerHTML = (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
+    // Directors (both sides): Site | Workshop switch at the top of Home (Liam, 21 Nov); the choice is remembered
+    const both = can("workshop") && can("drawings"), side = both ? LS.get("homeSide", "site") : "site";
+    const sw = both ? '<div class="seg home-side"><button type="button" data-side="site" class="' + (side === "site" ? "on" : "") + '">Site</button><button type="button" data-side="workshop" class="' + (side === "workshop" ? "on" : "") + '">Workshop</button></div>' : "";
+    const wire = () => document.querySelectorAll("[data-side]").forEach((b) => (b.onclick = () => { LS.set("homeSide", b.dataset.side); viewHome(); }));
+    if (side === "workshop") {
+      $("main").innerHTML = sw + (await IC.Workshop.dashboardHtml()) + '<a class="btn block" href="#/board">Open as a wall board (TV screen)</a>';
+      wire(); return;
+    }
+    $("main").innerHTML = sw + (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
       '<div class="tiles">' +
       tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
       tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
@@ -124,6 +132,7 @@
     // workshop loads that are checked and loaded (managers): dispatch them on Goods Out once collected
     if (can("fab-ready")) for (const w of await IC.Workshop.readyTodos())
       todo.push('<a class="todo" href="#/workshop/' + encodeURIComponent(w.wno) + '"><span class="ti">' + ICON.check + "</span><span><b>" + esc(w.wno) + ' is ready for dispatch</b><span class="small">' + esc([w.site, w.phase].filter(Boolean).join(" · ")) + " · checked and loaded</span></span>›</a>");
+    wire();
     const drafts = (await Data.list("forms")).filter((f) => f.status === "draft").length;
     if (drafts) todo.push('<a class="todo" href="#/forms"><span class="ti">' + ICON.forms + "</span><span><b>" + drafts + " form" + (drafts > 1 ? "s" : "") + ' not finished</b><span class="small">Saved as drafts</span></span>›</a>');
     const myDue = !can("cards") ? [] : (await Data.list("cards")).filter((c) => IC.Cards.live(c) && (IC.Cards.state(c).days ?? 999) <= IC.Cards.SOON_DAYS);
@@ -418,7 +427,7 @@
   }
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
-    if (name === "workshop") return can("workshop");
+    if (name === "workshop" || name === "board") return can("workshop");
     if (name === "view") return can("drawings") || can("workshop");
     if (["jobs", "job", "project"].includes(name)) return can("drawings");
     if (["qa", "snag", "register"].includes(name)) return can("qa");

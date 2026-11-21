@@ -50,14 +50,27 @@
   const jobSub = (j) => esc([j.site, j.phase].filter(Boolean).join(" · "));
 
   // ---------------------------------------------------------------- dashboard: every workshop job and its % at each stage
-  async function viewDashboard() {
-    setBar("Workshop", "Fabrication status", false);
+  async function dashboardHtml() {
     const log = await Data.list("fab", "team"), rows = jobs().map((j) => ({ j, p: progress(j, tally(j, log)) }));
     const going = rows.filter((r) => !r.p.ready), toCheck = rows.reduce((n, r) => n + (r.p.welded.pcs - r.p.checked.pcs), 0);
-    $("main").innerHTML = '<div class="stats"><div class="stat"><b>' + going.length + "</b><span>jobs in progress</span></div><div class=\"stat\"><b>" + toCheck + "</b><span>pieces waiting to be checked</span></div><div class=\"stat\"><b>" + (rows.length - going.length) + "</b><span>ready for dispatch</span></div></div>" +
+    return '<div class="stats"><div class="stat"><b>' + going.length + "</b><span>jobs in progress</span></div><div class=\"stat\"><b>" + toCheck + "</b><span>pieces waiting to be checked</span></div><div class=\"stat\"><b>" + (rows.length - going.length) + "</b><span>ready for dispatch</span></div></div>" +
       (rows.length ? rows.map(({ j, p }) => '<a class="card fab-job" href="#/workshop/' + encodeURIComponent(j.wno) + '"><div class="fab-job-h"><span><b>' + jobTitle(j) + '</b><span class="small"> ' + jobSub(j) + "</span></span>" + (p.ready ? '<span class="pill ok">Ready for dispatch</span>' : "") + "</div>" +
         '<div class="small">' + esc([j.bssJob ? "BSS job " + j.bssJob : "", j.fabIssue, j.exc, p.pcs + " pieces", tonnes(p.kg)].filter(Boolean).join(" · ")) + "</div>" +
         STAGES.map(([s, name]) => bar(name, p[s])).join("") + "</a>").join("") : '<div class="empty">No workshop jobs have been sent to the app yet.</div>');
+  }
+
+  async function viewDashboard() {
+    setBar("Workshop", "Fabrication status", false);
+    $("main").innerHTML = (await dashboardHtml()) + '<a class="btn block" href="#/board">Open as a wall board (TV screen)</a>';
+  }
+
+  // Wall board for a TV in the workshop or office: every job, large, no menus, refreshed every minute
+  let boardTimer = null;
+  async function viewBoard() {
+    clearTimeout(boardTimer);
+    setBar("Workshop board", fmtDay(new Date()) + " · " + fmtTime(new Date()), true); $("nav").hidden = true;
+    $("main").innerHTML = '<div class="board">' + (await dashboardHtml()) + "</div>";
+    boardTimer = setTimeout(() => { if (location.hash.startsWith("#/board")) viewBoard(); }, 60000);
   }
 
   // ---------------------------------------------------------------- one job: mark each QA list line through the four stages
@@ -117,10 +130,12 @@
     };
   }
 
+  IC.route("board", () => viewBoard());
   IC.route("workshop", (args) => (args[0] ? viewJob(decodeURIComponent(args[0]), args[1] || "all") : viewDashboard()));
 
   // Home to-do for managers: loads that became ready in the last 3 days (the office then dispatches on Goods Out)
   IC.Workshop = {
+    dashboardHtml,
     // the BSS job a workshop job is linked to: workshop staff may open its drawings (and nothing else of the job)
     linkedJob(folder) { return folder && jobs().some((w) => w.bssFolder === folder) ? ((S.manifest && S.manifest.jobs) || []).find((x) => x.folder === folder) || null : null; },
     async readyTodos() {

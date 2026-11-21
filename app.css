@@ -412,3 +412,8 @@ td.cc a { text-decoration: none; color: inherit; font-weight: 600; }
 .fab-b:disabled { border: 1px dashed var(--line); color: var(--sub); cursor: default; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fab-filter .pill.on { background: #F2F2F2; color: #111; border-color: #F2F2F2; } }
 a.card.fab-job, a.card.fab-job * { text-decoration: none; } a.card.fab-job { color: var(--text); }
+.home-side { display: flex; margin-bottom: 12px; } .home-side button { flex: 1; }
+.board { font-size: 18px; } .board .stats b { font-size: 40px; } .board .stats span { font-size: 16px; }
+@media (min-width: 900px) { .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; align-items: start; } .board .stats { grid-column: 1 / -1; }
+  .board .fab-bar { grid-template-columns: 120px 1fr 64px; font-size: 18px; margin-top: 10px; } .board .fab-bar-t { height: 18px; } .board .small { font-size: 15px; } }
+main:has(.board) { max-width: none; }
