@@ -116,13 +116,15 @@
     setBar("Timesheet", "Week of " + fmtDay(ws), true);
     const ps = pairs(await entries()).filter((p) => p.in && new Date(p.in.at) >= ws && new Date(p.in.at) < we);
     const days = []; for (let i = 0; i < 7; i++) { const d = new Date(ws); d.setDate(d.getDate() + i); days.push(d); }
-    const total = ps.reduce((t, p) => t + p.ms, 0);
+    const dayMs = (d) => ps.filter((p) => IC.sameDay(p.in.at, d)).reduce((t, p) => t + p.ms, 0);
+    const total = ps.reduce((t, p) => t + p.ms, 0), paid = days.reduce((t, d) => t + IC.paidMs(dayMs(d)), 0);
     $("main").innerHTML = '<div class="row nav-week"><a class="btn" href="#/time/' + (off - 1) + '">‹ Previous</a>' + (off < 0 ? '<a class="btn" href="#/time/' + (off + 1) + '">Next ›</a>' : "") + "</div>" +
-      '<div class="tot-line">Week total <b>' + fmtHours(total) + "</b></div>" +
+      '<div class="tot-line">Clocked <b>' + fmtHours(total) + "</b> · paid <b>" + fmtHours(paid) + '</b></div><div class="small">Paid = clocked less the 30-minute unpaid lunch on a day over 6 hours. The morning brew is paid.</div>' +
       days.map((d) => {
         const dp = ps.filter((p) => IC.sameDay(p.in.at, d));
         if (!dp.length) return d.getDay() === 0 || d.getDay() === 6 ? "" : '<div class="ts-day empty-day"><div class="ts-d">' + fmtDay(d) + '</div><div class="small">' + (IC.isBankHoliday(d) ? "Bank holiday" : "No time recorded") + "</div></div>";
-        return '<div class="ts-day"><div class="ts-d">' + fmtDay(d) + "<b>" + fmtHours(dp.reduce((t, p) => t + p.ms, 0)) + "</b></div>" +
+        const dm = dp.reduce((t, p) => t + p.ms, 0);
+        return '<div class="ts-day"><div class="ts-d">' + fmtDay(d) + "<b>" + fmtHours(dm) + (IC.paidMs(dm) !== dm ? " · paid " + fmtHours(IC.paidMs(dm)) : "") + "</b></div>" +
           dp.map((p) => '<div class="ts-row"><div><b>' + esc(p.in.site || p.in.jobNumber) + "</b>" + (p.in.jobNumber ? ' <span class="small">' + esc(p.in.jobNumber) + "</span>" : "") +
             '<div class="small">' + fmtTime(p.in.at) + " – " + (p.out ? fmtTime(p.out.at) + (p.out.manual ? " (entered later)" : "") : "still on site") + "</div>" +
             [p.in, p.out].filter((e) => e && e.flagged).map((e) => '<div class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</div>").join("") +

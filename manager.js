@@ -142,7 +142,8 @@
     const d = await load(), days = [...Array(7).keys()].map((i) => { const x = new Date(ws); x.setDate(x.getDate() + i); return x; });
     const rows = d.team.map((p) => {
       const ps = IC.Time.pairs(d.time.filter((e) => e.user === p.email)).filter((x) => x.in && new Date(x.in.at) >= ws && new Date(x.in.at) < we);
-      const per = days.map((day) => ps.filter((x) => sameDay(x.in.at, day)).reduce((t, x) => t + x.ms, 0));
+      // paid time per day: clocked less the unpaid lunch (config breaks)
+      const per = days.map((day) => IC.paidMs(ps.filter((x) => sameDay(x.in.at, day)).reduce((t, x) => t + x.ms, 0)));
       const flags = ps.flatMap((x) => [x.in, x.out]).filter((e) => e && e.flagged).length, missing = ps.filter((x) => !x.out && !sameDay(x.in.at, new Date())).length;
       const done = d.weeks.find((w) => w.user === p.email && w.weekStart === isoDate(ws));
       return { p, ps, per, total: per.reduce((a, b) => a + b, 0), flags, missing, done };
@@ -160,8 +161,10 @@
     document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = async () => {
       const r = rows.find((x) => x.p.email === b.dataset.ok);
       const jobs = {};
-      r.ps.forEach((x) => { const k = x.in.jobFolder || ""; jobs[k] = jobs[k] || { jobFolder: k, jobNumber: x.in.jobNumber || "", site: x.in.site || "", ms: 0 }; jobs[k].ms += x.ms; });
-      if (!(await IC.ask("Approve " + r.p.name + "'s week: " + fmtHours(r.total) + "? The hours go into iCONSTRUCTE against each job.", "Approve"))) return;
+      // each check-in's share of its day's paid time (the unpaid lunch comes off the day's jobs in proportion)
+      r.ps.forEach((x) => { const day = r.ps.filter((y) => sameDay(y.in.at, x.in.at)).reduce((t, y) => t + y.ms, 0), share = day ? x.ms * IC.paidMs(day) / day : 0;
+        const k = x.in.jobFolder || ""; jobs[k] = jobs[k] || { jobFolder: k, jobNumber: x.in.jobNumber || "", site: x.in.site || "", ms: 0 }; jobs[k].ms += share; });
+      if (!(await IC.ask("Approve " + r.p.name + "'s week: " + fmtHours(r.total) + " paid (after the unpaid lunches)? The hours go into iCONSTRUCTE against each job.", "Approve"))) return;
       await Data.save("timesheets", { user: r.p.email, userName: r.p.name, weekStart: isoDate(ws), jobs: Object.values(jobs), totalMs: r.total, status: "approved", decidedBy: Data.profile.name, decidedAt: new Date().toISOString() });
       toast("Week approved"); IC.refreshView();
     }));
@@ -176,7 +179,7 @@
     const cards = d.cards.filter((c) => c.user === email), leave = d.leave.filter((r) => r.user === email && (r.status === "approved" || r.status === "pending") && r.to >= isoDate(new Date()));
     $("main").innerHTML = '<div class="card">' + esc(today(d, p).state) + "</div>" +
       '<div class="row nav-week"><a class="btn" href="#/manager/person/' + encodeURIComponent(email) + "/" + (off - 1) + '">‹ Previous</a>' + (off < 0 ? '<a class="btn" href="#/manager/person/' + encodeURIComponent(email) + "/" + (off + 1) + '">Next ›</a>' : "") + "</div>" +
-      '<div class="tot-line">Week of ' + esc(fmtDay(ws)) + " <b>" + fmtHours(ps.reduce((t, x) => t + x.ms, 0)) + "</b></div>" +
+      '<div class="tot-line">Week of ' + esc(fmtDay(ws)) + " <b>" + fmtHours(ps.reduce((t, x) => t + x.ms, 0)) + "</b> clocked</div>" +
       (ps.length ? ps.map((x) => '<div class="ts-row"><div><b>' + esc(x.in.site || x.in.jobNumber || "") + "</b> <span class=\"small\">" + esc(x.in.jobNumber || "") + '</span><div class="small">' + esc(fmtDay(x.in.at)) + " " + fmtTime(x.in.at) + " – " + (x.out ? fmtTime(x.out.at) + (x.out.manual ? " (entered later)" : "") : sameDay(x.in.at, new Date()) ? "on site" : "no check-out") + "</div>" +
         [x.in, x.out].filter((e) => e && e.flagged).map((e) => '<div class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</div>").join("") +
         "</div><span>" + fmtHours(x.ms) + "</span></div>").join("") : '<div class="empty small">No check-ins this week.</div>') +

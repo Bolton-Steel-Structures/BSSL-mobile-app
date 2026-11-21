@@ -25,6 +25,10 @@ window.SITE_CONFIG = {
   // Check in / out: flag (not block) check-ins further than this from the site
   checkInRadiusM: 500,
 
+  // Breaks, site and workshop (Liam, 21 Nov 2026): a 15-minute brew in the morning is paid (nothing taken off); a 30-minute
+  // lunch is unpaid and taken off each day's clocked time, on days longer than lunchIfOverHours (so a short day keeps all its time).
+  breaks: { paidBrewMin: 15, unpaidLunchMin: 30, lunchIfOverHours: 6 },
+
   // Workshop clocking (Liam, 21 Nov): workshop staff can only clock in at the premises. Set lat / lng from the Google Maps
   // pin of the workshop (right-click the door > the two numbers). Clock in is refused further away than radiusM (plus the
   // phone's stated accuracy, to a limit of 100 m) or with location off; clocking out away is allowed but flagged with a reason.

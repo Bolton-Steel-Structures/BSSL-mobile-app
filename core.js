@@ -563,6 +563,12 @@
     });
   }
 
+  // Paid time for one person's day from the time clocked (config breaks): the morning brew is paid, the lunch is not.
+  function paidMs(dayMs) {
+    const b = CFG.breaks || { unpaidLunchMin: 30, lunchIfOverHours: 6 };
+    return dayMs > (b.lunchIfOverHours || 6) * 36e5 ? Math.max(0, dayMs - (b.unpaidLunchMin || 0) * 6e4) : dayMs;
+  }
+
   // England & Wales bank holidays: live list from GOV.UK, with a built-in fallback.
   const BH_FALLBACK = ["2026-01-01", "2026-04-03", "2026-04-06", "2026-05-04", "2026-05-25", "2026-08-31", "2026-12-25", "2026-12-28",
     "2027-01-01", "2027-03-26", "2027-03-29", "2027-05-03", "2027-05-31", "2027-08-30", "2027-12-27", "2027-12-28"];
@@ -606,7 +612,7 @@
   }
 
   window.IC = {
-    CFG, DEMO, LS, SAMPLES, can, roleOf, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
+    CFG, DEMO, LS, SAMPLES, can, roleOf, paidMs, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
     Store, Src, Graph, Data, routes, route, status, setBar, sheet, ask, toast, shrinkImage, stampPhoto, fmtStamp, signaturePad, locate,
     loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, myWeek, jobByFolder, viewableJobs, jobOptions, DEMO_TEAM: Demo.team
   };
