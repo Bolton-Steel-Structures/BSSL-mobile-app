@@ -4,7 +4,7 @@
  */
 (function () {
   "use strict";
-  const { CFG, $, esc, fmtTime, fmtDay, fmtHours, fmtDistance, isoDate, Data, myJobs, jobByFolder, jobOptions, locate, distanceM, sheet, toast, setBar, LS, route } = IC;
+  const { CFG, can, $, esc, fmtTime, fmtDay, fmtHours, fmtDistance, isoDate, Data, myJobs, jobByFolder, jobOptions, locate, distanceM, sheet, toast, setBar, LS, route } = IC;
 
   async function entries() { return (await Data.list("time")).sort((a, b) => a.at.localeCompare(b.at)); }
 
@@ -27,20 +27,20 @@
     const list = await entries(), open = openShift(list), ps = pairs(list);
     const today = ps.filter((p) => p.in && IC.sameDay(p.in.at, new Date())).reduce((t, p) => t + p.ms, 0);
     const ws = weekStart(new Date()), week = ps.filter((p) => p.in && new Date(p.in.at) >= ws).reduce((t, p) => t + p.ms, 0);
-    const jobs = myJobs();
+    const wk = atWorkshop(), jobs = wk ? [] : myJobs();
     let html = '<div class="tc">';
     if (open && !IC.sameDay(open.at, new Date())) {
-      html += '<div class="tc-forgot"><b>You didn\'t check out</b> from ' + esc(open.site || open.jobNumber || "site") + " on " + esc(fmtDay(open.at)) + ".<br>What time did you leave?" +
+      html += '<div class="tc-forgot"><b>You didn\'t ' + (wk ? "clock" : "check") + ' out</b> from ' + esc(open.site || open.jobNumber || "site") + " on " + esc(fmtDay(open.at)) + ".<br>What time did you leave?" +
         '<div class="row"><input type="time" id="tcLeft" value="16:00"><button class="btn primary" id="tcFix">Save</button></div></div>';
     } else if (open) {
-      html += '<div class="tc-state on"><span class="dot"></span>On site · <b>' + esc(open.site || open.jobNumber) + "</b></div>" +
-        '<div class="tc-big">' + fmtHours(Date.now() - new Date(open.at)) + '</div><div class="small">Checked in at ' + fmtTime(open.at) + (open.flagged ? ' · <span class="flag">away from site</span>' : "") + "</div>" +
-        '<button class="btn danger block" id="tcOut">Check out</button>';
+      html += '<div class="tc-state on"><span class="dot"></span>' + (wk ? "Clocked in" : "On site") + ' · <b>' + esc(open.site || open.jobNumber) + "</b></div>" +
+        '<div class="tc-big">' + fmtHours(Date.now() - new Date(open.at)) + '</div><div class="small">' + (wk ? "Clocked" : "Checked") + ' in at ' + fmtTime(open.at) + (open.flagged ? ' · <span class="flag">away from site</span>' : "") + "</div>" +
+        '<button class="btn danger block" id="tcOut">' + (wk ? "Clock out" : "Check out") + "</button>";
     } else {
       const last = LS.get("lastJob", jobs[0] && jobs[0].folder);
-      html += '<div class="tc-state"><span class="dot"></span>Not checked in</div>' +
+      html += '<div class="tc-state"><span class="dot"></span>' + (wk ? "Not clocked in" : "Not checked in") + "</div>" +
         (jobs.length ? '<label class="fl">Site<select id="tcJob">' + jobOptions(last, true) + "</select></label>" : "") +
-        '<button class="btn go block" id="tcIn">Check in</button>';
+        '<button class="btn go block" id="tcIn">' + (wk ? "Clock in" : "Check in") + "</button>";
     }
     html += '<div class="tc-tot"><div><span>Today</span><b>' + fmtHours(today) + '</b></div><div><span>This week</span><b>' + fmtHours(week) + '</b></div><a href="#/time" class="link">Timesheet ›</a></div></div>';
     el.innerHTML = html;
@@ -54,7 +54,13 @@
     };
   }
 
+  // Workshop staff clock in and out at the workshop: no site to pick and no location taken (Liam, 21 Nov)
+  const atWorkshop = () => can("workshop") && !can("drawings");
   async function check(type, folder, open) {
+    if (atWorkshop()) {
+      const r = await Data.save("time", { type, at: new Date().toISOString(), jobFolder: "", jobNumber: "", site: "Workshop", flagged: false });
+      toast((type === "in" ? "Clocked in " : "Clocked out ") + fmtTime(r.at)); IC.refreshView(); return;
+    }
     const j = folder ? jobByFolder(folder) : null;
     if (type === "in") LS.set("lastJob", folder);
     const sh = sheet("<h3>" + (type === "in" ? "Checking in" : "Checking out") + '</h3><p>Getting your location…</p><div class="progress"><div class="indet"></div></div>');

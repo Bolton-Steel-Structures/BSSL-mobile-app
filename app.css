@@ -390,3 +390,25 @@ td.cc a { text-decoration: none; color: inherit; font-weight: 600; }
 .tile-badge { position: absolute; top: 10px; right: 10px; font-style: normal; font-size: 11px; font-weight: 700; color: #fff; background: var(--danger); border-radius: 10px; padding: 2px 7px; }
 .reg-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .reg-row .sig-img.sm { max-width: 110px; }
+
+/* workshop fabrication status */
+.fab-job { display: block; }
+.fab-job-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fab-bar { display: grid; grid-template-columns: 86px 1fr 44px; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; }
+.fab-bar-t { height: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.fab-bar-t i { display: block; height: 100%; background: var(--ok); }
+.fab-bar-n { text-align: right; font-weight: 600; }
+.fab-docs { margin: 10px 0; } .fab-docs summary { padding: 10px 4px; font-weight: 600; cursor: pointer; }
+.fab-filter { margin: 12px 0 8px; } .fab-filter .pill { padding: 8px 12px; text-decoration: none; }
+.fab-filter .pill.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.fab-key { margin: 8px 4px; }
+.fab-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.fab-line-t { min-width: 0; }
+.fab-bs { display: flex; gap: 6px; flex: none; }
+.fab-b { width: 46px; height: 46px; border-radius: 8px; border: 2px solid var(--text); background: var(--surface); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; font: inherit; line-height: 1.1; cursor: pointer; }
+.fab-b span { font-size: 11px; min-height: 12px; }
+.fab-b.part { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+.fab-b.done { background: var(--ok); border-color: var(--ok); color: #fff; }
+.fab-b:disabled { border: 1px dashed var(--line); color: var(--sub); cursor: default; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fab-filter .pill.on { background: #F2F2F2; color: #111; border-color: #F2F2F2; } }
+a.card.fab-job, a.card.fab-job * { text-decoration: none; } a.card.fab-job { color: var(--text); }

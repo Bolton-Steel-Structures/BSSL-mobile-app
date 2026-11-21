@@ -209,5 +209,137 @@
    "path": "_toolbox/Temporary stability during erection.pdf",
    "issued": "2026-11-02T09:00:00"
   }
+ ],
+ "workshop": [
+  {
+   "wno": "W1208-001",
+   "client": "BSSL",
+   "site": "Example Retail Park",
+   "phase": "Lot 1",
+   "bssJob": "2514/021",
+   "bssFolder": "2514-021",
+   "fabIssue": "Fab Issue 01 Rev A",
+   "exc": "EXC2",
+   "requiredOn": "2026-12-07",
+   "list": "2514-021 L1 QA Rev A",
+   "lines": [
+    {
+     "mark": "C101",
+     "section": "UC 203x203x46",
+     "length": 4200,
+     "qty": 4,
+     "kg": 198,
+     "finish": "Galv"
+    },
+    {
+     "mark": "C102",
+     "section": "UC 203x203x46",
+     "length": 4200,
+     "qty": 2,
+     "kg": 201,
+     "finish": "Galv"
+    },
+    {
+     "mark": "B101",
+     "section": "UB 305x165x40",
+     "length": 6150,
+     "qty": 3,
+     "kg": 252,
+     "finish": "Galv"
+    },
+    {
+     "mark": "B102",
+     "section": "UB 305x165x40",
+     "length": 5980,
+     "qty": 2,
+     "kg": 246,
+     "finish": "Galv"
+    },
+    {
+     "mark": "B103",
+     "section": "UB 254x146x31",
+     "length": 4480,
+     "qty": 4,
+     "kg": 143,
+     "finish": "Galv"
+    },
+    {
+     "mark": "B104",
+     "section": "PFC 200x90x30",
+     "length": 3200,
+     "qty": 2,
+     "kg": 98,
+     "finish": "Galv"
+    },
+    {
+     "mark": "BR101",
+     "section": "L 90x90x8",
+     "length": 3650,
+     "qty": 6,
+     "kg": 41,
+     "finish": "Galv"
+    },
+    {
+     "mark": "P101",
+     "section": "PLT 10",
+     "length": 450,
+     "qty": 8,
+     "kg": 12,
+     "finish": "Galv"
+    }
+   ]
+  },
+  {
+   "wno": "W1209-001",
+   "client": "Northern Fabrications (sample)",
+   "site": "Sample Depot",
+   "phase": "Lot 2",
+   "fabIssue": "",
+   "exc": "EXC2",
+   "requiredOn": "2026-12-14",
+   "list": "Customer list, converted to the BSS QA list layout",
+   "lines": [
+    {
+     "mark": "S1",
+     "section": "SHS 100x100x6",
+     "length": 2800,
+     "qty": 6,
+     "kg": 49,
+     "finish": "Primed"
+    },
+    {
+     "mark": "S2",
+     "section": "SHS 100x100x6",
+     "length": 3400,
+     "qty": 4,
+     "kg": 60,
+     "finish": "Primed"
+    },
+    {
+     "mark": "R1",
+     "section": "UB 203x133x25",
+     "length": 5200,
+     "qty": 4,
+     "kg": 131,
+     "finish": "Primed"
+    },
+    {
+     "mark": "R2",
+     "section": "UB 203x133x25",
+     "length": 2600,
+     "qty": 2,
+     "kg": 66,
+     "finish": "Primed"
+    },
+    {
+     "mark": "F1",
+     "section": "PLT 12",
+     "length": 300,
+     "qty": 10,
+     "kg": 8,
+     "finish": "Primed"
+    }
+   ]
+  }
  ]
 }

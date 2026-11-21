@@ -80,8 +80,9 @@
       '<div class="tiles">' +
       tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
       tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
-      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + "Safety" + "</b><span>" + (can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
+      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:powra") || can("form:toolbox") ? "Safety" : "NCR") + "</b><span>" + (!can("form:powra") && !can("form:toolbox") ? "Report a non-conformance" : can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
+      tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
       tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week") +
@@ -120,6 +121,9 @@
         if (left.length) todo.push('<a class="todo" href="#/register/' + encodeURIComponent(j.folder) + "/" + encodeURIComponent(x.path) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>" + left.length + " still to sign the " + esc(IC.Forms.docKind(x)) + " for " + esc(j.jobNumber) + '</b><span class="small">' + esc(left.map((p) => p.name).join(", ")) + "</span></span>›</a>");
       }
     }
+    // workshop loads that are checked and loaded (managers): dispatch them on Goods Out once collected
+    if (can("fab-ready")) for (const w of await IC.Workshop.readyTodos())
+      todo.push('<a class="todo" href="#/workshop/' + encodeURIComponent(w.wno) + '"><span class="ti">' + ICON.check + "</span><span><b>" + esc(w.wno) + ' is ready for dispatch</b><span class="small">' + esc([w.site, w.phase].filter(Boolean).join(" · ")) + " · checked and loaded</span></span>›</a>");
     const drafts = (await Data.list("forms")).filter((f) => f.status === "draft").length;
     if (drafts) todo.push('<a class="todo" href="#/forms"><span class="ti">' + ICON.forms + "</span><span><b>" + drafts + " form" + (drafts > 1 ? "s" : "") + ' not finished</b><span class="small">Saved as drafts</span></span>›</a>');
     const myDue = !can("cards") ? [] : (await Data.list("cards")).filter((c) => IC.Cards.live(c) && (IC.Cards.state(c).days ?? 999) <= IC.Cards.SOON_DAYS);
@@ -307,8 +311,9 @@
   // the office's toolbox talks (manifest toolboxTalks) open in the same viewer as drawings
   const talkLibrary = () => ({ jobNumber: "Toolbox talk", folder: "_toolbox", files: ((S.manifest && S.manifest.toolboxTalks) || []).map((t) => ({ name: t.title, path: t.path, issued: t.issued })) });
   async function viewFile(folder, path) {
-    const j = folder === "_toolbox" ? talkLibrary() : jobByFolder(folder), f = j && (j.files || []).find((x) => x.path === path);
-    if (!f) { location.hash = j ? "#/job/" + encodeURIComponent(folder) : "#/jobs"; return; }
+    const wk = !can("drawings") && can("workshop") ? IC.Workshop.linkedJob(folder) : null; // workshop staff: drawings of a linked job only
+    const j = folder === "_toolbox" ? talkLibrary() : wk || jobByFolder(folder), f = j && (j.files || []).find((x) => x.path === path && (!wk || x.category === "Drawing"));
+    if (!f) { location.hash = wk || !can("drawings") ? "#/workshop" : j ? "#/job/" + encodeURIComponent(folder) : "#/jobs"; return; }
     $("main").innerHTML = "";
     const v = document.createElement("div"); v.className = "viewer";
     v.innerHTML = '<header class="bar"><button class="icon-btn" id="vBack" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg></button>' +
@@ -403,17 +408,19 @@
     };
   }
 
-  const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
+  const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["workshop", "Workshop", ICON.jobs, ["workshop"], "workshop-nav"], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
     ["leave", "Holidays", ICON.leave, ["leave", "leave-new"], "leave"], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"], "expenses"]];
   const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
-  const allowed = (f) => !f || (f === "forms" ? anyForm() : can(f));
+  const allowed = (f) => !f || (f === "forms" ? anyForm() : f === "workshop-nav" ? can("workshop") && !can("drawings") : can(f));
   function drawNav(name) {
     $("nav").hidden = false;
     $("nav").innerHTML = NAV.filter((n) => allowed(n[4])).map(([h, t, ic, names]) => '<a href="#/' + h + '" class="' + (names.includes(name) ? "on" : "") + '">' + ic + "<span>" + t + "</span></a>").join("");
   }
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
-    if (["jobs", "job", "view", "project"].includes(name)) return can("drawings");
+    if (name === "workshop") return can("workshop");
+    if (name === "view") return can("drawings") || can("workshop");
+    if (["jobs", "job", "project"].includes(name)) return can("drawings");
     if (["qa", "snag", "register"].includes(name)) return can("qa");
     if (name === "forms") return anyForm();
     if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]);

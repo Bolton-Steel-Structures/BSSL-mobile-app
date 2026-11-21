@@ -181,9 +181,16 @@
 
   // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
   const DEFAULT_ROLES = {
-    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "form:*"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:nearmiss", "form:ncr"]
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:nearmiss", "form:ncr"],
+    // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
+    //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
+    //   Directors use the Manager role above (everything on both sides).
+    "Workshop Manager": ["workshop", "fab-mark", "fab-correct", "fab-ready", "leave", "expenses", "cards", "form:ncr"],
+    "Workshop Admin": ["workshop", "fab-ready", "time", "leave", "expenses", "cards", "form:ncr"],
+    "Workshop Supervisor": ["workshop", "fab-mark", "fab-correct", "time", "leave", "expenses", "cards", "form:ncr"],
+    "Fabricator/Welder": ["workshop", "fab-mark", "time", "leave", "expenses", "cards", "form:ncr"]
   };
   function roleOf(p) {
     const r = String((p && p.role) || "").toLowerCase(), roles = CFG.roles || DEFAULT_ROLES;
@@ -343,7 +350,11 @@
   const SAMPLES = [
     { id: "manager", name: "Liam Pilkington", email: "liam.pilkington@boltonstructures.com", role: "Manager", leaveAllowance: 25 },
     { id: "supervisor", name: "Ian Jones", email: "ian.jones@boltonstructures.com", role: "Supervisor", leaveAllowance: 25 },
-    { id: "operative", name: "Daniel Wiseman", email: "daniel.wiseman@boltonstructures.com", role: "Operative", leaveAllowance: 22 }
+    { id: "operative", name: "Daniel Wiseman", email: "daniel.wiseman@boltonstructures.com", role: "Operative", leaveAllowance: 22 },
+    // two workshop logins, so "checked by someone other than the welder" can be tried
+    { id: "wsmanager", name: "Paul Shaw", email: "p.shaw@example.com", role: "Workshop Manager", leaveAllowance: 25 },
+    { id: "wssupervisor", name: "Chris Dale", email: "c.dale@example.com", role: "Workshop Supervisor", leaveAllowance: 22 },
+    { id: "fabricator", name: "Tom Reid", email: "t.reid@example.com", role: "Fabricator/Welder", leaveAllowance: 22 }
   ];
   const Demo = {
     // the manager's team (everyone except Liam), with two extra sample people so the team screens have something in them
