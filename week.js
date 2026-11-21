@@ -57,7 +57,7 @@
           if (a.off) return '<div class="todo info"' + (past ? ' style="opacity:.6"' : "") + '><span><b>Off</b><br><span class="small">On the planner as off</span></span></div>';
           const job = jobByFolder(a.folder);
           const crew = can("crew") ? inWeek.filter((x) => !x.off && x.date === iso && x.jobNumber === a.jobNumber && !me().includes(String(x.email).toLowerCase())).map((x) => nameFor(x.email)) : [];
-          return '<a class="todo' + (iso === today ? "" : " info") + '"' + (past ? ' style="opacity:.6"' : "") + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + "><span><b>" + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + '</b><br><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span>" +
+          return '<a class="todo' + (iso === today ? "" : " info") + '"' + (past ? ' style="opacity:.6"' : "") + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + "><span><b>" + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + IC.craneMark(job, iso) + '</b><br><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span>" +
             (can("crew") ? '<br><span class="small">' + (crew.length ? "With you: " + esc(crew.join(", ")) : "No one else on the plan") + "</span>" : "") + "</span>" + (job ? "›" : "") + "</a>";
         }).join("");
       }).join("");

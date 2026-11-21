@@ -34,7 +34,8 @@
   }
 
   const YNA = ["Yes", "No", "N/A"];
-  // Plant BSS hires (Liam, 20 Nov), each with its own daily check sheet. Cranes are checked by the crane company's driver.
+  // Plant BSS hires (Liam, 20 Nov), each with its own daily check sheet. Anything else gets the standard mechanical or
+  // non-mechanical sheet (Liam, 21 Nov). Cranes only show as a crane symbol on the days they're on site.
   // Workshop equipment pre-use checks (PUWER reg. 5 and 6; lifting parts under LOLER). First draft: to be read by the
   // workshop supervisor against the manufacturers' instructions before use.
   const WS_CHECKS = {
@@ -48,7 +49,7 @@
       "Lights, horn, beacon and reversing alarm work", "Seat, seat belt and overhead guard secure and undamaged", "Load backrest fitted",
       "Fuel, gas bottle or battery: secure, no leaks, enough charge", "Engine oil, coolant and hydraulic oil levels (where fitted)", "Controls labelled; cab and floor clear"]
   };
-  const PLANT_TYPES = ["Telehandler", "Cherry picker – diesel", "Cherry picker – electric", "Scissor lift – diesel", "Scissor lift – electric", "Genie SuperLift", "Mini crane"];
+  const PLANT_TYPES = ["Telehandler", "Cherry picker – diesel", "Cherry picker – electric", "Scissor lift – diesel", "Scissor lift – electric", "Genie SuperLift", "Mini crane", "Mechanical plant (other)", "Non-mechanical plant"];
   const MEWP_COMMON = ["Ground and platform controls working; emergency stop at both", "Emergency lowering / auxiliary descent checked", "Tilt alarm and overload (load sensing) working",
     "Platform guardrails, gate and toe boards intact", "No hydraulic leaks; hoses and cylinders undamaged", "Tyres and wheels in good condition", "Alarms, beacon and horn working",
     "Ground conditions checked for the set-up", "Rescue plan in place and the ground person briefed"];
@@ -73,6 +74,14 @@
       "Wire rope: no kinks, broken wires or crushing; spooling correctly on the drum", "Hook and safety catch undamaged; hook block turns freely",
       "Boom sections and pins undamaged", "No hydraulic, fuel or oil leaks; hoses undamaged", "Tracks and undercarriage in good condition",
       "Remote / control station and emergency stops working", "Slings, shackles and lifting accessories tagged and in date"],
+    // standard sheets (first draft, for the H&S adviser to confirm with A8)
+    "Mechanical plant (other)": ["Thorough examination (LOLER) in date, if it lifts", "Service or inspection sticker in date", "Operator trained for this machine; manual or daily check list with it",
+      "Set up on firm, level ground; area segregated", "Guards and covers in place", "Controls clearly marked and working; emergency stop working",
+      "No hydraulic, fuel or oil leaks; hoses undamaged", "Tyres, tracks and wheels in good condition", "Lights, beacon, horn and alarms working (where fitted)",
+      "Fuel, oil and coolant levels OK, or battery charged and leads undamaged"],
+    "Non-mechanical plant": ["Inspection tag or record in date", "Structure undamaged: no bent, cracked or missing parts", "Feet, castors and brakes in place and working",
+      "Locking devices, pins and braces fitted and secure", "Guardrails and toe boards fitted (towers, podiums, platforms)", "Set up on firm, level ground and stable",
+      "Safe working load marked and not exceeded", "Labels and instructions legible", "Treads and platforms clean: no oil, mud or ice"],
     // Older checks only (no longer offered)
     "Other machine (daily check)": ["Thorough examination (LOLER) in date (if lifting)", "Tyres, tracks and wheels in good condition",
       "No hydraulic, fuel or oil leaks", "Controls and emergency stop working", "Alarms, lights and beacon working", "Guards and covers in place"]
@@ -396,9 +405,10 @@
         if (f.id === "docPath") {
           el.innerHTML = '<div class="ff-l">Document</div>' + (hs.length > 1 ? '<select data-doc>' + hs.map((x) => "<option value=\"" + esc(x.path) + "\"" + (x === d ? " selected" : "") + ">" + esc(docKind(x) === "crane plan" ? "Crane plan: " : "RAMS: ") + esc(x.name) + "</option>").join("") + "</select>" : "") +
             '<div data-doclink>' + (d ? docLink(ctx.job, d) : '<div class="small">No RAMS have been issued for this job yet.</div>') + "</div>";
-          const sel = el.querySelector("[data-doc]"); let cur = d;
-          if (sel) sel.onchange = () => { cur = hs.find((x) => x.path === sel.value); el.querySelector("[data-doclink]").innerHTML = docLink(ctx.job, cur); };
-          return { el, get: () => (cur ? cur.path : ""), check: () => (cur ? "" : "No RAMS have been issued for this job") };
+          const sel = el.querySelector("[data-doc]"); let cur = d, curIssued = d ? d.issued : "";
+          if (sel) sel.onchange = () => { cur = hs.find((x) => x.path === sel.value); curIssued = cur ? cur.issued : ""; el.querySelector("[data-doclink]").innerHTML = docLink(ctx.job, cur); };
+          // HC4.13: remember which issue was on screen; a re-issue while the form is open stops the signature
+          return { el, get: () => (cur ? cur.path : ""), extra: () => ({ docIssued: curIssued }), check: () => (cur ? "" : "No RAMS have been issued for this job") };
         }
         el.innerHTML = '<div class="ff-l">Documents</div>' + (hs.length ? hs.map((x) => '<a class="doc-link" href="#/view/' + encodeURIComponent(ctx.job.folder) + "/" + encodeURIComponent(x.path) + '">' + esc(x.name) + ' <span class="small">issued ' + esc(fmtDate(x.issued)) + "</span></a>").join("") : '<div class="small">No RAMS issued for this job yet.</div>');
         return { el, get: () => undefined, check: () => (hs.length ? "" : "No RAMS have been issued for this job") };
@@ -605,14 +615,23 @@
     const rec = existing || { templateId, status: "draft", values: {} };
     const prefill = existing ? {} : IC.LS.get(templateId + "Prefill", null) || {};
     if (!existing) IC.LS.del(templateId + "Prefill");
-    let folder = rec.jobFolder || prefillJob || IC.LS.get("lastJob", "") || "";
-    if (!jobByFolder(folder)) folder = (IC.viewableJobs()[0] || {}).folder || "";
+    // HC4.10: never pick a job silently. The job opened, the last job used, or the only job; otherwise "Choose…".
+    // A draft saved with "No job / yard" keeps that; the workshop equipment check has no job at all.
+    const noJob = t.id === "wscheck";
+    // HC4.11: workshop staff pick one of the workshop's W jobs (an NCR is raised against the W job), not a BSS site job
+    const wsOnly = IC.can("workshop") && !IC.can("drawings") && IC.Workshop;
+    const wsJobs = wsOnly ? IC.Workshop.jobs() : [];
+    let folder = wsOnly ? (rec.wno ? "ws:" + rec.wno : "") : rec.jobFolder || prefillJob || IC.LS.get("lastJob", "") || "";
+    if (wsOnly ? !wsJobs.some((w) => "ws:" + w.wno === folder) : !jobByFolder(folder)) folder = !wsOnly && IC.viewableJobs().length === 1 ? IC.viewableJobs()[0].folder : "";
+    const chosen = !!folder || (existing && existing.noJob === true);
+    const jobOpts = wsOnly ? '<option value="">Not a job (workshop / yard)</option>' + wsJobs.map((w) => '<option value="ws:' + esc(w.wno) + '"' + ("ws:" + w.wno === folder ? " selected" : "") + ">" + esc(w.wno + " · " + [w.client, w.phase].filter(Boolean).join(" · ")) + "</option>").join("") : jobOptions(folder, t.id !== "rams" && t.id !== "ramsbrief");
     setBar(t.title, t.ref, true);
-    $("main").innerHTML = '<form class="frm" novalidate><label class="fl">Job<select id="fJob">' + jobOptions(folder, t.id !== "rams") + '</select></label><div class="small" id="fWhen">' + esc(fmtDay(rec.createdAt || new Date()) + " · " + ((Data.profile && Data.profile.name) || "")) + '</div><div id="fFields"></div>' +
+    $("main").innerHTML = '<form class="frm" novalidate>' + (noJob ? '<input type="hidden" id="fJob" value="">' : '<label class="fl">Job<select id="fJob">' + (chosen ? "" : '<option value="__choose" selected>Choose…</option>') + jobOpts + "</select></label>") + '<div class="small" id="fWhen">' + esc(fmtDay(rec.createdAt || new Date()) + " · " + ((Data.profile && Data.profile.name) || "")) + '</div><div id="fFields"></div>' +
       '<div class="err" id="fErr" hidden></div><div class="row sticky-actions"><button type="button" class="btn" id="fDraft">Save draft</button><button type="submit" class="btn primary" id="fSend">Submit</button></div></form>';
     let widgets = [];
+    const jobVal = () => ($("fJob").value === "__choose" ? "" : $("fJob").value);
     const build = () => {
-      const job = jobByFolder($("fJob").value);
+      const job = jobByFolder(jobVal());
       const box = $("fFields"); box.innerHTML = ""; widgets = [];
       for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values, prefill, resumed: !!existing && rec.status === "draft" }); w.f = f; widgets.push(w); box.appendChild(w.el); }
     };
@@ -620,8 +639,9 @@
     $("fJob").onchange = () => { if (t.id === "rams" || t.id === "ramsbrief") build(); };
     const collect = async () => { const v = {}; for (const w of widgets) if (w.f.id) { v[w.f.id] = await w.get(); if (w.extra) Object.assign(v, await w.extra()); } return v; };
     const save = async (status) => {
-      const job = jobByFolder($("fJob").value);
-      rec.values = await collect(); rec.status = status; rec.jobFolder = job ? job.folder : ""; rec.jobNumber = job ? job.jobNumber : ""; rec.site = job ? job.site || job.customer : "";
+      const job = jobByFolder(jobVal());
+      rec.values = await collect(); rec.status = status; rec.jobFolder = job ? job.folder : ""; rec.noJob = !noJob && $("fJob").value === ""; rec.jobNumber = job ? job.jobNumber : ""; rec.site = job ? job.site || job.customer : "";
+      const wv = jobVal(); if (wv.startsWith("ws:")) { const w = wsJobs.find((x) => "ws:" + x.wno === wv); rec.wno = w ? w.wno : wv.slice(3); rec.jobNumber = rec.wno; rec.site = "Workshop" + (w && w.client ? " · " + w.client : ""); } else if (wsOnly) { delete rec.wno; rec.site = "Workshop"; }
       rec.templateTitle = t.title; rec.ref = t.ref;
       if ((t.id === "rams" || t.id === "ramsbrief") && job) {
         // record exactly which document (and which issue) was signed for
@@ -642,7 +662,12 @@
         if (w.f.requiredIf) { const want = valueOf(w.f.requiredIf[0]) === w.f.requiredIf[1]; w.f.required = want; if (!want) return ""; }
         return w.check();
       }).filter(Boolean);
-      if (!$("fJob").value && (t.id === "rams" || t.id === "ramsbrief")) errs.unshift("Choose the job");
+      if (t.id === "rams" || t.id === "ramsbrief") {
+        const jj = jobByFolder(jobVal()), w = widgets.find((x) => x.f.id === "docPath"), path = w ? w.get() : "", ex = w && w.extra ? w.extra() : {};
+        const now = jj && (jj.files || []).find((x) => x.category === "H&S" && x.path === path);
+        if (path && (!now || (ex.docIssued && now.issued !== ex.docIssued))) errs.unshift("This document has been re-issued since you opened it. Go back, read the new issue, then sign.");
+      }
+      if (!noJob && ($("fJob").value === "__choose" || (!$("fJob").value && (t.id === "rams" || t.id === "ramsbrief")))) errs.unshift(t.id === "rams" || t.id === "ramsbrief" ? "Choose the job" : "Choose the job (or No job / yard)");
       const box = $("fErr");
       if (errs.length) { box.hidden = false; box.innerHTML = "<b>Please finish:</b><br>" + errs.map(esc).join("<br>"); box.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
       box.hidden = true; $("fSend").disabled = true;
@@ -817,8 +842,8 @@
     if ($("regShare")) $("regShare").onclick = async () => {
       const b = $("regShare"); b.disabled = true; b.textContent = "Making the PDF…";
       try {
-        await IC.FormPdf.share({ templateId: "ramsreg", jobFolder: j.folder, jobNumber: j.jobNumber, site: j.site, userName: (Data.profile || {}).name || "", submittedAt: new Date().toISOString(),
-          values: { document: x.name + (kind === "crane plan" ? " (crane plan)" : " (RAMS)"), issue: "Issued " + fmtDate(x.issued), attendees: rows.map((r) => ({ name: r.name + "  " + fmtDay(r.at) + " " + fmtTime(r.at), sig: r.sig })) } });
+        await IC.FormPdf.share({ templateId: "ramsreg", templateTitle: kind === "crane plan" ? "Crane plan briefing register" : "RAMS briefing register", jobFolder: j.folder, jobNumber: j.jobNumber, site: j.site, userName: (Data.profile || {}).name || "", submittedAt: new Date().toISOString(),
+          values: { document: x.name + (kind === "crane plan" ? " (crane plan)" : " (RAMS)"), issue: "Issue dated " + fmtDate(x.issued) + (x.issuedBy ? ", issued by " + x.issuedBy : ""), attendees: rows.map((r) => ({ name: r.name + "  " + fmtDay(r.at) + " " + fmtTime(r.at), sig: r.sig })) } });
       } catch (e) { toast("Couldn't make the PDF: " + e.message); }
       b.disabled = false; b.textContent = "Share register (PDF)";
     };

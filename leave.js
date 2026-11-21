@@ -89,7 +89,7 @@
   // ---------------------------------------------------------------- team view (managers)
   async function viewTeam(off) {
     setBar("Holidays", "Team", false);
-    const all = (await Data.list("leave", "team")).filter(live);
+    const ts = await Data.teamSet(), all = (await Data.list("leave", "team")).filter((r) => live(r) && ts.has(r.user));
     const pending = all.filter((r) => r.status === "pending" && r.user !== Data.profile.email).sort((a, b) => a.from.localeCompare(b.from));
     const now = new Date(), ref = new Date(now.getFullYear(), now.getMonth() + off, 1);
     const offOn = (iso, except) => all.filter((r) => r !== except && covers(r, iso) && !(parseDate(iso).getDay() % 6 === 0));
@@ -112,5 +112,5 @@
     }));
   }
 
-  IC.Leave = { summary, pendingForManager: async () => (await Data.list("leave", "team")).filter((r) => r.status === "pending" && r.user !== Data.profile.email).length };
+  IC.Leave = { summary, pendingForManager: async () => { const ts = await Data.teamSet(); return (await Data.list("leave", "team")).filter((r) => r.status === "pending" && r.user !== Data.profile.email && ts.has(r.user)).length; } };
 })();

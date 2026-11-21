@@ -37,9 +37,16 @@
     const text = (s, x, size, style, colour) => { doc.setFont("helvetica", style || "normal"); doc.setFontSize(size || 10); doc.setTextColor(...(colour || [33, 33, 33])); doc.text(String(s), x, y); };
     const para = (s, x, w, size, style, colour) => { doc.setFont("helvetica", style || "normal"); doc.setFontSize(size || 9.5); doc.setTextColor(...(colour || [33, 33, 33])); const l = doc.splitTextToSize(String(s || ""), w); need(l.length * 4.4 + 1); doc.text(l, x, y); y += l.length * 4.4; };
 
+    // a row of photos (up to 8), 42 mm wide, wrapping onto new lines and pages
+    const photoRow = async (ids) => {
+      let x = M; need(36);
+      for (const id of (ids || []).slice(0, 8)) { const im = await imageFor(id, 700); if (!im) continue; const w = 42, h = Math.min(32, (im.h / im.w) * w); if (x + w > R) { x = M; y += 35; need(36); } doc.addImage(im.data, "JPEG", x, y, w, h); x += w + 3; }
+      y += 35;
+    };
+
     const lg = await logo();
     if (lg) { const h = 14, w = (lg.w / lg.h) * h; doc.addImage(lg.data, "JPEG", M, y, w, h); }
-    y += 6; doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(33, 33, 33); doc.text(t.title, R, y, { align: "right" });
+    y += 6; doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(33, 33, 33); doc.text(rec.templateTitle || t.title, R, y, { align: "right" });
     y += 6; doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(97, 97, 97); doc.text(t.ref || "", R, y, { align: "right" });
     y += 10;
     const job = IC.jobByFolder(rec.jobFolder) || {};
@@ -50,7 +57,13 @@
     for (const f of t.fields) {
       const val = v[f.id];
       if (!f.id || f.type === "hidden" || val == null || val === "" || (Array.isArray(val) && !val.length)) continue;
-      need(12); text(f.label || "", M, 9, "bold", [97, 97, 97]); y += 5;
+      need(12); text(f.label || (f.type === "docs" ? "Document signed for" : ""), M, 9, "bold", [97, 97, 97]); y += 5;
+      if (f.type === "docs") {
+        const d = (v.docs || [])[0];
+        para(d ? d.name : String(val).split("/").pop(), M, 180, 10, "bold");
+        if (d) para("Issue dated " + fmtDate(d.issued) + (d.issuedBy ? ", issued by " + d.issuedBy : ""), M, 180, 9.5);
+        y += 4; continue;
+      }
       if (f.type === "checklist") {
         const acts = v[f.id + "Actions"] || {};
         for (const [k, a] of Object.entries(val)) {
@@ -71,6 +84,7 @@
           y += l.length * 4.4;
           if (extra) para(extra, M + 4, 170, 9, "normal", [97, 97, 97]);
           if (r.c) para((r.a === "N" ? "Snag / action: " : "") + r.c, M + 4, 170, 9, "italic", r.a === "N" ? [197, 15, 31] : [97, 97, 97]);
+          if (r.p && r.p.length) { y += 1; await photoRow(r.p); }
           y += 1.5;
         }
       } else if (f.type === "yesno") {
@@ -86,14 +100,12 @@
         const im = await imageFor(val, 500); need(26);
         if (im) { doc.addImage(im.data, "JPEG", M, y - 2, 60, Math.min(24, (im.h / im.w) * 60)); y += 24; } else { para("Signed", M, 180); }
       } else if (f.type === "photos") {
-        let x = M; need(36);
-        for (const id of val.slice(0, 8)) { const im = await imageFor(id, 700); if (!im) continue; const w = 42, h = Math.min(32, (im.h / im.w) * w); if (x + w > R) { x = M; y += 35; need(36); } doc.addImage(im.data, "JPEG", x, y, w, h); x += w + 3; }
-        y += 35;
+        await photoRow(val);
       } else if (f.type === "rows") {
         val.forEach((r, i) => para((i + 1) + ". " + f.columns.map((c) => (r[c.id] ? c.label + ": " + r[c.id] : "")).filter(Boolean).join(" · "), M, 180));
       } else if (f.type === "date") para(IC.fmtDay(IC.parseDate(val)), M, 180, 10);
       else if (f.type === "talk") para(val.title, M, 180, 10);
-      else if (f.type === "confirm") para(val ? "✓ " + f.text : "Not confirmed", M, 180);
+      else if (f.type === "confirm") para(val ? "Confirmed: " + f.text : "Not confirmed", M, 180);
       else if (f.type === "tolerance") val.forEach((r) => para((r.loc || "") + " " + r.check + ": " + r.dev + " mm (permitted " + r.permitted + ")", M, 180, 9.5, "normal", r.ok === false ? [197, 15, 31] : [33, 33, 33]));
       else para(typeof val === "object" ? JSON.stringify(val) : val, M, 180);
       y += 4;

@@ -14,7 +14,11 @@
   const { $, esc, S, Data, can, setBar, sheet, toast, fmtDay } = IC;
   const STAGES = [["fabricated", "Fabricated", "F"], ["welded", "Welded", "W"], ["checked", "Checked", "C"], ["loaded", "Loaded", "L"]];
   const LABEL = Object.fromEntries(STAGES.map((s) => [s[0], s[1]]));
-  const jobs = () => (S.manifest && S.manifest.workshop) || [];
+  // HC4.15: marks are counted per QA list line, not per mark: the same mark on two lines (e.g. two finishes) keeps two
+  // counts. A line's key is its mark; a repeat of the same mark becomes "mark#2", "mark#3" … (earlier records, which only
+  // name the mark, still belong to the first line with that mark).
+  const keyLines = (job) => { if (!job._keyed) { const n = {}; (job.lines || []).forEach((l) => { n[l.mark] = (n[l.mark] || 0) + 1; l.key = n[l.mark] === 1 ? l.mark : l.mark + "#" + n[l.mark]; }); job._keyed = true; } return job; };
+  const jobs = () => ((S.manifest && S.manifest.workshop) || []).map(keyLines);
   const jobOf = (wno) => jobs().find((j) => j.wno === wno);
   const tonnes = (kg) => (kg >= 1000 ? (kg / 1000).toFixed(2) + " t" : Math.round(kg) + " kg");
   const fmtTime = (d) => new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -23,17 +27,19 @@
   // done[mark][stage] = pieces marked; who[mark][stage] = net pieces per person
   function tally(job, log) {
     const done = {}, who = {}, last = {};
-    job.lines.forEach((l) => { done[l.mark] = { fabricated: 0, welded: 0, checked: 0, loaded: 0 }; who[l.mark] = { fabricated: {}, welded: {}, checked: {}, loaded: {} }; last[l.mark] = {}; });
+    keyLines(job);
+    job.lines.forEach((l) => { done[l.key] = { fabricated: 0, welded: 0, checked: 0, loaded: 0 }; who[l.key] = { fabricated: {}, welded: {}, checked: {}, loaded: {} }; last[l.key] = {}; });
+    const lk = (r) => r.line || r.mark;
     // An undo is its own line (negative quantity) naming the mark it takes back (undoOf) and whose mark that was
     // (undoUser): the pieces come off THAT person, not whoever pressed Undo, so "checked by someone other than the
     // welder" can't be got round by undoing someone else's mark (HC4.2). A mark that has been undone is never "the last".
-    const mine = log.filter((r) => r.wno === job.wno && done[r.mark] && LABEL[r.stage]).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const mine = log.filter((r) => r.wno === job.wno && done[lk(r)] && LABEL[r.stage]).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
     const undone = new Set(mine.filter((r) => r.undoOf).map((r) => r.undoOf));
     mine.forEach((r) => {
-      done[r.mark][r.stage] += r.qty; const w = who[r.mark][r.stage], u = r.qty < 0 && r.undoUser ? r.undoUser : r.user; w[u] = (w[u] || 0) + r.qty;
-      if (r.qty > 0 && !undone.has(r.id)) last[r.mark][r.stage] = r;
+      done[lk(r)][r.stage] += r.qty; const w = who[lk(r)][r.stage], u = r.qty < 0 && r.undoUser ? r.undoUser : r.user; w[u] = (w[u] || 0) + r.qty;
+      if (r.qty > 0 && !undone.has(r.id)) last[lk(r)][r.stage] = r;
     });
-    job.lines.forEach((l) => STAGES.forEach(([s]) => { done[l.mark][s] = Math.max(0, Math.min(l.qty, done[l.mark][s])); }));
+    job.lines.forEach((l) => STAGES.forEach(([s]) => { done[l.key][s] = Math.max(0, Math.min(l.qty, done[l.key][s])); }));
     return { done, who, last };
   }
   // how many more pieces of this line can go to this stage now (each stage follows the one before)
@@ -44,7 +50,7 @@
   function progress(job, t) {
     const pcs = job.lines.reduce((n, l) => n + l.qty, 0), kg = job.lines.reduce((n, l) => n + l.qty * (l.kg || 0), 0), out = { pcs, kg };
     STAGES.forEach(([s]) => {
-      const p = job.lines.reduce((n, l) => n + t.done[l.mark][s], 0), k = job.lines.reduce((n, l) => n + t.done[l.mark][s] * (l.kg || 0), 0);
+      const p = job.lines.reduce((n, l) => n + t.done[l.key][s], 0), k = job.lines.reduce((n, l) => n + t.done[l.key][s] * (l.kg || 0), 0);
       out[s] = { pcs: p, kg: k, pct: kg > 0 ? Math.round((k / kg) * 100) : pcs ? Math.round((p / pcs) * 100) : 0 };
     });
     out.ready = pcs > 0 && out.checked.pcs === pcs && out.loaded.pcs === pcs;
@@ -87,10 +93,10 @@
     const bss = IC.Workshop.linkedJob(j.bssFolder), draws = bss ? (bss.files || []).filter((f) => f.category === "Drawing") : [];
     const F = [["all", "All"], ["fabricated", "To fabricate"], ["welded", "To weld"], ["checked", "To check"], ["loaded", "To load"]];
     filter = F.some((x) => x[0] === filter) ? filter : "all";
-    const shown = j.lines.filter((l) => filter === "all" || room(l, t.done[l.mark], filter) > 0);
+    const shown = j.lines.filter((l) => filter === "all" || room(l, t.done[l.key], filter) > 0);
     const btn = (l, [s, name, letter]) => {
-      const d = t.done[l.mark][s], r = room(l, t.done[l.mark], s), full = d === l.qty;
-      return '<button type="button" class="fab-b' + (full ? " done" : d ? " part" : "") + '" data-mark="' + esc(l.mark) + '" data-stage="' + s + '"' + (!full && !r ? " disabled" : "") + ' aria-label="' + esc(name + " " + d + " of " + l.qty) + '">' +
+      const d = t.done[l.key][s], r = room(l, t.done[l.key], s), full = d === l.qty;
+      return '<button type="button" class="fab-b' + (full ? " done" : d ? " part" : "") + '" data-key="' + esc(l.key) + '" data-stage="' + s + '"' + (!full && !r ? " disabled" : "") + ' aria-label="' + esc(name + " " + d + " of " + l.qty) + '">' +
         "<b>" + letter + "</b><span>" + (full ? "✓" : l.qty > 1 ? d + "/" + l.qty : "") + "</span></button>";
     };
     $("main").innerHTML = '<div class="card"><b>' + jobSub(j) + "</b>" + (p.ready ? ' <span class="pill ok">Ready for dispatch</span>' : "") +
@@ -102,15 +108,15 @@
       '<input type="search" id="fabSearch" class="fab-search" placeholder="Search mark or section" aria-label="Search assemblies" autocomplete="off" autocapitalize="characters" value="' + esc(search[wno] || "") + '">' +
       (mark && filter !== "all" && shown.length ? '<button class="btn block" id="fabAll"></button>' : "") +
       '<div class="fab-key small">F fabricated · W welded · C checked · L loaded. Checked is marked by someone other than the welder.</div>' +
-      (shown.length ? shown.map((l) => '<div class="fab-line" data-mark="' + esc(l.mark) + '"><div class="fab-line-t"><b>' + esc(l.mark) + (l.qty > 1 ? " ×" + l.qty : "") + '</b><span class="small"> ' + esc([l.section, l.length ? l.length + " mm" : "", l.kg ? tonnes(l.kg) + (l.qty > 1 ? " each" : "") : "", l.finish].filter(Boolean).join(" · ")) + "</span></div>" +
+      (shown.length ? shown.map((l) => '<div class="fab-line" data-key="' + esc(l.key) + '"><div class="fab-line-t"><b>' + esc(l.mark) + (l.qty > 1 ? " ×" + l.qty : "") + '</b><span class="small"> ' + esc([l.section, l.length ? l.length + " mm" : "", l.kg ? tonnes(l.kg) + (l.qty > 1 ? " each" : "") : "", l.finish].filter(Boolean).join(" · ")) + "</span></div>" +
         '<div class="fab-bs">' + STAGES.map((s) => btn(l, s)).join("") + "</div></div>").join("") : '<div class="empty small">Nothing left ' + esc(LABEL[filter] ? "to mark as " + LABEL[filter].toLowerCase() : "") + ".</div>") + '<div class="empty small" id="fabNone" hidden>No assembly matches the search.</div>';
 
     // search box: every word typed must be in the mark, section or finish; "Mark all shown" follows what is in view
     const hit = (l) => { const q = (search[wno] || "").toLowerCase().split(/\s+/).filter(Boolean), txt = (l.mark + " " + (l.section || "") + " " + (l.finish || "")).toLowerCase(); return q.every((w) => txt.includes(w)); };
     const inView = () => shown.filter(hit);
     const applySearch = () => {
-      const marks = new Set(inView().map((l) => l.mark));
-      $("main").querySelectorAll(".fab-line").forEach((el) => { el.hidden = !marks.has(el.dataset.mark); });
+      const marks = new Set(inView().map((l) => l.key));
+      $("main").querySelectorAll(".fab-line").forEach((el) => { el.hidden = !marks.has(el.dataset.key); });
       if ($("fabNone")) $("fabNone").hidden = !shown.length || marks.size > 0;
       if ($("fabAll")) { $("fabAll").hidden = !marks.size; $("fabAll").textContent = "Mark all " + marks.size + " shown as " + LABEL[filter].toLowerCase(); }
     };
@@ -119,9 +125,9 @@
     applySearch();
 
     // why this person can't mark this line at this stage ("" = they can)
-    const blocked = (l, s) => (s === "checked" && (t.who[l.mark].welded[me()] || 0) > 0 ? "Checked has to be marked by someone other than the person who welded it" : "");
+    const blocked = (l, s) => (s === "checked" && (t.who[l.key].welded[me()] || 0) > 0 ? "Checked has to be marked by someone other than the person who welded it" : "");
     async function add(l, s, qty, undo) {
-      await Data.save("fab", Object.assign({ wno: j.wno, mark: l.mark, stage: s, qty }, undo ? { undoOf: undo.id, undoUser: undo.user, undoUserName: undo.userName || "" } : {}));
+      await Data.save("fab", Object.assign({ wno: j.wno, mark: l.mark, line: l.key, stage: s, qty }, undo ? { undoOf: undo.id, undoUser: undo.user, undoUserName: undo.userName || "" } : {}));
     }
     async function after() {
       const now = progress(j, tally(j, await Data.list("fab", "team")));
@@ -129,9 +135,9 @@
       viewJob(wno, filter);
     }
     $("main").querySelectorAll(".fab-b").forEach((b) => (b.onclick = () => {
-      const l = j.lines.find((x) => x.mark === b.dataset.mark), s = b.dataset.stage, d = t.done[l.mark][s], r = room(l, t.done[l.mark], s), lastRec = t.last[l.mark][s];
-      const nextStage = STAGES[STAGES.findIndex((x) => x[0] === s) + 1], usedNext = nextStage ? t.done[l.mark][nextStage[0]] : 0;
-      const names = Object.keys(t.who[l.mark][s]).filter((u) => t.who[l.mark][s][u] > 0).map((u) => (log.find((x) => x.user === u) || {}).userName || u);
+      const l = j.lines.find((x) => x.key === b.dataset.key), s = b.dataset.stage, d = t.done[l.key][s], r = room(l, t.done[l.key], s), lastRec = t.last[l.key][s];
+      const nextStage = STAGES[STAGES.findIndex((x) => x[0] === s) + 1], usedNext = nextStage ? t.done[l.key][nextStage[0]] : 0;
+      const names = Object.keys(t.who[l.key][s]).filter((u) => t.who[l.key][s][u] > 0).map((u) => (log.find((x) => x.user === u) || {}).userName || u);
       // your own mark the same day; supervisors and managers (fab-correct) can take back anyone's
       const canUndo = lastRec && d - lastRec.qty >= usedNext && (can("fab-correct") || (mark && lastRec.user === me() && IC.sameDay(lastRec.createdAt, new Date())));
       const why = r ? blocked(l, s) : "";
@@ -147,7 +153,7 @@
     $("main").querySelectorAll(".fab-filter a").forEach((x) => (x.onclick = (e) => { e.preventDefault(); location.replace(x.getAttribute("href")); }));
     if ($("fabAll")) $("fabAll").onclick = async () => {
       let n = 0, skipped = 0;
-      for (const l of inView()) { const r = room(l, t.done[l.mark], filter); if (!r) continue; if (blocked(l, filter)) { skipped++; continue; } await add(l, filter, r); n++; }
+      for (const l of inView()) { const r = room(l, t.done[l.key], filter); if (!r) continue; if (blocked(l, filter)) { skipped++; continue; } await add(l, filter, r); n++; }
       if (skipped) toast(skipped + " left for someone else to check (you welded them)");
       after();
     };
@@ -159,6 +165,7 @@
   // Home to-do for managers: loads that became ready in the last 3 days (the office then dispatches on Goods Out)
   IC.Workshop = {
     dashboardHtml,
+    jobs,
     // the BSS job a workshop job is linked to: workshop staff may open its drawings (and nothing else of the job)
     linkedJob(folder) { return folder && jobs().some((w) => w.bssFolder === folder) ? ((S.manifest && S.manifest.jobs) || []).find((x) => x.folder === folder) || null : null; },
     async readyTodos() {

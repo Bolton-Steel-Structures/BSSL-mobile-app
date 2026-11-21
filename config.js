@@ -62,7 +62,7 @@ window.SITE_CONFIG = {
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    "Workshop Manager": ["workshop", "board", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
     "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:ncr"],
     "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
     "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"],

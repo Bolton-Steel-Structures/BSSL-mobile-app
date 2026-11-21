@@ -20,9 +20,15 @@
     money: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg>',
     clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     card: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.5 1.7-2.2 3-2.2s2.4.7 3 2.2M14 10h4M14 13h3"/></svg>',
+    crane: '<svg viewBox="0 0 24 24"><path d="M6 21h6M9 21V3L3 9h18M9 3l10 6M17 9v4a2 2 0 1 1-2 2"/></svg>',
     team: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.8-3.4 3.2-5.2 6-5.2s5.2 1.8 6 5.2"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.4.2 4.2 1.8 5 5"/></svg>'
   };
   IC.ICON = ICON;
+  // crane symbol for a job on a day: a pill on job cards, a symbol beside the job in My week and This week
+  const today = () => IC.isoDate(new Date());
+  const cranePill = (j, iso) => (IC.cranesOn(j, iso || today()).length ? '<span class="pill crane">' + ICON.crane + "Crane on site</span>" : "");
+  const craneMark = (j, iso) => (IC.cranesOn(j, iso).length ? ' <span class="crane-ic" title="Crane on site">' + ICON.crane + "</span>" : "");
+  IC.craneMark = craneMark;
 
   // ---------------------------------------------------------------- drawings data
   const isNew = (f) => (Date.now() - new Date(f.issued).getTime()) < CFG.newDays * 864e5 && D.viewed[f.path] !== f.issued;
@@ -73,6 +79,11 @@
   // ---------------------------------------------------------------- home
   async function viewHome() {
     const p = Data.profile || {}, h = new Date().getHours();
+    if (!roleOf(p)) {
+      setBar("iCONSTRUCTE Site", "", false);
+      $("main").innerHTML = '<div class="empty"><b>Your role isn\u2019t set up in the app yet</b><br>Your account says \u201c' + esc(p.role || "no role") + '\u201d. Ask the office to set your role, then sign in again.</div>';
+      return;
+    }
     setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
     const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
@@ -111,7 +122,7 @@
       $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Details ›</a></div>' + week.map((a) => {
         const d = IC.parseDate(a.date), isToday = a.date === IC.isoDate(new Date()), job = jobByFolder(a.folder);
         if (a.off) return '<div class="todo info"><span class="ti">' + ICON.leave + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ': Off</b><span class="small">On the planner as off</span></span></div>';
-        return '<a class="todo' + (isToday ? "" : " info") + '"' + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + '><span class="ti">' + ICON.jobs + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ": " + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + '</b><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span></span>" + (job ? "›" : "") + "</a>";
+        return '<a class="todo' + (isToday ? "" : " info") + '"' + (job ? ' href="#/job/' + encodeURIComponent(a.folder) + '"' : "") + '><span class="ti">' + ICON.jobs + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ": " + esc(a.jobNumber + (a.site ? " · " + a.site : "")) + craneMark(job, a.date) + '</b><span class="small">' + (a.start ? "Start " + esc(a.start) : "Start time TBC") + (a.workingAway ? " · working away" : "") + (a.description ? " · " + esc(a.description) : "") + "</span></span>" + (job ? "›" : "") + "</a>";
       }).join("");
     }
     // things to do
@@ -199,7 +210,7 @@
       '<div class="job-meta">' + esc([j.site, j.customer].filter(Boolean).join(" · ")) + "</div>" +
       '<div class="pills"><span class="pill">' + dn + (dn === 1 ? " drawing" : " drawings") + "</span>" +
       (files.some((f) => f.category === "H&S") ? '<span class="pill">RAMS / H&amp;S</span>' : "") +
-      (n ? '<span class="pill new">' + n + " new</span>" : "") + (off ? '<span class="pill ok">Saved offline</span>' : "") + "</div></button>";
+      (n ? '<span class="pill new">' + n + " new</span>" : "") + (off ? '<span class="pill ok">Saved offline</span>' : "") + cranePill(j) + "</div></button>";
   }
 
   // Which of my jobs to show (Liam, 20 Nov): operatives the job they're on today; supervisors their current and recent
@@ -239,7 +250,7 @@
         '<div class="job-meta">' + esc([j.customer, j.description].filter(Boolean).join(" · ")) + "</div>" +
         '<div class="pills"><span class="pill">' + dn + (dn === 1 ? " drawing" : " drawings") + "</span>" +
         (files.some((f) => f.category === "H&S") ? '<span class="pill">RAMS / H&amp;S</span>' : "") +
-        (n ? '<span class="pill new">' + n + " new</span>" : "") + (off ? '<span class="pill ok">Saved offline</span>' : "") + "</div></button>";
+        (n ? '<span class="pill new">' + n + " new</span>" : "") + (off ? '<span class="pill ok">Saved offline</span>' : "") + cranePill(j) + "</div></button>";
     }).join("");
     document.querySelectorAll("[data-job]").forEach((b) => (b.onclick = () => (location.hash = "#/job/" + encodeURIComponent(b.dataset.job))));
   }
@@ -291,7 +302,10 @@
     const nNew = dr.filter(isNew).length;
     const t = (show, href, icon, title, sub, badge) => (show ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span>" + (badge ? '<em class="tile-badge">' + badge + "</em>" : "") + "</a>" : "");
     const models = j.models || [];
-    $("main").innerHTML = loc +
+    const craneDays = [0, 1, 2, 3, 4, 5, 6].map((n) => { const d = new Date(); d.setDate(d.getDate() + n); return IC.isoDate(d); }).filter((iso) => IC.cranesOn(j, iso).length);
+    const crane = craneDays.length ? '<div class="card crane-card"><span class="crane-ic">' + ICON.crane + "</span><span><b>" + (craneDays[0] === today() ? "Crane on site today" : "Crane on site " + esc(fmtDay(IC.parseDate(craneDays[0])))) + "</b>" +
+      '<span class="small">' + esc(IC.cranesOn(j, craneDays[0]).map((c) => [c.description, c.supplier].filter(Boolean).join(", ")).join("; ")) + (craneDays.length > 1 ? " · also " + craneDays.slice(1).map((x) => fmtDay(IC.parseDate(x))).join(", ") : "") + "</span></span></div>" : "";
+    $("main").innerHTML = loc + crane +
       '<div class="row"><button class="btn ' + (off ? "" : "primary") + '" id="btnOffline">' + (off ? "Saved offline ✓" : "Save for offline") + "</button></div>" +
       '<div class="tiles">' +
       t(true, "#/job/" + f + "/drawings", ICON.file, "Drawings", dr.length + (dr.length === 1 ? " drawing" : " drawings"), nNew ? nNew + " new" : "") +
@@ -398,8 +412,7 @@
   // ---------------------------------------------------------------- sign-in, account, navigation
   function viewSignIn() {
     setBar("iCONSTRUCTE Site", "", false); $("nav").hidden = true;
-    $("main").innerHTML = '<div class="signin"><span class="logo-wrap"><img class="logo" src="icons/iconstructe-logo.png" alt="iCONSTRUCTE"></span><div class="company">BOLTON STEEL STRUCTURES</div><h1>Site app</h1>' +
-      "<p>Sign in with your Bolton Steel Structures work account.</p>" +
+    $("main").innerHTML = '<div class="signin"><span class="logo-wrap"><img class="logo bss" src="icons/bss-logo.jpg" alt="Bolton Steel Structures Ltd"></span><div class="company">BOLTON STEEL STRUCTURES</div>' +
       (DEMO ? '<p class="small">Demo: choose a sample login. Sample data only, nothing leaves this phone.</p>' +
         SAMPLES.map((u) => '<button class="btn block sample-login" data-sample="' + u.id + '"><b>' + esc(u.name) + '</b><span class="small">' + esc(u.role) + "</span></button>").join("")
         : '<button class="btn primary block" id="btnSignIn">Sign in</button>') + "</div>";
@@ -409,7 +422,7 @@
 
   function accountSheet() {
     const p = Data.profile || {};
-    const sh = sheet("<h3>" + esc(p.name || S.user.name) + "</h3><p>" + esc(S.user.emails[0]) + " · " + esc(roleOf(p)) + "</p>" +
+    const sh = sheet("<h3>" + esc(p.name || S.user.name) + "</h3><p>" + esc(S.user.emails[0]) + " · " + esc(roleOf(p) || "No role set up in the app") + "</p>" +
 
       (p.isManager ? '<a class="btn block" href="#/manager" id="sMgrTools">Manager tools</a>' : "") +
       '<button class="btn block" id="sCheck">Check for updates</button>' + (DEMO ? '<button class="btn block" id="sReset">Demo: reset sample data</button>' : "") +
@@ -435,6 +448,7 @@
   }
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
+    if (!roleOf(Data.profile)) return name === ""; // no role set up: nothing but the message on Home (HC4.16)
     // the Screens login only ever shows the wall board (Liam, 21 Nov)
     if (can("screens")) return name === "board" || name === "";
     if (name === "board") return can("board");

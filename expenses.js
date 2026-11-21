@@ -27,7 +27,7 @@
     setBar("Expenses", team ? "Team" : "", false);
     const tabs = Data.profile.isManager ? '<div class="tabs"><a' + (team ? "" : ' class="on"') + ' href="#/expenses">Mine</a><a' + (team ? ' class="on"' : "") + ' href="#/expenses/team">Team</a></div>' : "";
     if (team) {
-      const all = (await Data.list("expenses", "team")).sort((a, b) => b.date.localeCompare(a.date));
+      const ts = await Data.teamSet(), all = (await Data.list("expenses", "team")).filter((e) => ts.has(e.user)).sort((a, b) => b.date.localeCompare(a.date));
       const pend = all.filter((e) => e.status === "pending" && e.user !== Data.profile.email), appr = all.filter((e) => e.status === "approved");
       $("main").innerHTML = tabs + '<div class="section-h">Waiting for approval (' + pend.length + ")</div>" + (pend.length ? pend.map((e) => row(e, true)).join("") : '<div class="empty small">Nothing waiting.</div>') +
         '<div class="section-h">Approved, not yet paid (' + appr.length + " · " + fmtMoney(appr.reduce((t, e) => t + e.amount, 0)) + ")</div>" + appr.map((e) => row(e, true)).join("") +
@@ -103,5 +103,5 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\r\n")], { type: "text/csv" })); a.download = "Expenses for payroll " + isoDate(new Date()) + ".csv"; a.click();
   }
 
-  IC.Expenses = { pendingForManager: async () => (await Data.list("expenses", "team")).filter((e) => e.status === "pending" && e.user !== Data.profile.email).length };
+  IC.Expenses = { pendingForManager: async () => { const ts = await Data.teamSet(); return (await Data.list("expenses", "team")).filter((e) => e.status === "pending" && e.user !== Data.profile.email && ts.has(e.user)).length; } };
 })();

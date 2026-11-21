@@ -62,11 +62,19 @@
       });
     },
     get(key, store = "files") { return this.tx(store, "readonly", (s) => s.get(key)).catch(() => null); },
-    put(rec, store = "files") { return this.tx(store, "readwrite", (s) => s.put(rec)); },
-    del(key, store = "files") { return this.tx(store, "readwrite", (s) => s.delete(key)); },
+    // HC4.20: the records store is read once and kept until something is written to it (Home used to read every
+    // record on the phone many times per screen: once per job, per document, per register)
+    snap: {},
+    forget(store) { delete this.snap[store]; },
+    put(rec, store = "files") { this.forget(store); return this.tx(store, "readwrite", (s) => s.put(rec)).finally(() => this.forget(store)); },
+    del(key, store = "files") { this.forget(store); return this.tx(store, "readwrite", (s) => s.delete(key)).finally(() => this.forget(store)); },
     keys(store = "files") { return this.tx(store, "readonly", (s) => s.getAllKeys()).catch(() => []); },
-    all(store) { return this.tx(store, "readonly", (s) => s.getAll()).catch(() => []); },
-    clear(store) { return this.tx(store, "readwrite", (s) => s.clear()).catch(() => null); }
+    all(store) {
+      if (store !== "records") return this.tx(store, "readonly", (s) => s.getAll()).catch(() => []);
+      if (!this.snap[store]) { const p = this.tx(store, "readonly", (s) => s.getAll()).catch(() => []); this.snap[store] = p; p.then((v) => { if (!Array.isArray(v) && this.snap[store] === p) this.forget(store); }); }
+      return this.snap[store];
+    },
+    clear(store) { this.forget(store); return this.tx(store, "readwrite", (s) => s.clear()).catch(() => null).finally(() => this.forget(store)); }
   };
 
   // ---------------------------------------------------------------- sign-in and SharePoint (drawings)
@@ -173,6 +181,9 @@
       // demo 3D model (roadmap 5.8 test): Tekla IFC sample on the first job (stored as .ifc.txt: the preview host serves no .ifc)
       const mj = (m.jobs || []).find((j) => j.jobNumber === "2514/021");
       if (mj && !mj.models) mj.models = [{ name: "The Bond Roof Terrace - Test.ifc", path: "2514-021/Models/The Bond Roof Terrace - Test.ifc.txt", issued: "2026-11-18" }];
+      // demo crane hires on 2514/021: today, and a second visit in two days' time
+      const dd = (n) => { const x = new Date(); x.setDate(x.getDate() + n); return isoDate(x); };
+      if (mj && !mj.cranes) mj.cranes = [{ description: "50t mobile crane", supplier: "Example Crane Hire", onHire: dd(0), offHire: dd(0) }, { description: "50t mobile crane", supplier: "Example Crane Hire", onHire: dd(2), offHire: dd(2) }];
       return m;
     },
     async blob(path) { const r = await fetch("demo/files/" + path.split("/").map(encodeURIComponent).join("/")); if (!r.ok) throw new Error("download " + r.status); return r.blob(); }
@@ -187,7 +198,7 @@
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    "Workshop Manager": ["workshop", "board", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
     "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:ncr"],
     "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
     "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"],
@@ -195,14 +206,17 @@
     //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
     Screens: ["workshop", "board", "screens"]
   };
+  // config.js roles are laid over the defaults: a role changed there replaces the default, a new one is added (HC4.21)
+  const ROLES = Object.assign({}, DEFAULT_ROLES, CFG.roles || {});
+  // HC4.16: a role the app doesn't recognise gets nothing (it used to become an Operative, with drawings and RAMS)
   function roleOf(p) {
-    const r = String((p && p.role) || "").toLowerCase(), roles = CFG.roles || DEFAULT_ROLES;
-    const key = Object.keys(roles).find((k) => k.toLowerCase() === r);
-    return key || (p && p.isManager && roles.Manager ? "Manager" : "Operative");
+    const r = String((p && p.role) || "").trim().toLowerCase();
+    const key = Object.keys(ROLES).find((k) => k.toLowerCase() === r);
+    return key || (p && p.isManager && ROLES.Manager ? "Manager" : "");
   }
   // can("qa"), can("form:plant") … for the signed-in person (or a given profile)
   function can(feature, profile) {
-    const p = profile || Data.profile, list = (CFG.roles || DEFAULT_ROLES)[roleOf(p)] || [];
+    const p = profile || Data.profile, list = ROLES[roleOf(p)] || [];
     return list.includes(feature) || (feature.startsWith("form:") && list.includes("form:*"));
   }
 
@@ -245,16 +259,23 @@
     },
 
     async list(kind, scope) {
-      const all = (await Store.all("records")).filter((r) => r.kind === kind).map((r) => r.rec);
+      const all = (await Store.all("records")).filter((r) => r.kind === kind).map((r) => Object.assign({}, r.rec)); // copies: the read is shared (HC4.20)
       const me = this.profile && this.profile.email;
       return scope === "team" ? all : all.filter((r) => !r.user || r.user === me);
     },
     async get(kind, id) { const r = await Store.get(kind + ":" + id, "records"); return r ? r.rec : null; },
 
     // Manager tools: the people this manager looks after (from the Manager field on each employee in iCONSTRUCTE).
+    // the manager's own team (and themselves): team screens only show these people's records (HC4.8)
+    async teamSet() { return new Set((await this.team()).map((p) => p.email).concat(this.profile ? [this.profile.email] : [])); },
+
     async team() {
       if (!this.profile || !this.profile.isManager) return [];
-      if (DEMO) return Demo.team.map(([email, name, role]) => ({ email, name, role }));
+      if (DEMO) {
+        // the Workshop Manager's team is the workshop; directors (Manager role) have both (HC4.8)
+        const r = roleOf(this.profile), list = r.startsWith("Workshop") ? Demo.wsTeam : r === "Manager" ? Demo.team.concat(Demo.wsTeam) : Demo.team;
+        return list.map(([email, name, role]) => ({ email, name, role }));
+      }
       if (navigator.onLine) { try { const t = await Api.call("GET", "/team"); LS.set("team", t); return t; } catch (e) { console.warn("team", e); } }
       return LS.get("team", []);
     },
@@ -364,8 +385,10 @@
     // the manager's team (everyone except Liam), with two extra sample people so the team screens have something in them
     team: [["ian.jones@boltonstructures.com", "Ian Jones", "Supervisor"], ["daniel.wiseman@boltonstructures.com", "Daniel Wiseman", "Operative"],
       ["s.khan@example.com", "Sam Khan", "Operative"], ["m.wilson@example.com", "Mark Wilson", "Operative (welder)"], ["l.hart@example.com", "Lee Hart", "Operative"]],
+    // the workshop (the Workshop Manager's team)
+    wsTeam: [["c.dale@example.com", "Chris Dale", "Workshop Supervisor"], ["t.reid@example.com", "Tom Reid", "Fabricator/Welder"]],
     async seed() {
-      if (LS.get("demoSeeded", 0) === 5) return;
+      if (LS.get("demoSeeded", 0) === 6) return;
       await Data.clearAll();
       const now = new Date(), d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
       const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records");
@@ -401,6 +424,13 @@
       await shift(ian, 0, job, 7, 18, null);
       await shift(dan, 0, job, 7, 52, null, null, { in: { distanceM: 1240, flagged: true, reason: "Collecting bolts from the yard first" } });
       await shift(mark, 0, job, 7, 12, null);
+      // the workshop: clocked at the premises; one flagged clock-out, one holiday request, one equipment defect (HC4.8, HC4.11)
+      const [chris, tom] = this.wsTeam, wsj = { jobFolder: "", jobNumber: "", site: "Workshop" };
+      for (let back = 1; back <= 6; back++) { await shift(chris, back, wsj, 7, 25, 16, 5, back === 1 ? { out: { distanceM: 3400, flagged: true, reason: "Clocked out after dropping steel at the galvaniser" } } : null); await shift(tom, back, wsj, 7, 28, 16, 2); }
+      await put("leave", { id: uid(), user: tom[0], userName: tom[1], from: d(6), to: d(7), type: "Annual leave", status: "pending", note: "", days: null, createdAt: now.toISOString() });
+      await put("forms", { id: uid(), templateId: "wscheck", templateTitle: "Workshop equipment check", status: "submitted", user: chris[0], userName: chris[1], jobFolder: "", jobNumber: "", createdAt: at(1, 7, 40).toISOString(), submittedAt: at(1, 7, 45).toISOString(),
+        values: { checkDate: d(-1), equipType: "Forklift", equipRef: "Forklift 1", checks: { "Forks, carriage and chains undamaged": "No" }, checksActions: { "Forks, carriage and chains undamaged": "Chain stretched; hire company called" }, safe: "No", operator: chris[1] },
+        flags: [{ text: "Forks, carriage and chains undamaged: No (action: Chain stretched; hire company called)" }, { text: "Safe to use?: No" }] });
       // competency cards: one expired, two expiring, one person with no CSCS on record
       const card = (p, type, number, category, off, verified) => put("cards", { id: uid(), user: p[0], userName: p[1], type, number, category, expiry: d(off), photos: [], status: verified ? "verified" : "current", decidedBy: verified ? "Liam Pilkington" : undefined, decidedAt: verified ? now.toISOString() : undefined, createdAt: now.toISOString() });
       await card(liam, "CSCS", "00412345", "Manager (black)", 400, true);
@@ -412,7 +442,7 @@
       await card(sam, "CSCS", "00377120", "Skilled worker (blue)", 520, true);
       await card(sam, "CPCS", "CP-118842", "A60 telehandler", 700, true);
       await card(mark, "Welder qualification (BS EN ISO 9606-1)", "WQ-0417", "135 P FW 1.1 S t10 PB ml", 90, true);
-      LS.set("demoSeeded", 5);
+      LS.set("demoSeeded", 6);
     }
   };
   // ---------------------------------------------------------------- UI helpers
@@ -610,6 +640,12 @@
     return (S.manifest.allocations || []).filter((a) => mine.has(String(a.email).toLowerCase()) && a.date >= today).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   }
 
+  // Cranes on a job on a given day (Liam, 21 Nov): crane hires are sent with each job (dates only, no check sheet) so the
+  // site can see there's a crane on site that day. On hire up to and including the off-hire date; no off-hire date = ongoing.
+  function cranesOn(job, iso) {
+    return ((job && job.cranes) || []).filter((c) => c.onHire && c.onHire <= iso && (!c.offHire || c.offHire >= iso));
+  }
+
   function jobOptions(selected, allowNone) {
     return (allowNone ? '<option value="">No job / yard</option>' : "") +
       viewableJobs().map((j) => '<option value="' + esc(j.folder) + '"' + (j.folder === selected ? " selected" : "") + ">" + esc(j.jobNumber + " · " + (j.site || j.customer || "")) + "</option>").join("");
@@ -618,6 +654,6 @@
   window.IC = {
     CFG, DEMO, LS, SAMPLES, can, roleOf, paidMs, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
     Store, Src, Graph, Data, routes, route, status, setBar, sheet, ask, toast, shrinkImage, stampPhoto, fmtStamp, signaturePad, locate,
-    loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, myWeek, jobByFolder, viewableJobs, jobOptions, DEMO_TEAM: Demo.team
+    loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, myWeek, jobByFolder, viewableJobs, jobOptions, cranesOn, DEMO_TEAM: Demo.team
   };
 })();

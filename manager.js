@@ -10,6 +10,10 @@
 
   const weekStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
   const initials = (n) => String(n || "?").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase();
+  // the Workshop Manager gets Manager tools for the workshop team (HC4.8): clocking, holidays, expenses, certificates,
+  // equipment checks; no site check-in alert, site plant or site timesheets
+  const wsMode = () => IC.roleOf(Data.profile).startsWith("Workshop");
+  const awayText = (e) => (e.site === "Workshop" ? "away from the workshop, " : "away from site, ") + fmtDistance(e.distanceM);
   const onLeave = (all, email, iso) => all.find((r) => r.user === email && r.status === "approved" && r.from <= iso && iso <= r.to);
 
   async function load() {
@@ -81,7 +85,7 @@
       const sites = {};
       r.onSite.forEach((x) => { const k = x.t.open.in.site || x.t.open.in.jobNumber || "Site not given"; (sites[k] = sites[k] || []).push(x); });
       const person = (x, sub, cls) => '<a class="tile-row mt-' + cls + '" href="#/manager/person/' + encodeURIComponent(x.p.email) + '/0"><span class="avatar">' + esc(initials(x.p.name)) + "</span><span><b>" + esc(x.p.name) + '</b><span class="small">' + sub + "</span>" +
-        x.t.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") + "</span>›</a>";
+        x.t.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || awayText(e)) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") + "</span>›</a>";
       const elsewhere = (x) => { const j = x.t.open.in.jobNumber; return x.pl.jobs.length && j && !x.pl.jobs.some((a) => a.jobNumber === j) ? '<span class="flag">Planned on ' + esc(x.pl.jobs.map((a) => a.jobNumber).join(", ")) + "</span>" : ""; };
       const missingHead = r.late ? "Not checked in by " + hhmm(r.by) : "Not in yet (due by " + hhmm(r.by) + ")";
       if (!$("liveBox")) return;
@@ -102,35 +106,40 @@
 
   // ---------------------------------------------------------------- dashboard
   async function dashboard() {
-    setBar("Manager tools", "Your team", false);
+    const ws = wsMode();
+    setBar("Manager tools", ws ? "The workshop" : "Your team", false);
     const d = await load();
     const pendLeave = d.leave.filter((r) => r.status === "pending");
     const pendExp = d.expenses.filter((e) => e.status === "pending"), toPay = d.expenses.filter((e) => e.status === "approved");
     const cardsDue = d.cards.filter((c) => { const s = IC.Cards.state(c); return s.days != null && s.days <= IC.Cards.SOON_DAYS; }).sort((a, b) => a.expiry.localeCompare(b.expiry));
-    const noCscs = d.team.filter((p) => !d.cards.some((c) => c.user === p.email && (c.type === "CSCS" || c.type === "CPCS" || c.type === "NPORS")));
+    const noCscs = ws ? [] : d.team.filter((p) => !d.cards.some((c) => c.user === p.email && (c.type === "CSCS" || c.type === "CPCS" || c.type === "NPORS")));
     const states = d.team.map((p) => Object.assign({ p }, today(d, p)));
     const onSite = states.filter((s) => s.cls === "on").length;
-    const ws = weekStart(new Date()), lastWs = new Date(ws); lastWs.setDate(lastWs.getDate() - 7);
-    const toApprove = d.team.filter((p) => d.time.some((e) => e.user === p.email && new Date(e.at) >= lastWs && new Date(e.at) < ws) && !d.weeks.some((w) => w.user === p.email && w.weekStart === isoDate(lastWs)));
+    const wk = weekStart(new Date()), lastWs = new Date(wk); lastWs.setDate(lastWs.getDate() - 7);
+    const toApprove = d.team.filter((p) => d.time.some((e) => e.user === p.email && new Date(e.at) >= lastWs && new Date(e.at) < wk) && !d.weeks.some((w) => w.user === p.email && w.weekStart === isoDate(lastWs)));
     const offSoon = d.leave.filter((r) => r.status === "approved" && r.to >= isoDate(new Date()) && r.from <= isoDate(((x) => (x.setDate(x.getDate() + 13), x))(new Date()))).sort((a, b) => a.from.localeCompare(b.from));
 
-    const r9 = roll(d);
+    const weekFlags = d.time.filter((e) => e.flagged && new Date(e.at) >= wk && !sameDay(e.at, new Date())).sort((a, b) => b.at.localeCompare(a.at));
+    const r9 = roll(d), eq = IC.can("workshop") ? await equipmentWeek() : {};
     const link = (href, icon, title, sub, n) => '<a class="tile-row" href="' + href + '"><span class="ti">' + icon + "</span><span><b>" + esc(title) + '</b><span class="small">' + esc(sub) + "</span></span>" + (n ? '<span class="pill pending">' + n + "</span>" : "") + "›</a>";
     $("main").innerHTML =
-      '<div class="stats"><div><b>' + onSite + "/" + d.team.length + '</b><span>on site now</span></div><div><b>' + pendLeave.length + "</b><span>holiday requests</span></div>" +
+      '<div class="stats"><div><b>' + onSite + "/" + d.team.length + "</b><span>" + (ws ? "clocked in now" : "on site now") + "</span></div><div><b>" + pendLeave.length + "</b><span>holiday requests</span></div>" +
       "<div><b>" + pendExp.length + "</b><span>claims to approve</span></div><div><b>" + cardsDue.length + "</b><span>cards expiring / expired</span></div></div>" +
-      (r9.late && r9.missing.length ? '<a class="todo alert-row" href="#/manager/live"><span class="ti">' + IC.ICON.clock + "</span><span><b>" + r9.missing.length + " not checked in by " + esc(hhmm(r9.by)) + '</b><span class="small">' + esc(r9.missing.map((x) => x.p.name).join(", ")) + "</span></span>›</a>" : "") +
-      link("#/manager/live", IC.ICON.clock, "Who's on site (live)", r9.onSite.length + " on site" + (r9.missing.length ? " · " + r9.missing.length + (r9.late ? " not in by " : " due by ") + hhmm(r9.by) : "") + (r9.off.length ? " · " + r9.off.length + " off" : ""), r9.late ? r9.missing.length : 0) +
+      (!ws && r9.late && r9.missing.length ? '<a class="todo alert-row" href="#/manager/live"><span class="ti">' + IC.ICON.clock + "</span><span><b>" + r9.missing.length + " not checked in by " + esc(hhmm(r9.by)) + '</b><span class="small">' + esc(r9.missing.map((x) => x.p.name).join(", ")) + "</span></span>›</a>" : "") +
+      (ws ? link("#/manager/live", IC.ICON.clock, "Who's in (live)", r9.onSite.length + " clocked in" + (r9.off.length ? " · " + r9.off.length + " off" : "")) : link("#/manager/live", IC.ICON.clock, "Who's on site (live)", r9.onSite.length + " on site" + (r9.missing.length ? " · " + r9.missing.length + (r9.late ? " not in by " : " due by ") + hhmm(r9.by) : "") + (r9.off.length ? " · " + r9.off.length + " off" : ""), r9.late ? r9.missing.length : 0)) +
       '<div class="section-h">Waiting for you</div>' +
       link("#/leave/team", IC.ICON.leave, "Holiday requests", pendLeave.length ? pendLeave.map((r) => r.userName.split(" ")[0]).join(", ") : "None waiting · team calendar", pendLeave.length) +
       link("#/expenses/team", IC.ICON.money, "Expense claims", pendExp.length ? fmtMoney(pendExp.reduce((t, e) => t + e.amount, 0)) + " to approve" + (toPay.length ? " · " + fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "") : (toPay.length ? fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "None waiting"), pendExp.length) +
-      link("#/manager/time/-1", IC.ICON.clock, "Timesheets to approve", toApprove.length ? "Week of " + fmtDay(lastWs) + ": " + toApprove.map((p) => p.name.split(" ")[0]).join(", ") : "Last week all approved", toApprove.length) +
-      link("#/manager/plant", IC.ICON.check, "Plant checks", "Every machine on every job this week") +
-      link("#/manager/cards", IC.ICON.card, "Competency cards", cardsDue.length || noCscs.length ? [cardsDue.length ? cardsDue.length + " expiring or expired" : "", noCscs.length ? noCscs.length + " with no CSCS / CPCS on record" : ""].filter(Boolean).join(" · ") : "All in date", cardsDue.length + noCscs.length) +
+      (ws ? link("#/hours-team", IC.ICON.clock, "Workshop hours", "Clocked and booked, payroll sheet") : link("#/manager/time/-1", IC.ICON.clock, "Timesheets to approve", toApprove.length ? "Week of " + fmtDay(lastWs) + ": " + toApprove.map((p) => p.name.split(" ")[0]).join(", ") : "Last week all approved", toApprove.length)) +
+      (ws ? "" : link("#/manager/plant", IC.ICON.check, "Plant checks", "Every machine on every job this week")) +
+      (IC.can("workshop") ? link("#/manager/equipment", IC.ICON.check, "Workshop equipment checks", eq.defects ? eq.defects + " not safe or with a defect this week" : eq.missing ? eq.missing + " not checked today" : "Overhead cranes and forklifts this week", eq.defects) : "") +
+      link("#/manager/cards", IC.ICON.card, ws ? "Weld certificates" : "Competency cards", cardsDue.length || noCscs.length ? [cardsDue.length ? cardsDue.length + " expiring or expired" : "", noCscs.length ? noCscs.length + " with no CSCS / CPCS on record" : ""].filter(Boolean).join(" · ") : "All in date", cardsDue.length + noCscs.length) +
       '<div class="section-h">Today</div>' + (states.length ? states.map((s) =>
         '<a class="tile-row mt-' + s.cls + '" href="#/manager/person/' + encodeURIComponent(s.p.email) + '/0"><span class="avatar">' + esc(initials(s.p.name)) + "</span><span><b>" + esc(s.p.name) + '</b><span class="small">' + esc(s.state) + "</span>" +
-        s.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") +
+        s.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || awayText(e)) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") +
         s.missed.map((x) => '<span class="flag">No check-out on ' + esc(fmtDay(x.in.at)) + "</span>").join("") + "</span>›</a>").join("") : '<div class="empty small">No one in your team yet. Managers are set on each employee in iCONSTRUCTE.</div>') +
+      // flagged clock-ins and clock-outs this week (away from site or the workshop, rough location), so none go unseen (HC4.8)
+      (weekFlags.length ? '<div class="section-h">Flagged this week (' + weekFlags.length + ")</div>" + weekFlags.map((e) => '<a class="tile-row" href="#/manager/person/' + encodeURIComponent(e.user) + '/0"><span><b>' + esc(e.userName || e.user) + '</b><span class="small">' + esc(fmtDay(e.at) + " " + fmtTime(e.at) + " · " + (e.type === "in" ? "In" : "Out")) + '</span><span class="flag">' + esc(e.locationError || awayText(e)) + (e.reason ? " · " + esc(e.reason) : "") + "</span></span>›</a>").join("") : "") +
       '<div class="section-h">Off in the next 2 weeks</div>' + (offSoon.length ? offSoon.map((r) => '<div class="req"><div><b>' + esc(r.userName) + '</b><div class="small">' + esc(fmtDay(r.from)) + (r.to !== r.from ? " – " + esc(fmtDay(r.to)) : "") + " · " + esc(r.type) + "</div></div></div>").join("") : '<div class="empty small">No one booked off.</div>') +
       (cardsDue.length ? '<div class="section-h">Cards expiring or expired</div>' + cardsDue.map((c) => IC.Cards.row(c, true)).join("") : "");
   }
@@ -181,7 +190,7 @@
       '<div class="row nav-week"><a class="btn" href="#/manager/person/' + encodeURIComponent(email) + "/" + (off - 1) + '">‹ Previous</a>' + (off < 0 ? '<a class="btn" href="#/manager/person/' + encodeURIComponent(email) + "/" + (off + 1) + '">Next ›</a>' : "") + "</div>" +
       '<div class="tot-line">Week of ' + esc(fmtDay(ws)) + " <b>" + fmtHours(ps.reduce((t, x) => t + x.ms, 0)) + "</b> clocked</div>" +
       (ps.length ? ps.map((x) => '<div class="ts-row"><div><b>' + esc(x.in.site || x.in.jobNumber || "") + "</b> <span class=\"small\">" + esc(x.in.jobNumber || "") + '</span><div class="small">' + esc(fmtDay(x.in.at)) + " " + fmtTime(x.in.at) + " – " + (x.out ? fmtTime(x.out.at) + (x.out.manual ? " (entered later)" : "") : sameDay(x.in.at, new Date()) ? "on site" : "no check-out") + "</div>" +
-        [x.in, x.out].filter((e) => e && e.flagged).map((e) => '<div class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || ("away from site, " + fmtDistance(e.distanceM))) + (e.reason ? " · " + esc(e.reason) : "") + "</div>").join("") +
+        [x.in, x.out].filter((e) => e && e.flagged).map((e) => '<div class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || awayText(e)) + (e.reason ? " · " + esc(e.reason) : "") + "</div>").join("") +
         "</div><span>" + fmtHours(x.ms) + "</span></div>").join("") : '<div class="empty small">No check-ins this week.</div>') +
       '<div class="section-h">Holidays booked</div>' + (leave.length ? leave.map((r) => '<div class="req"><div><b>' + esc(fmtDay(r.from)) + (r.to !== r.from ? " – " + esc(fmtDay(r.to)) : "") + '</b><div class="small">' + esc(r.type) + '</div></div><div class="req-r"><span class="pill ' + r.status + '">' + esc(r.status.charAt(0).toUpperCase() + r.status.slice(1)) + "</span></div></div>").join("") : '<div class="empty small">None booked.</div>') +
       '<div class="section-h">Cards</div>' + (cards.length ? cards.map((c) => IC.Cards.row(c)).join("") : '<div class="empty small">No cards on record. Ask them to add their CSCS card in the app (Home › My cards).</div>');
@@ -206,6 +215,35 @@
         d.cards.map((c) => [c.userName, c.user, name(c), c.number, c.category, c.expiry, IC.Cards.state(c).label, IC.Cards.checked(c) ? c.decidedBy : ""].map(q).join(",")));
       const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\r\n")], { type: "text/csv" })); a.download = "Competency cards " + isoDate(new Date()) + ".csv"; a.click();
     };
+  }
+
+  // ---------------------------------------------------------------- workshop equipment checks (HC4.11)
+  // Every overhead crane and forklift checked this week, one row each (type + the number or bay typed on the check), a
+  // dot per day (green fine, red a "No" or not safe, grey no check) and the defects listed underneath.
+  async function equipmentWeek() {
+    const mon = weekStart(new Date()), days = Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(x.getDate() + i); return x; });
+    const checks = (await Data.list("forms", "team")).filter((c) => c.templateId === "wscheck" && c.status !== "draft" && c.values && IC.plantCheckDay(c) >= mon);
+    const key = (c) => (c.values.equipType || "") + "|" + String(c.values.equipRef || "").trim().toLowerCase();
+    const groups = {};
+    checks.forEach((c) => { (groups[key(c)] = groups[key(c)] || []).push(c); });
+    const bad = (c) => c.values.safe === "No" || (c.flags || []).length > 0;
+    const rows = Object.values(groups).map((list) => {
+      const last = list.slice().sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0];
+      const dayState = (d) => { const dc = list.filter((c) => sameDay(IC.plantCheckDay(c), d)); return !dc.length ? "" : dc.some(bad) ? "bad" : "ok"; };
+      return { label: last.values.equipType + (last.values.equipRef ? " · " + last.values.equipRef : ""), list, last, days: days.map(dayState), today: dayState(new Date()), defects: list.filter(bad) };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+    return { days, rows, defects: rows.reduce((n, r) => n + r.defects.length, 0), missing: rows.filter((r) => !r.today).length };
+  }
+  async function viewEquipment() {
+    setBar("Workshop equipment", "Checks this week", true);
+    const w = await equipmentWeek();
+    $("main").innerHTML = '<div class="stats"><div><b>' + w.rows.length + '</b><span>cranes and forklifts</span></div><div><b>' + w.missing + '</b><span>not checked today</span></div><div><b>' + w.defects + "</b><span>with a defect this week</span></div></div>" +
+      (w.rows.length ? w.rows.map((r) => '<a class="tile-row" href="#/form/' + esc(r.last.id) + '"><span><b>' + esc(r.label) + '</b><span class="small">' +
+        w.days.map((d, i) => '<span class="pd ' + r.days[i] + '">' + d.toLocaleDateString("en-GB", { weekday: "narrow" }) + "</span>").join("") + "</span>" +
+        r.defects.map((c) => '<span class="flag">' + esc(fmtDay(IC.plantCheckDay(c)) + ": " + (c.values.safe === "No" ? "not safe to use · " : "") + (c.flags || []).filter((f) => !/^Safe to use/.test(f.text)).map((f) => f.text).join("; ")) + "</span>").join("") + "</span>" +
+        (r.today === "bad" ? '<span class="pill declined">Defect</span>' : r.today === "ok" ? '<span class="pill ok">Checked</span>' : '<span class="pill">Not checked today</span>') + "›</a>").join("")
+      : '<div class="empty small">No equipment checks recorded this week.</div>') +
+      '<a class="btn primary block" href="#/form-new/wscheck">Record a check</a>';
   }
 
   // for Home's to-do list: who's late in (empty before the check-in time or on a non-working day)
@@ -239,6 +277,7 @@
     if (args[0] === "time") return viewTime(Number(args[1] || 0));
     if (args[0] === "cards") return viewCards();
     if (args[0] === "plant") return viewPlant();
+    if (args[0] === "equipment") return viewEquipment();
     if (args[0] === "person" && args[1]) return viewPerson(decodeURIComponent(args[1]), Number(args[2] || 0));
     return dashboard();
   });
