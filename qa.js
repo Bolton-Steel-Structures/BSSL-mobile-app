@@ -46,6 +46,9 @@
   async function checkComplete(inspectionId) {
     const rec = await Data.get("forms", inspectionId);
     if (!rec || rec.certificate) return;
+    // HC4.3: only the full site inspection (signed with the client) makes a completion certificate. Supervisors Completion
+    // is the supervisor's own record: its snags are tracked, but it never issues a certificate.
+    if (rec.templateId !== "works") return;
     const snags = await snagsFor(rec);
     if (snags.some((x) => x.status !== "closed")) return;
     const sh = IC.sheet('<h3>Creating the completion certificate</h3><p>All snags are closed out. Making the PDF…</p><div class="progress"><div class="indet"></div></div>');
@@ -77,9 +80,10 @@
       h += '<div class="cert-box"><b>Completion certificate</b><div class="small">' + esc(rec.certificate.name) + "</div><div class=\"small " + (st.cls === "ok" ? "ok-t" : "") + '">' + esc(st.text) + "</div>" +
         (st.up ? '<button class="btn block" id="certDl">Open certificate</button>' : "") + "</div>";
     } else if (open.length) {
-      h += '<div class="note"><b>' + open.length + " snag" + (open.length > 1 ? "s" : "") + " to close out.</b> The completion certificate is created automatically when they're all closed.</div>" +
+      h += '<div class="note"><b>' + open.length + " snag" + (open.length > 1 ? "s" : "") + " to close out.</b>" + (rec.templateId === "works" ? " The completion certificate is created automatically when they're all closed." : "") + "</div>" +
         open.map((x) => '<a class="tile-row" href="#/snag/' + x.id + '"><span class="ti">' + IC.ICON.forms + "</span><span><b>" + esc(x.area) + '</b><span class="small">' + esc(x.description || "") + '</span></span><span class="pill declined">Open</span></a>').join("");
     }
+    if (!h && rec.templateId === "supcomp") h = '<div class="note"><b>Supervisor\u2019s completion record.</b> ' + (snags.length ? "All " + snags.length + " snag" + (snags.length > 1 ? "s" : "") + " closed out. " : "No snags. ") + "The completion certificate comes from the site inspection signed with the client.</div>";
     return h;
   }
 

@@ -117,6 +117,7 @@
       blurb: "Daily check before use. Each machine has a weekly sheet anyone on the site can add to.",
       fields: [
         { type: "hidden", id: "plantKey" },
+        { type: "hidden", id: "checkLate" },
         { type: "date", id: "checkDate", label: "Date of check", prefill: "today", max: "today", back: 7, required: true, hint: "Today unless you're recording a check done earlier" },
         { type: "text", id: "plantRef", label: "Machine reference (fleet / hire no. on the machine)", required: true },
         { type: "select", id: "plantType", label: "Machine", options: PLANT_TYPES, required: true },
@@ -404,7 +405,10 @@
       }
       case "text": case "number": case "date": case "time": {
         const pre = (ctx.prefill || {})[f.id];
-        const v = val != null ? val : pre != null ? pre : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : f.prefill === "today" ? isoDate(new Date()) : "";
+        // HC4.5: a check started as a draft and finished on a later day is that later day's check, unless it was started
+        // from "Record a check for this day" (values.checkLate) or the person changes the date themselves
+        const stale = f.prefill === "today" && val != null && ctx.resumed && !(ctx.values || {}).checkLate;
+        const v = stale ? isoDate(new Date()) : val != null ? val : pre != null ? pre : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : f.prefill === "today" ? isoDate(new Date()) : "";
         // date limits: not in the future (max "today"), and no more than f.back days ago
         const dMax = f.type === "date" && f.max === "today" ? isoDate(new Date()) : "", dMin = f.type === "date" && f.back ? isoDate(addD(new Date(), -f.back)) : "";
         el.innerHTML = label + (f.multiline ? '<textarea rows="3">' + esc(v) + "</textarea>" : '<input type="' + (f.type === "text" ? "text" : f.type) + '"' + (f.type === "number" ? ' inputmode="decimal" step="any"' : "") + (dMax ? ' max="' + dMax + '"' : "") + (dMin ? ' min="' + dMin + '"' : "") + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : "") + ' value="' + esc(v) + '">') + (f.hint ? '<div class="small">' + esc(f.hint) + "</div>" : "");
@@ -610,7 +614,7 @@
     const build = () => {
       const job = jobByFolder($("fJob").value);
       const box = $("fFields"); box.innerHTML = ""; widgets = [];
-      for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values, prefill }); w.f = f; widgets.push(w); box.appendChild(w.el); }
+      for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values, prefill, resumed: !!existing && rec.status === "draft" }); w.f = f; widgets.push(w); box.appendChild(w.el); }
     };
     build();
     $("fJob").onchange = () => { if (t.id === "rams" || t.id === "ramsbrief") build(); };
@@ -716,6 +720,7 @@
       }
       extra += await IC.QA.inspectionStatusHtml(rec);
     }
+    if (rec.templateId === "supcomp") extra += await IC.QA.inspectionStatusHtml(rec);
     $("main").innerHTML = extra + (rec.flags && rec.flags.length ? '<div class="warnbox"><b>Flagged for the office</b><br>' + rec.flags.map((x) => esc(x.text)).join("<br>") + "</div>" : "") +
       '<div class="small">' + esc((rec.userName || "") + " · submitted " + fmtDay(rec.submittedAt || rec.updatedAt) + " " + fmtTime(rec.submittedAt || rec.updatedAt)) + "</div>" + parts.join("") +
       (rec.history && rec.history.length ? '<div class="small">' + rec.history.map((h) => esc(fmtDay(h.at) + " · " + (h.by || "") + " · " + h.note)).join("<br>") + "</div>" : "");
@@ -788,7 +793,7 @@
       const hired = m.hired || {}, d = (hired.description || "") + " " + (hired.model || "");
       // iCONSTRUCTE records "Cherry picker" / "Scissor lift" only: diesel or electric is picked here on the first check and remembered for the week.
       const typeGuess = hired.type && PLANT_TYPES.includes(hired.type) ? hired.type : /mini ?crane|spider crane|maeda|jekko|unic/i.test(d) ? "Mini crane" : /superlift/i.test(d) ? "Genie SuperLift" : /telehandler|manitou|jcb 5/i.test(d) ? "Telehandler" : null;
-      IC.LS.set("plantPrefill", { plantKey: key.indexOf("REF:") === 0 ? "" : key, plantRef: latest ? latest.values.plantRef : hired.ref || (key.indexOf("REF:") === 0 ? key.slice(4) : ""), plantType: latest ? latest.values.plantType : typeGuess, plantId: latest ? latest.values.plantId : hired.model || hired.description || "", checkDate: date || isoDate(new Date()) });
+      IC.LS.set("plantPrefill", { plantKey: key.indexOf("REF:") === 0 ? "" : key, plantRef: latest ? latest.values.plantRef : hired.ref || (key.indexOf("REF:") === 0 ? key.slice(4) : ""), plantType: latest ? latest.values.plantType : typeGuess, plantId: latest ? latest.values.plantId : hired.model || hired.description || "", checkDate: date || isoDate(new Date()), checkLate: date ? "1" : "" });
       location.hash = "#/form-new/plant/" + encodeURIComponent(folder);
     };
     if ($("pCheck")) $("pCheck").onclick = () => startCheck();

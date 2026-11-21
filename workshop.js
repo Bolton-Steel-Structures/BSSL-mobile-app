@@ -24,9 +24,14 @@
   function tally(job, log) {
     const done = {}, who = {}, last = {};
     job.lines.forEach((l) => { done[l.mark] = { fabricated: 0, welded: 0, checked: 0, loaded: 0 }; who[l.mark] = { fabricated: {}, welded: {}, checked: {}, loaded: {} }; last[l.mark] = {}; });
-    log.filter((r) => r.wno === job.wno && done[r.mark] && LABEL[r.stage]).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || "")).forEach((r) => {
-      done[r.mark][r.stage] += r.qty; const w = who[r.mark][r.stage]; w[r.user] = (w[r.user] || 0) + r.qty;
-      if (r.qty > 0) last[r.mark][r.stage] = r;
+    // An undo is its own line (negative quantity) naming the mark it takes back (undoOf) and whose mark that was
+    // (undoUser): the pieces come off THAT person, not whoever pressed Undo, so "checked by someone other than the
+    // welder" can't be got round by undoing someone else's mark (HC4.2). A mark that has been undone is never "the last".
+    const mine = log.filter((r) => r.wno === job.wno && done[r.mark] && LABEL[r.stage]).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const undone = new Set(mine.filter((r) => r.undoOf).map((r) => r.undoOf));
+    mine.forEach((r) => {
+      done[r.mark][r.stage] += r.qty; const w = who[r.mark][r.stage], u = r.qty < 0 && r.undoUser ? r.undoUser : r.user; w[u] = (w[u] || 0) + r.qty;
+      if (r.qty > 0 && !undone.has(r.id)) last[r.mark][r.stage] = r;
     });
     job.lines.forEach((l) => STAGES.forEach(([s]) => { done[l.mark][s] = Math.max(0, Math.min(l.qty, done[l.mark][s])); }));
     return { done, who, last };
@@ -99,8 +104,8 @@
 
     // why this person can't mark this line at this stage ("" = they can)
     const blocked = (l, s) => (s === "checked" && (t.who[l.mark].welded[me()] || 0) > 0 ? "Checked has to be marked by someone other than the person who welded it" : "");
-    async function add(l, s, qty) {
-      await Data.save("fab", { wno: j.wno, mark: l.mark, stage: s, qty });
+    async function add(l, s, qty, undo) {
+      await Data.save("fab", Object.assign({ wno: j.wno, mark: l.mark, stage: s, qty }, undo ? { undoOf: undo.id, undoUser: undo.user, undoUserName: undo.userName || "" } : {}));
     }
     async function after() {
       const now = progress(j, tally(j, await Data.list("fab", "team")));
@@ -117,10 +122,10 @@
       const sh = sheet("<h3>" + esc(l.mark) + " · " + LABEL[s] + "</h3><p>" + d + " of " + l.qty + " " + LABEL[s].toLowerCase() + (names.length ? " · " + esc(names.join(", ")) + (lastRec ? ", " + esc(fmtDay(lastRec.createdAt) + " " + fmtTime(lastRec.createdAt)) : "") : "") + "</p>" +
         (why ? '<p class="err">' + esc(why) + ".</p>" : "") +
         (mark && r && !why ? (r > 1 ? '<label class="ff-l" for="fabQty">How many?</label><input id="fabQty" type="number" inputmode="numeric" min="1" max="' + r + '" value="' + r + '">' : "") + '<button class="btn primary block" id="fabGo">Mark ' + LABEL[s].toLowerCase() + "</button>" : "") +
-        (canUndo ? '<button class="btn block" id="fabUndo">Undo ' + (lastRec.user === me() ? "my" : "the") + " last mark (" + lastRec.qty + ")</button>" : "") + '<button class="btn block" id="fabNo">Close</button>');
+        (canUndo ? '<button class="btn block" id="fabUndo">Undo ' + (lastRec.user === me() ? "my" : esc(lastRec.userName || "the") + "\u2019s") + " last mark (" + lastRec.qty + ")</button>" : "") + '<button class="btn block" id="fabNo">Close</button>');
       sh.q("#fabNo").onclick = () => sh.close();
       if (sh.q("#fabGo")) sh.q("#fabGo").onclick = async () => { const q = sh.q("#fabQty") ? Math.max(1, Math.min(r, Math.round(Number(sh.q("#fabQty").value) || 0))) : 1; sh.close(); await add(l, s, q); after(); };
-      if (sh.q("#fabUndo")) sh.q("#fabUndo").onclick = async () => { sh.close(); await add(l, s, -lastRec.qty); after(); };
+      if (sh.q("#fabUndo")) sh.q("#fabUndo").onclick = async () => { sh.close(); await add(l, s, -lastRec.qty, lastRec); after(); };
     }));
     // the filter buttons swap the view without adding steps to Back: one press of Back returns to the screen before
     $("main").querySelectorAll(".fab-filter a").forEach((x) => (x.onclick = (e) => { e.preventDefault(); location.replace(x.getAttribute("href")); }));

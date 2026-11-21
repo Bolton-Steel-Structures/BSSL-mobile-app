@@ -68,6 +68,15 @@
       rec.locationChecked = true; rec.distanceM = dist == null ? null : Math.round(dist); rec.locationError = pos.error || "";
       if (ok) { sh.close(); return done(); }
       const why = pos.error || "You are " + fmtDistance(dist) + " from the workshop.";
+      // HC4.9: inside the shed the phone may only manage a rough fix. If it can't place you to within the radius, clocking
+      // in is allowed but flagged, with a reason. A good fix away from the workshop, or location turned off, is still refused.
+      const rough = !pos.error && (pos.accuracy || 0) > (w.radiusM || 500);
+      if (type === "in" && rough) {
+        sh.el.querySelector(".sheet-panel").innerHTML = "<h3>Couldn\u2019t confirm you are at the workshop</h3><p>Your phone can only place you to within " + fmtDistance(pos.accuracy) + '. You can clock in, but it will be flagged to the workshop manager.</p><label class="fl">Reason<textarea id="wsWhy" rows="2" placeholder="e.g. no signal in bay 2"></textarea></label><button class="btn primary block" id="wsGo">Clock in</button><button class="btn block" id="wsNo">Cancel</button>';
+        sh.q("#wsNo").onclick = () => sh.close();
+        sh.q("#wsGo").onclick = async () => { const t = sh.q("#wsWhy").value.trim(); if (!t) { toast("Give a reason"); return; } rec.flagged = true; rec.reason = t; rec.accuracyM = Math.round(pos.accuracy); sh.close(); await done(); };
+        return;
+      }
       if (type === "in") {
         sh.el.querySelector(".sheet-panel").innerHTML = "<h3>Can't clock in here</h3><p>" + esc(why) + " You can only clock in at the workshop. If you are there, check location is on for this app and try again, or see your supervisor.</p><button class=\"btn block\" id=\"wsNo\">Close</button>";
         sh.q("#wsNo").onclick = () => sh.close(); return;
