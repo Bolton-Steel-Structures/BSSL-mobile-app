@@ -1126,6 +1126,50 @@ A **Team** page in iCONSTRUCTE for managers, as a starting point covering **expe
 - [ ] **6.2** Move the iCONSTRUCTE database from Access to Azure SQL. iCONSTRUCTE keeps working the same.
 - [ ] **6.3** Review: continue improving iCONSTRUCTE, or rebuild as a web system from a written specification.
 
+
+### Migration to SQL Server / Azure SQL: considerations (21 Nov 2026)
+
+One list of what the move off Access (6.2) has to cover, gathered from the health checks and the 1.8 work. **Ready** = done in the code already; the rest is work at the time of the move. Estimate stands at 15–25 developer days including a full test pass (HC2).
+
+**Decide first**
+- [ ] **Where it runs:** Azure SQL (with the site app's database, Stage 4) or SQL Server on BSS's own server. Azure means one database for desktop and phones, and no server to look after; on-premises is faster on the office network but needs backups and patching by IT.
+- [ ] **The workshop's database:** move it at the same time, later, or never. W4 only reads it, so it can stay on Access while BSS moves; it needs its own connection setting either way.
+- [ ] **Cost and licences:** Azure SQL tier (a small general-purpose database is enough for this size), or SQL Server Standard / Express on-premises (Express is free but capped at 10 GB).
+- [ ] **Who runs it:** BSS's IT provider (logins, backups, restore tests) and Gripil (schema, scripts).
+
+**Ready in the code (done)**
+- [x] Connection from config (DBConnectionString): pointing iCONSTRUCTE at SQL Server is a config change, not a new build (HC2.12).
+- [x] No Access-only SQL in any 1.8 code; every query parameterised (HC2.15).
+- [x] The 27 tables and 2 columns 1.8 adds are made in SQL Server types on a SQL Server connection, and are in docs/sql/AddedTables.SqlServer.sql (HC2.15).
+- [x] No column name in the added tables is a reserved word in Access or SQL Server.
+- [x] Crystal Reports removed: no reports to re-point (2.14, HC2.14).
+- [x] Documents (job folders, PDFs, templates) stay on the file share; only the database moves.
+- [x] The site app never touches the Access file: it moves with Azure (Stage 4), not with this.
+
+**Before the move**
+- [ ] **Saved queries (HC2.13):** export the ~50 Access saved queries (getJobCards, getOrders …) to text in the repo and convert each to a SQL Server view or a query in the code. Biggest unknown in the estimate; do first.
+- [ ] **Fixed numbers in the code (HC3.18):** status, rate and item-type numbers (StatusId 1 = live, RateId 1 / 4, item type 37 = bolts …) become one list of named values, with a start-up check that the database still matches.
+- [ ] **Staff personal data (2.1, HC2.18):** NI numbers, bank details and dates of birth moved out or locked down before they are copied anywhere new.
+- [ ] **Data clean-up:** the go-live clean-up (pre-2025 open orders, 1.4) done first; duplicate or orphan rows checked (job cards with no site, lines with no order).
+- [ ] **Access-only column types in the old tables:** attachment, hyperlink, multi-value and lookup fields, if any, need a plan (the migration assistant reports them).
+- [ ] **Dates:** Access holds dates with no time zone and some with no time; SQL Server DATETIME2 keeps them as they are. Check nothing relies on Access's date 0 (30/12/1899) as "no date".
+- [ ] **Yes / No fields:** Access stores Yes as -1, SQL Server BIT as 1. Any code or saved query that tests "= -1" must change (none in the 1.8 code).
+- [ ] **Text matching:** Access ignores case; choose a case-insensitive SQL Server collation (e.g. Latin1_General_CI_AS) so searches behave the same.
+
+**The move itself**
+- [ ] **SQL Server Migration Assistant for Access** to move the tables and data; then docs/sql/AddedTables.SqlServer.sql for anything not yet created.
+- [ ] **Driver on every PC:** the Microsoft OLE DB Driver for SQL Server (MSOLEDBSQL) installed by IT, alongside .NET 4.8 (1.4a).
+- [ ] **New record numbers (HC2.16):** two places read a new record's number with @@IDENTITY. It works on SQL Server only while those tables have no triggers: keep them trigger-free, or change both to return the number from the insert.
+- [ ] **The always-open connection:** 1.8 keeps one Access connection open for speed; on SQL Server it is harmless but not needed (connection pooling does the job).
+- [ ] **Two PCs at once:** the planner lock (EditLocks), attendance claim and the "already exists" table checks were built for Access; re-test them with two PCs on SQL Server (HC2.8).
+- [ ] **Speed:** time the slow screens (Job Cards search, Actions sync, Goods Out, Site Labour) against the cloud server; a database across the internet behaves differently from a file on the same server.
+
+**After the move**
+- [ ] **Security:** each person signs in to the database with their Windows / Microsoft 365 account; roles can then be enforced in the database itself, not only in the program (what Access couldn't do).
+- [ ] **Backups and a tested restore** (as 0.3), point-in-time restore if on Azure.
+- [ ] **Full test pass** of the 1.8 test checklist on the SQL Server copy, side by side with Access, before switching.
+- [ ] **Rollback:** keep the Access file read-only for a set period, and the config line that points back to it.
+- [ ] **The bots (B1–B10) and the site app** read the same database: one source for desktop, phones and the office screens.
 ## Wish list (good ideas, not needed yet)
 
 - **Automatic WhatsApp sending** (WhatsApp Business Platform: messages sent without pressing Send, delivery receipts). Needs Meta business verification, approved templates and a per-conversation charge. Unlikely to be needed: individual, editable messages are preferred (18 Nov).
@@ -1314,3 +1358,4 @@ A **Team** page in iCONSTRUCTE for managers, as a starting point covering **expe
 | 21 Nov 2026 | Workshop link to feed the ITP and UKCA pack (Liam): ticks for material certificates received, MPI certificates received, optional welder qualifications | Planned (W4) |
 | 21 Nov 2026 | Health check 4 batch L fixed (Liam's go-ahead): HC4.1 test copy can't touch live site folders (closes HC3.23), HC4.2 welder / checker rule holds through undo, HC4.3 no certificate from Supervisors Completion, HC4.5 resumed draft takes today's date, HC4.7 crane-jib descriptions kept, HC4.9 flagged clock-in on a rough location fix; sw v47 | Built: site app in the preview; desktop in the next test build |
 | 21 Nov 2026 | SQL readiness of all 1.8 changes (Liam): no Access-only SQL in any new code; connection string from config (HC2.12); added tables made in SQL Server types on a SQL Server connection, and as a script (docs/sql/AddedTables.SqlServer.sql, HC2.15); site app records added since the Azure spec (workshop marks, workshop jobs, RAMS registers, plant / equipment checks) written into it. Still for the migration itself: the ~50 Access saved queries (HC2.13), @@IDENTITY in 2 places (works on SQL Server while the tables have no triggers; HC2.16), magic numbers (HC3.18), personal data in Access (2.1) | Done (desktop in the next test build) |
+| 21 Nov 2026 | Migration considerations list added under Stage 6 (decide first, ready in the code, before / during / after the move) | Planned |
