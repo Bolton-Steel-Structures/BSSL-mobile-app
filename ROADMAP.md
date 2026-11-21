@@ -44,7 +44,7 @@
 | **1.8 test build 14** (20 Nov 17:00): build 13 plus Site Labour planner (W2) with Off row, labour list, WhatsApp instructions, planner editors, Confirm site attendance and wages CSV (W2b, HC3 batch H fixes), Actions urgency, Goods Out board, one date per stop, vehicle type, B023, new supplier categories | Replaced by build 15. |
 | **1.8 test build 13** (19 Nov 19:00): build 12 (delivery notes and Goods Out stages 1–2, Budget prompt, spelling search and spell check, built-in logo, B019 / B020) plus B021 (Goods Out table), B022, Manually Input load, quote site → job card, site address required on new job cards, preferred suppliers ★ and supplier Category column | Replaced by build 14. |
 | Quote from email | **Confirmed working** by Liam (19 Nov). |
-| Health check | **HC1**: 14 findings, all closed. **HC2** (19 Nov): HC2.1 / 2.2 closed by process; HC2.3 / 2.19 still recommended; batches E–G awaiting go-ahead. |
+| Health check | **HC4** (21 Nov): 22 findings, 4 high; batch L recommended before any trial; awaiting go-ahead. **HC1**: 14 findings, all closed. **HC2** (19 Nov): HC2.1 / 2.2 closed by process; HC2.3 / 2.19 still recommended; batches E–G awaiting go-ahead. |
 | Bugs | B001–B018 fixed; B016 confirmed closed; none open (see BUGLOG). |
 | Delivery notes and Goods Out (2.6) | **Spec agreed, samples received. Next big build; required before go-live.** |
 | Roll-out package (1.4a) | **Specified**; needs the live program folder path. |
@@ -777,6 +777,7 @@ A small separate program on the server, run by Windows Task Scheduler (e.g. 07:0
   - **Despatch:** when the last piece of a load is checked and loaded, a **"Load ready for dispatch"** notification goes to the office and the delivery note shows **Ready** on Goods Out. The office still presses **Dispatch** when the load is collected (it can sit on a haulier's trailer for days when ahead of programme).
   - **Other customers' work:** the workshop marks off all work, not just BSS's. A **QA list converter** takes the customer's own list (Tekla or other CSV / Excel report first; PDF with a check screen) and makes a BSS-format QA list (mark, section, length, quantity, weight, area, finish): columns matched once per customer and remembered, weights worked out from the section where missing, preview before saving. By hand at first; automatic from a watched folder once the layouts are known.
   - **Access is one way** (Liam, 21 Nov): BSS reads the workshop's tables; the workshop never reads BSS's, beyond the package sent to it (Fab Issue sheet, drawings, QA list, BSS job number, required date). Roles and access to be ticked on the Sheets workbook **"Workshop roles and access"** (Workshop app, BSS sees workshop, Workshop sees BSS, Process, People).
+  - **ITP and UKCA from the workshop link** (Liam, 21 Nov): the link also feeds the job's ITP (2.10) and the UKCA / Declaration of Performance pack (G9). Tick boxes per workshop job: **Material certificates received**, **MPI certificates received**, and an optional **Include welder qualifications** tick for the pack; each tick records who and when and ticks the matching ITP line (G4, G6).
   - **Needs:** Azure (Liam setting up accounts); a copy or the path of the workshop database to confirm its table layout; two or three other customers' lists as samples.
 - [ ] **U1 Main menu grouped, and a "My day" home page (proposed 20 Nov)** (Liam: with all these tabs, do we need a launch pad?). Today's left menu has 11 pages (People, Quotes, Job Cards, Orders, Plant, NCRs, Employees, Goods In, Goods Out, Site Labour, Actions); with the Drawing Office, Workshop planner (W1) and Invoices (P7) it becomes 14, which is too many for one flat list.
   - **Menu by role, order by person** (Liam, 20 Nov): a tick-box sheet of roles against pages decides which pages each role sees (the rest are hidden, not just moved), and **each person can reorder their own list** (drag up / down, kept against their Windows login; "Reset to the role's order" puts it back). No headings or groups to argue over. Needs: a Role on each employee (with the Windows login link the Actions list already has) and the ticks.
@@ -935,6 +936,45 @@ Independent review (reviewer had not seen the work) of the 59 changes since Heal
 - [x] **HC3.22 (Low)** *(Fixed 20 Nov. Why: Windows' week-number function puts some late-December days in the wrong week. Liam works to dates, so the planner shows the month on each Monday instead of a week number.)* Planner week numbers wrong on 29–31 Dec in some years (next in 2031). *Small.*
 
 Not checked: NSSS clause numbers against the PDF (not on the reviewer's disk); QFC04 / QFC05 Rev B were read.
+
+## Health check 4 (21 Nov 2026): findings, awaiting Liam's go-ahead
+
+Independent review (reviewer had not seen the work) of the 67 changes since Health check 3: job ticks, ITP, plant machine details, Site Issue changes, planner lock, bank holidays, attendance reversals, timesheet, error log; site app job tiles, plant sheets, RAMS / crane plan registers, POWRA, toolbox talks, Supervisors Completion, workshop status, workshop clocking, roles. **Build: 0 errors, 8 warnings; all 17 site app scripts pass.** Not reviewed in depth: Plant.SiteApp.cs, BankHolidaysForm.cs, Xlsx.cs internals, model.js, the new app shell on a real phone. HC4.2 and HC4.15 were confirmed by running the code; the rest by reading it, except HC4.9 (suspected).
+
+**Confirmed sound:** all new SQL parameterised; no reserved-word columns in the six new tables; route guards keep workshop roles out of site data and site roles out of the workshop (workshop staff see only the drawings of a linked job); workshop clocking keeps distance only; attendance and reversal notes carry the no-medical / holiday prompt; timesheet asks before replacing and the ITP is never overwritten; Reverse booking is one transaction.
+
+**Batch L, fix before any site or workshop trial:**
+- [ ] **HC4.1 (High, desktop; makes HC3.23 worse)** A test copy whose config still has the live Site Drawings / Site Returns / Timesheet folders can delete live site files on Refresh (CleanFolder), not just overwrite the manifest. Fix: refuse to publish, clean or file returns on a test documents folder unless a separate test site folder is set; the installer strips those keys. *Small.*
+- [ ] **HC4.2 (High, site app)** The "checked by someone other than the welder" rule can be got round: an undo is stored as a negative quantity under the undoer's name, so after a supervisor undoes another welder's mark the tally credits the wrong person (S welds 4, A welds 4, S undoes A's: S can then check his own welds and A is blocked). The same mark can also be undone twice. Fix: an undo names the original mark and its welder; undone marks are skipped. *Small.*
+- [ ] **HC4.3 (High, site app)** A Supervisors Completion with no snags makes a "COMPLETION CERTIFICATE … NSSS 8.9" PDF with only the supervisor's signature and no client acceptance. Fix: no certificate from Supervisors Completion (or call it "Supervisor's completion record"). *Small.*
+- [ ] **HC4.5 (Medium, site app)** A plant or equipment check saved as a draft and finished two days later keeps the first day's date: recorded on the wrong day. Fix: a resumed draft resets to today unless started from "Record a check for this day". *Small.*
+- [ ] **HC4.7 (Medium, desktop)** Plant typed as "Other" is left off site checks (Liam's choice for welfare and tools, 20 Nov), so a forklift or spider lift saved as Other gets no check sheet; and a hire with no details whose description contains "crane" (e.g. "telehandler c/w crane jib") is dropped. Fix to agree: only type Crane is excluded by description; Other asks "needs a daily check?". *Small.*
+- [ ] **HC4.9 (Medium, site app, suspected)** Workshop clock-in has no fallback: a poor fix inside the shed refuses it and nobody can override. Fix: flagged clock-in with a reason when the phone's accuracy is worse than the radius, or a supervisor override. Test at the workshop first. *Small.*
+
+**Batch M, before live (with Azure):**
+- [ ] **HC4.4 (High for live)** Workshop marks and the checker rule exist on one phone only (the kinds "fab" / "fabready" aren't pulled; the rule is enforced on the phone). The API must hold the marks and enforce welder ≠ checker and the stage order. *Medium.*
+- [ ] **HC4.8 (Medium)** Flagged workshop clock-outs, and workshop holidays and expenses, reach nobody: the Workshop Manager has no manager view. *Medium.*
+- [ ] **HC4.11 (Medium)** Workshop NCRs and equipment checks carry no workshop job; the equipment check has no per-crane sheet or manager view, so an unsafe answer is seen by no one. *Medium.*
+- [ ] **HC4.13 (Medium)** A RAMS signature is tied to the issue current at submit, not the one open when the form was read. Fix: capture the issue when the form opens; stop if it changed. *Small.*
+- [ ] **HC4.14 (Medium, desktop)** Site Issue isn't all or nothing once files start moving into place: a OneDrive lock part way leaves some replaced with the register unchanged. *Small.*
+- [ ] **HC4.17 (Low)** RAMS registers match people by typed name (two same names merge; "Dan" / "Daniel" stays "still to sign"); roles and names come from sample lists, so live managers would be listed to sign. *Medium.*
+
+**Batch N, small fixes:**
+- [ ] **HC4.6 (Medium)** Back-dated plant checks look as if made on the day (the "entered" note was removed at Liam's request, 20 Nov). The reviewer recommends showing when it was entered and asking for a reason. **Liam to decide: keep as is, or reason only (no note on the sheet).**
+- [ ] **HC4.10** Forms opened without a job silently pick the first job (a workshop crane check filed against a site job). Fix: "Choose…"; no job picker on the workshop check. *Small.*
+- [ ] **HC4.12** A shared RAMS / crane plan signature PDF doesn't state the document and issue signed; the tick symbol prints garbled; inspection photos by area are left out. *Small.*
+- [ ] **HC4.15** Workshop tally is keyed by mark: the same mark on two lines shares one count. *Small.*
+- [ ] **HC4.16** A role the app doesn't recognise (e.g. "Fabricator" without "/Welder") becomes a site Operative with drawings and RAMS. Fix: unknown role = nothing; config merges over the defaults. *Small.*
+- [ ] **HC4.18** Any H&S file name containing "crane" is called a crane plan (label only). *Small.*
+- [ ] **HC4.19 (desktop)** A failed ITP fill leaves a blank master as the job's ITP for good; timesheet Payroll merges two people with the same name; a bank holiday announced later in a year that already has dates is never picked up. *Small.*
+- [ ] **HC4.20 (speed)** Home re-reads every record on the phone many times per screen (registers per document per job). Fix: read once per screen. *Small.*
+- [ ] **HC4.21 (double-ups)** Role lists in config.js and core.js; plant check and workshop equipment check are two implementations; week / day helpers in four files; "workshop only" test in five places; crane classification in three; bank holidays seeded in both apps; the two job tick saves near-identical.
+
+**Compliance flags (HC4.22):**
+- "Checked" in the workshop can be marked by anyone with marking rights straight after "Welded": no check that the checker is trained for visual inspection (NSSS 5.5.3), no hold time before inspection (NSSS 5.5.4), no link to the welder's current qualification. **Add to approvals (RWC).**
+- "Mark all Yes" is offered on LOLER / PUWER pre-use sheets. **H&S adviser to say whether that is acceptable (A8).**
+- "HSFG / TCB (indicator)" wording still in the site inspection and Supervisors Completion (already A5).
+- A site inspection left with the client makes a certificate at once, stating deemed acceptance in 5 days: check that wording against the contract terms.
 
 ## Process review: QFC01–QFC06 (runs alongside the stages)
 
@@ -1270,3 +1310,5 @@ A **Team** page in iCONSTRUCTE for managers, as a starting point covering **expe
 | 21 Nov 2026 | Workshop decisions (Liam): Workshop Admin links their job to the BSS Fab Issue once the job card is created; other customers' jobs visible as BSS jobs are; workshop clocking visible as BSS clocking plus the Workshop Manager. Workbook updated | Decided; linking not built yet |
 | 21 Nov 2026 | Workshop clocking: premises pin set (53.47435 N, 2.55337 W), radius 500 m; the check is now on, including in the preview | Built, in the preview |
 | 21 Nov 2026 | Workshop app (Liam): no CSCS or site cards for workshop staff: "Weld certificates" instead (welder qualifications 135 MAG / 111 MMA, weld procedure (WPS) copies, visual weld inspection); **Workshop equipment check** (PUWER pre-use, overhead crane and forklift check lists, Workshop Supervisor and Workshop Manager); bottom menu fixed in place; workshop filter buttons no longer add steps to Back. Check lists are a first draft: workshop supervisor to read against the manufacturers' instructions (add to approvals A8) | Built (demo), in the preview |
+| 21 Nov 2026 | Health check 4 (independent, 67 changes since HC3): build clean; 22 findings (4 high: test copy can delete live site files, welder / checker rule can be bypassed through undo, Supervisors Completion issues a completion certificate, workshop marks held on one phone only); batches L, M, N; compliance flags for the RWC and H&S adviser | Awaiting go-ahead |
+| 21 Nov 2026 | Workshop link to feed the ITP and UKCA pack (Liam): ticks for material certificates received, MPI certificates received, optional welder qualifications | Planned (W4) |
