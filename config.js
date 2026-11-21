@@ -72,5 +72,5 @@ window.SITE_CONFIG = {
   },
 
   // true = run with built-in sample data and no sign-in (for previewing only)
-  demo: false
+  demo: true
 };
