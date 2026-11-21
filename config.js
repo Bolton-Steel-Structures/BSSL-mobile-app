@@ -28,8 +28,8 @@ window.SITE_CONFIG = {
   // Workshop clocking (Liam, 21 Nov): workshop staff can only clock in at the premises. Set lat / lng from the Google Maps
   // pin of the workshop (right-click the door > the two numbers). Clock in is refused further away than radiusM (plus the
   // phone's stated accuracy, to a limit of 100 m) or with location off; clocking out away is allowed but flagged with a reason.
-  // Only the distance is kept, never the position. Until lat / lng are set there is no check (the demo has none).
-  workshopLocation: { lat: null, lng: null, radiusM: 500 },
+  // Only the distance is kept, never the position. Pin given by Liam, 21 Nov 2026 (53.47435 N, 2.55337 W).
+  workshopLocation: { lat: 53.47435, lng: -2.55337, radiusM: 500 },
 
   // Holidays: month the leave year starts (1 = January); warn when this many people are already off
   leaveYearStartMonth: 1,
