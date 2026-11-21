@@ -91,9 +91,10 @@
       (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:powra") || can("form:toolbox") ? "Safety" : can("form:wscheck") ? "Checks" : "NCR") + "</b><span>" + (!can("form:powra") && !can("form:toolbox") ? (can("form:wscheck") ? "Crane and forklift checks, NCR" : "Report a non-conformance") : can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
       tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
+      (can("ws-hours") ? tile("ws-hours", "#/hours", ICON.clock, "My hours", "Book hours to jobs") : can("ws-hours-team") ? tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") : "") +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
-      tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week") +
+      (can("ws-hours") ? "" : tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week")) +
       tile("week", "#/week", ICON.jobs, "This week", can("team-week") ? "Me and the team" : can("crew") ? "My sites and who's with me" : "Where I'm working") +
       (can("workshop") && !can("drawings") ? tile("cards", "#/cards", ICON.card, "Weld certificates", "Welder qualifications, WPS") : tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …")) + "</div>";
     if ($("timeCard")) IC.Time.card($("timeCard"));
@@ -428,6 +429,8 @@
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
     if (name === "workshop" || name === "board") return can("workshop");
+    if (name === "hours") return can("ws-hours") || can("ws-hours-team");
+    if (name === "hours-team") return can("ws-hours-team");
     if (name === "view") return can("drawings") || can("workshop");
     if (["jobs", "job", "project"].includes(name)) return can("drawings");
     if (["qa", "snag", "register"].includes(name)) return can("qa");

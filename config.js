@@ -46,21 +46,22 @@ window.SITE_CONFIG = {
   //   cards      My competency cards            qa        QA (inspections, snags, handover)
   //   manager    Manager tools (team approvals, time keeping, cards)
   //   all-jobs   Projects: every live project and its packages of work (managers; no check in / out or timesheet)
+  //   ws-hours   book my workshop hours to jobs    ws-hours-team  see and book the workshop team's hours    ws-payroll  weekly payroll spreadsheet
   //   workshop   Workshop: fabrication status by job (dashboard and QA list)     fab-mark  mark lines Fabricated / Welded / Checked / Loaded
   //   form:<id>  each form, e.g. form:toolbox, form:plant ("form:*" = all forms)
   //     Safety: toolbox, plant, lifting, handover, nearmiss
   //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
   roles: {
-    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "form:*"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:nearmiss", "form:ncr"],
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    "Workshop Manager": ["workshop", "fab-mark", "fab-correct", "fab-ready", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Workshop Admin": ["workshop", "fab-ready", "leave", "expenses", "cards", "form:ncr"],
-    "Workshop Supervisor": ["workshop", "fab-mark", "fab-correct", "time", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Fabricator/Welder": ["workshop", "fab-mark", "time", "leave", "expenses", "cards", "form:ncr"]
+    "Workshop Manager": ["workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:ncr"],
+    "Workshop Supervisor": ["workshop", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"]
   },
 
   // true = run with built-in sample data and no sign-in (for previewing only)

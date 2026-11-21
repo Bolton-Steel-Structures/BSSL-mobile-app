@@ -42,7 +42,7 @@
         (jobs.length ? '<label class="fl">Site<select id="tcJob">' + jobOptions(last, true) + "</select></label>" : "") +
         '<button class="btn go block" id="tcIn">' + (wk ? "Clock in" : "Check in") + "</button>";
     }
-    html += '<div class="tc-tot"><div><span>Today</span><b>' + fmtHours(today) + '</b></div><div><span>This week</span><b>' + fmtHours(week) + '</b></div><a href="#/time" class="link">Timesheet ›</a></div></div>';
+    html += '<div class="tc-tot"><div><span>Today</span><b>' + fmtHours(today) + '</b></div><div><span>This week</span><b>' + fmtHours(week) + '</b></div><a href="' + (can("ws-hours") ? "#/hours" : "#/time") + '" class="link">' + (can("ws-hours") ? "Book hours ›" : "Timesheet ›") + '</a></div></div>';
     el.innerHTML = html;
     if ($("tcIn")) $("tcIn").onclick = () => check("in", $("tcJob") ? $("tcJob").value : "");
     if ($("tcOut")) $("tcOut").onclick = () => check("out", open.jobFolder, open);

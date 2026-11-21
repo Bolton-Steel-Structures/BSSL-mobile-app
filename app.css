@@ -430,3 +430,7 @@ main:has(.board) { padding-left: 16px; padding-right: 16px; }
 .sticky-actions { bottom: 0; }
 .fab-search { width: 100%; box-sizing: border-box; min-height: 46px; padding: 10px 12px; margin: 4px 0 8px; font: inherit; font-size: 16px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .fab-line[hidden] { display: none; }
+.hr-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
+.small-btn { min-height: 40px; padding: 6px 12px; font-size: 14px; }
+.hr-row { cursor: pointer; }
+.tbl.hrs td.hr-short { background: var(--warn-bg); color: var(--warn); }

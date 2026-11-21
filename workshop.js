@@ -96,6 +96,7 @@
     $("main").innerHTML = '<div class="card"><b>' + jobSub(j) + "</b>" + (p.ready ? ' <span class="pill ok">Ready for dispatch</span>' : "") +
       '<div class="small">' + esc([j.bssJob ? "BSS job " + j.bssJob : "", j.fabIssue, j.exc, j.requiredOn ? "required " + fmtDay(IC.parseDate(j.requiredOn)) : ""].filter(Boolean).join(" · ")) + "</div>" +
       '<div class="small">' + esc((j.list || "QA list") + " · " + p.pcs + " pieces · " + tonnes(p.kg)) + "</div>" + STAGES.map(([s, name]) => bar(name, p[s])).join("") + "</div>" +
+      (can("ws-hours") ? '<button class="btn block" id="fabHours">Book hours to this job</button>' : "") +
       (draws.length ? '<details class="fab-docs"><summary>Fabrication details (' + draws.length + " drawings)</summary>" + draws.map((f) => '<a class="doc-link" href="#/view/' + encodeURIComponent(j.bssFolder) + "/" + encodeURIComponent(f.path) + '">' + esc(f.name) + "</a>").join("") + "</details>" : "") +
       '<div class="chips fab-filter">' + F.map(([k, n]) => '<a class="pill' + (k === filter ? " on" : "") + '" href="#/workshop/' + encodeURIComponent(wno) + "/" + k + '">' + n + "</a>").join("") + "</div>" +
       '<input type="search" id="fabSearch" class="fab-search" placeholder="Search mark or section" aria-label="Search assemblies" autocomplete="off" autocapitalize="characters" value="' + esc(search[wno] || "") + '">' +
@@ -113,6 +114,7 @@
       if ($("fabNone")) $("fabNone").hidden = !shown.length || marks.size > 0;
       if ($("fabAll")) { $("fabAll").hidden = !marks.size; $("fabAll").textContent = "Mark all " + marks.size + " shown as " + LABEL[filter].toLowerCase(); }
     };
+    if ($("fabHours")) $("fabHours").onclick = () => IC.WsHours.bookSheet(IC.isoDate(new Date()), (Data.profile || {}).email, () => toast("Booked: see My hours"), j.wno);
     $("fabSearch").oninput = () => { search[wno] = $("fabSearch").value; applySearch(); };
     applySearch();
 
