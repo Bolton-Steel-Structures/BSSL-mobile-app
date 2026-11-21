@@ -53,6 +53,7 @@
 | Staff personal data in Access (2.1 / HC2.18), hard-coded database driver (HC2.12) | **Not started.** |
 | QFC process review (QFC01–06) | **Not started**; QFC04 first. See "Process review". |
 | **Approvals (external suitability checks)** | **List made 20 Nov** (A1–A19, under "Waiting on Liam"): SCCS, RWC, H&S adviser, hire companies, principal contractors, data protection, payroll, accountant, IT. None started. |
+| **Gaps from the flow review** | **List made 21 Nov** (under "Waiting on Liam"): 15 new items G1–G15 plus pointers to existing ones. Fabrication records (G5, G6) and NCRs (2.12) suggested first. None started. |
 | Overview and AI handover brief | **Done**: `docs/iCONSTRUCTE-OVERVIEW.md` (project doc `claude/iCONSTRUCTE-OVERVIEW.md`). |
 | Delivery calendar weekly spreadsheet (Friday task) | **Paused** (replaced by Goods In). |
 | ISO 9001 customer retention tables | **Done** (spreadsheets delivered). |
@@ -138,6 +139,57 @@ What iCONSTRUCTE and the site app now do that someone outside BSS should confirm
 **IT and security**
 - [ ] **A18 Microsoft 365 / Azure set-up (Stage 3–4, before trial).** SharePoint permissions (`Sites.Selected`, HC2.21), MFA, second admin, backups, the API filtering each person's data (HC2.22). *Check:* BSS's IT provider, then a short independent security review before rolling out beyond the pilot (and Cyber Essentials if customers ask for it).
 - [ ] **A19 Our van payload 1,600 kg (before go-live).** *Check:* the van's plated weight and kerb weight (V5 / plate, or a weighbridge) so the delivery note check uses the true payload.
+
+### Gaps from the flow review (21 Nov 2026)
+
+The "lacking" points from the flow board (enquiry to handover, shown to the directors), each tied to the roadmap item that closes it. **New** items are numbered G1–G15; the rest were already on the roadmap. A gap means iCONSTRUCTE doesn't hold the record; BSS's existing paper and spreadsheet records cover these steps today. Suggested order: fabrication records (G5, G6) and NCRs (2.12) before more site features.
+
+**1 · Enquiry and quote (QFC01)**
+- [ ] **G1 (new) Contract review record.** Before an order is accepted, a short recorded review on the quote / job card: specification received, Execution Class, programme, tolerances and finishes understood, anything BSS can't meet (ISO 9001 8.2.3; BS EN 1090-2 4.1). Who reviewed, when.
+- [ ] Quote follow-up chasing → **B4** (needs the bot).
+
+**2 · Order and job card (QFC01)**
+- [ ] Roles and permissions (anyone can change anything) → **U1** and the roles workbook (waiting on Liam's ticks).
+- [ ] **G2 (new) Order acknowledgement** to the client from the job card (QFC06 record 5): PDF and Outlook draft, filed with the job.
+
+**3 · Design and drawings (QFC02)**
+- [ ] **G3 (new) Drawing register.** Per job: each drawing, revision, internal check (who, when; Q02.3) and client approval status (Q02.2), fed by the files in 01 / 03 and by Fab Issue / Site Issue. Lessens the reliance on one document controller (ISO 9001 8.3, 7.5.3; NSSS 3).
+- [ ] Drawing office planner → **W3**.
+
+**4 · Purchasing and Goods In (QFC03)**
+- [ ] Approved suppliers in iCONSTRUCTE, with a warning on an unapproved supplier → **2.13**.
+- [ ] **G4 (new) Material certificates at Goods In.** Mark Received asks for the 3.1 certificate (or "to follow", which raises an action); filed in 12 - Materials and linked to the order line (BS EN 1090-2 5.2; ISO 9001 8.4, 8.5.2).
+- [ ] Quote comparison → **P6**; invoice matching → **P7**.
+
+**5 · Fabrication (QFC04)**
+- [ ] **G5 (new) Fabrication-complete and final check record** per Fab Issue (Q04.8): checked by, date, result, re-work; the release record before despatch (ISO 9001 8.6). Part of **W1**; can be built ahead of the planner.
+- [ ] **G6 (new) Welding records.** Welder qualification register with expiry (BS EN ISO 9606-1; from the existing registers), WPS list, and per Fab Issue: welders used, visual inspection and NDT results (BS EN 1090-2 7 and 12; NSSS 5). RWC to agree the minimum.
+- [ ] Workshop planner → **W1**.
+- [ ] **G7 (new) Equipment and calibration register (QP06):** torque wrenches, measuring and welding equipment, calibration due dates, actions before they expire (ISO 9001 7.1.5).
+
+**6 · Finishing and despatch (QFC04)**
+- [ ] Final inspection confirmed before a delivery note can be dispatched → **HC3.24** (needs G5).
+- [ ] **G8 (new) Finisher certificates.** Galvanising certificate and paint DFT record attached when a finisher leg is completed on Goods Out; action if missing (BS EN 1090-2 10).
+- [ ] Haulier transport order → **2.6 stage 3**; driver's phone sign-off → **5.6**.
+
+**7 · Site erection (QFC05)**
+- [ ] Site app live (nothing leaves the phone yet) → **Stage 3 and Stage 4**.
+- [ ] Data protection assessment → **A13**; check sheets and bolt wording approved → **A5, A8**.
+
+**8 · Handover and close-out (QFC05)**
+- [ ] ITP that ticks itself off from records → **2.10**.
+- [ ] **G9 (new) Declaration of Performance and UKCA pack** per job from the job's records (BS EN 1090-1): DoP, marking label, Execution Class, certificate references.
+- [ ] **G10 (new) QA dossier:** one handover pack per job assembled from 09 - QA Docs (ITP, certificates, delivery notes, site inspection, completion certificate, DoP).
+- [ ] **G11 (new) Customer feedback** at handover and complaints log (ISO 9001 9.1.2), linked to NCRs.
+
+**Across every step**
+- [ ] NCRs to match QP08 (cause, disposition, action owner, effectiveness check) → **2.12**.
+- [ ] **G12 (new) Piece traceability for EXC3 / EXC4:** heat / certificate recorded against assembly marks (builds on G4 and the QA list; BS EN 1090-2 5.2).
+- [ ] **G13 (new) Training and competence records** for staff other than site cards (welders in G6; inspectors, RWC deputies, plant operators), with expiry reminders (ISO 9001 7.2). Site cards → **5.7**.
+- [ ] Calibration → **G7**.
+- [ ] Data and security: staff personal data → **2.1 / A15**; tested restore → **0.3**; database maintenance → **2.2**; move off Access → **6.2**; roles → **U1**.
+- [ ] **G14 (new) Audit and review:** KPI page (on-time delivery, NCRs by cause, overdue actions, supplier performance), internal audit schedule and findings, management review pack (ISO 9001 9.1–9.3).
+- [ ] **G15 (new) Reliance on one developer:** keep the overview / handover brief and BUGLOG current; a second person able to build and release; source and release steps documented (already on GitHub).
 
 **Source code** is backed up privately on GitHub (Bolton-Steel-Structures/iconstruct) and every change is pushed there. The live database backup (0.3) isn't needed until go-live, which is a while off; it's a condition of step 1.4.
 
@@ -1201,3 +1253,4 @@ A **Team** page in iCONSTRUCTE for managers, as a starting point covering **expe
 | 20 Nov 2026 | Site app (Liam): QA opened from a job's tile has a back arrow; plant checks have a Date of check (today by default, up to 7 days back, never ahead; "Record a check for this day" on missed days); supervisors get a daily "Today's POWRA" to-do per site; POWRA "Where on site" removed | Built, in the preview |
 | 20 Nov 2026 | RAMS and crane plan signed for separately (Liam: not one signature for both); crane plan = "crane", "lift plan", "lifting plan" or an LP / CP reference in the file name; a new issue of one document only needs that document re-signed | Built, in the preview |
 | 20 Nov 2026 | RAMS / crane plan briefing register (Liam): one register per document issue, built from own-phone signatures and gang briefings on the supervisor's phone; stays live with a **Still to sign** list (planner allocations since the issue date plus check-ins; managers excluded), shown on the supervisor's to-do; share as one PDF. **Live (Stage 4):** each signature stored in Azure as its own line; iCONSTRUCTE rebuilds the register PDF in 10 - H&S under the same name as people sign; a new issue starts a new register and the old one is kept, marked superseded | Built, in the preview / Azure part planned |
+| 21 Nov 2026 | Flow review for the directors (enquiry to handover, strengths, gaps, ISO 9001 / BS EN 1090 markers; on the wireframe canvas, not on GitHub). Lacking points added to the roadmap: G1 contract review, G2 order acknowledgement, G3 drawing register, G4 certificates at Goods In, G5 final check record, G6 welding records, G7 calibration, G8 finisher certificates, G9 DoP / UKCA pack, G10 QA dossier, G11 customer feedback, G12 piece traceability, G13 training records, G14 audit and review, G15 developer reliance | Planned |
