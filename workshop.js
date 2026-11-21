@@ -66,14 +66,14 @@
 
   async function viewDashboard() {
     setBar("Workshop", "Fabrication status", false);
-    $("main").innerHTML = (await dashboardHtml()) + '<a class="btn block" href="#/board">Open as a wall board (TV screen)</a>';
+    $("main").innerHTML = (await dashboardHtml()) + (can("board") ? '<a class="btn block" href="#/board">Open as a wall board (TV screen)</a>' : "");
   }
 
   // Wall board for a TV in the workshop or office: every job, large, no menus, refreshed every minute
   let boardTimer = null;
   async function viewBoard() {
     clearTimeout(boardTimer);
-    setBar("Workshop board", fmtDay(new Date()) + " · " + fmtTime(new Date()), true); $("nav").hidden = true;
+    setBar("Workshop board", fmtDay(new Date()) + " · " + fmtTime(new Date()), !can("screens")); $("nav").hidden = true;
     $("main").innerHTML = '<div class="board">' + (await dashboardHtml()) + "</div>";
     boardTimer = setTimeout(() => { if (location.hash.startsWith("#/board")) viewBoard(); }, 60000);
   }

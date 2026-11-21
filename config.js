@@ -56,18 +56,21 @@ window.SITE_CONFIG = {
   //     Safety: toolbox, plant, lifting, handover, nearmiss
   //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
   roles: {
-    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "form:*"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:nearmiss", "form:ncr"],
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    "Workshop Manager": ["workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Workshop Manager": ["workshop", "board", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
     "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:ncr"],
-    "Workshop Supervisor": ["workshop", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"]
+    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"],
+    // Screens (Liam, 21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
+    //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
+    Screens: ["workshop", "board", "screens"]
   },
 
   // true = run with built-in sample data and no sign-in (for previewing only)
-  demo: true
+  demo: false
 };

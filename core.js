@@ -181,16 +181,19 @@
 
   // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
   const DEFAULT_ROLES = {
-    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "form:*"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:nearmiss", "form:ncr"],
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    "Workshop Manager": ["workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Workshop Manager": ["workshop", "board", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
     "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:ncr"],
-    "Workshop Supervisor": ["workshop", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"]
+    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
+    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"],
+    // Screens (Liam, 21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
+    //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
+    Screens: ["workshop", "board", "screens"]
   };
   function roleOf(p) {
     const r = String((p && p.role) || "").toLowerCase(), roles = CFG.roles || DEFAULT_ROLES;
@@ -354,7 +357,8 @@
     // two workshop logins, so "checked by someone other than the welder" can be tried
     { id: "wsmanager", name: "Paul Shaw", email: "p.shaw@example.com", role: "Workshop Manager", leaveAllowance: 25 },
     { id: "wssupervisor", name: "Chris Dale", email: "c.dale@example.com", role: "Workshop Supervisor", leaveAllowance: 22 },
-    { id: "fabricator", name: "Tom Reid", email: "t.reid@example.com", role: "Fabricator/Welder", leaveAllowance: 22 }
+    { id: "fabricator", name: "Tom Reid", email: "t.reid@example.com", role: "Fabricator/Welder", leaveAllowance: 22 },
+    { id: "screens", name: "Workshop screen", email: "screens@boltonstructures.com", role: "Screens", leaveAllowance: 0 }
   ];
   const Demo = {
     // the manager's team (everyone except Liam), with two extra sample people so the team screens have something in them

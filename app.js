@@ -81,7 +81,13 @@
     const sw = both ? '<div class="seg home-side"><button type="button" data-side="site" class="' + (side === "site" ? "on" : "") + '">Site</button><button type="button" data-side="workshop" class="' + (side === "workshop" ? "on" : "") + '">Workshop</button></div>' : "";
     const wire = () => document.querySelectorAll("[data-side]").forEach((b) => (b.onclick = () => { LS.set("homeSide", b.dataset.side); viewHome(); }));
     if (side === "workshop") {
-      $("main").innerHTML = sw + (await IC.Workshop.dashboardHtml()) + '<a class="btn block" href="#/board">Open as a wall board (TV screen)</a>';
+      // Workshop side for directors: its own tiles, then the fabrication status (Liam, 21 Nov)
+      $("main").innerHTML = sw + '<div class="tiles">' +
+        tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
+        tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") +
+        tile("board", "#/board", ICON.team, "Wall board", "Open on a TV screen") +
+        tile("form:wscheck", "#/form-new/wscheck", ICON.check, "Equipment checks", "Overhead crane, forklift") + "</div>" +
+        (await IC.Workshop.dashboardHtml());
       wire(); return;
     }
     $("main").innerHTML = sw + (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
@@ -90,8 +96,9 @@
       tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
       (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:powra") || can("form:toolbox") ? "Safety" : can("form:wscheck") ? "Checks" : "NCR") + "</b><span>" + (!can("form:powra") && !can("form:toolbox") ? (can("form:wscheck") ? "Crane and forklift checks, NCR" : "Report a non-conformance") : can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
-      tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
-      (can("ws-hours") ? tile("ws-hours", "#/hours", ICON.clock, "My hours", "Book hours to jobs") : can("ws-hours-team") ? tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") : "") +
+      // workshop tiles: on the Workshop side for directors, on Home for workshop staff
+      (both ? "" : tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
+        (can("ws-hours") ? tile("ws-hours", "#/hours", ICON.clock, "My hours", "Book hours to jobs") : can("ws-hours-team") ? tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") : "")) +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
       (can("ws-hours") ? "" : tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week")) +
@@ -428,7 +435,10 @@
   }
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
-    if (name === "workshop" || name === "board") return can("workshop");
+    // the Screens login only ever shows the wall board (Liam, 21 Nov)
+    if (can("screens")) return name === "board" || name === "";
+    if (name === "board") return can("board");
+    if (name === "workshop") return can("workshop");
     if (name === "hours") return can("ws-hours") || can("ws-hours-team");
     if (name === "hours-team") return can("ws-hours-team");
     if (name === "view") return can("drawings") || can("workshop");
@@ -455,7 +465,8 @@
     drawNav(name);
     $("sheet").hidden = true;
     if (!permitted(name, args)) { toast("That isn't part of your role in the app"); location.hash = "#/"; return; }
-    if (name === "") viewHome();
+    if (name === "" && can("screens")) location.replace("#/board");
+    else if (name === "") viewHome();
     else if (name === "jobs") viewJobs(args).catch((e) => console.error(e));
     else if (name === "project" && args[0]) viewProject(args);
     else if (name === "job" && args[0]) viewJob(decodeURIComponent(args[0]), args[1] || "");
