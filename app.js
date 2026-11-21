@@ -88,14 +88,14 @@
       '<div class="tiles">' +
       tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
       tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
-      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:powra") || can("form:toolbox") ? "Safety" : "NCR") + "</b><span>" + (!can("form:powra") && !can("form:toolbox") ? "Report a non-conformance" : can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
+      (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:powra") || can("form:toolbox") ? "Safety" : can("form:wscheck") ? "Checks" : "NCR") + "</b><span>" + (!can("form:powra") && !can("form:toolbox") ? (can("form:wscheck") ? "Crane and forklift checks, NCR" : "Report a non-conformance") : can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
       tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
       tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week") +
       tile("week", "#/week", ICON.jobs, "This week", can("team-week") ? "Me and the team" : can("crew") ? "My sites and who's with me" : "Where I'm working") +
-      tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …") + "</div>";
+      (can("workshop") && !can("drawings") ? tile("cards", "#/cards", ICON.card, "Weld certificates", "Welder qualifications, WPS") : tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …")) + "</div>";
     if ($("timeCard")) IC.Time.card($("timeCard"));
     // My week: where the labour planner has me for the next 7 days (W2)
     const in6 = new Date(); in6.setDate(in6.getDate() + 6); const week = can("time") ? myWeek().filter((a) => a.date <= IC.isoDate(in6)) : [];
@@ -432,7 +432,7 @@
     if (["jobs", "job", "project"].includes(name)) return can("drawings");
     if (["qa", "snag", "register"].includes(name)) return can("qa");
     if (name === "forms") return anyForm();
-    if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]);
+    if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]) && (args[0] !== "wscheck" || can("workshop"));
     if (name === "toolbox") return can("form:toolbox");
     if (name === "plant") return can("form:plant");
     if (["leave", "leave-new"].includes(name)) return can("leave");

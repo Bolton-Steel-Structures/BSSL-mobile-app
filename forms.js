@@ -35,6 +35,19 @@
 
   const YNA = ["Yes", "No", "N/A"];
   // Plant BSS hires (Liam, 20 Nov), each with its own daily check sheet. Cranes are checked by the crane company's driver.
+  // Workshop equipment pre-use checks (PUWER reg. 5 and 6; lifting parts under LOLER). First draft: to be read by the
+  // workshop supervisor against the manufacturers' instructions before use.
+  const WS_CHECKS = {
+    "Overhead crane": ["Thorough examination (LOLER) in date; safe working load marked on the crane and hoist", "Pendant or remote: every button does what it is marked, and returns when released",
+      "Emergency stop works", "Hoist upper and lower limit switches work", "Long travel and cross travel run smoothly; brakes hold and travel limits work", "Hoist brake holds a load without creeping",
+      "Hook: no cracks, opening or twist; safety catch works; hook turns freely", "Wire rope or chain: no kinks, broken wires, twists or corrosion; seated properly on the drum and sheaves",
+      "Warning sounder and lights work (if fitted)", "Rails, end stops and travel path clear of obstructions", "Isolator within reach and working", "No oil leaking from the hoist or gearboxes",
+      "Slings, chains, shackles and plate clamps tagged, in date and undamaged"],
+    "Forklift": ["Thorough examination (LOLER) in date; capacity plate fitted and legible", "Forks: no cracks, bends or heavy wear; locking pins in", "Mast, chains and carriage: no damage; chains evenly tensioned and lubricated",
+      "Hydraulics: no leaks; lift, lower and tilt work smoothly", "Tyres and wheels: no damage; wheel nuts tight", "Foot brake and parking brake hold", "Steering works without excess play",
+      "Lights, horn, beacon and reversing alarm work", "Seat, seat belt and overhead guard secure and undamaged", "Load backrest fitted",
+      "Fuel, gas bottle or battery: secure, no leaks, enough charge", "Engine oil, coolant and hydraulic oil levels (where fitted)", "Controls labelled; cab and floor clear"]
+  };
   const PLANT_TYPES = ["Telehandler", "Cherry picker – diesel", "Cherry picker – electric", "Scissor lift – diesel", "Scissor lift – electric", "Genie SuperLift", "Mini crane"];
   const MEWP_COMMON = ["Ground and platform controls working; emergency stop at both", "Emergency lowering / auxiliary descent checked", "Tilt alarm and overload (load sensing) working",
     "Platform guardrails, gate and toe boards intact", "No hydraulic leaks; hoses and cylinders undamaged", "Tyres and wheels in good condition", "Alarms, beacon and horn working",
@@ -115,6 +128,20 @@
         { type: "photos", id: "photos", label: "Photos" },
         { type: "text", id: "operator", label: "Operator", prefill: "me", required: true },
         { type: "signature", id: "sig", label: "Operator signature", required: true }
+      ] },
+    // Workshop equipment (Liam, 21 Nov): PUWER pre-use checks, generally by the workshop supervisor; workshop roles only
+    { id: "wscheck", group: "Safety", workshop: true, title: "Workshop equipment check", ref: "PUWER · LOLER",
+      blurb: "Pre-use check of an overhead crane or a forklift.",
+      fields: [
+        { type: "date", id: "checkDate", label: "Date of check", prefill: "today", max: "today", back: 7, required: true, hint: "Today unless you're recording a check done earlier" },
+        { type: "select", id: "equipType", label: "Equipment", options: Object.keys(WS_CHECKS), required: true },
+        { type: "text", id: "equipRef", label: "Which one (number or bay on the equipment)", placeholder: "e.g. Crane 2, bay 1 / Forklift 1", required: true },
+        { type: "checklist", id: "checks", label: "Checks", itemsBy: "equipType", itemsFor: WS_CHECKS, badAnswer: "No", required: true },
+        { type: "text", id: "defects", label: "Other comments", multiline: true },
+        { type: "yesno", id: "safe", label: "Safe to use?", badAnswer: "No", required: true, warn: "Do not use. Isolate it, tag it out of use and tell the workshop manager." },
+        { type: "photos", id: "photos", label: "Photos" },
+        { type: "text", id: "operator", label: "Checked by", prefill: "me", required: true },
+        { type: "signature", id: "sig", label: "Signature", required: true }
       ] },
     { id: "lifting", group: "Safety", title: "Lifting accessories check", ref: "QFC05 Q05.10 · Lifting equipment register",
       fields: [
@@ -558,7 +585,7 @@
     setBar("Forms", IC.can("qa") ? "Safety and day work" : "Safety and reporting", false);
     const mine = (await Data.list("forms")).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
     const drafts = mine.filter((f) => f.status === "draft"), done = mine.filter((f) => f.status !== "draft").slice(0, 15);
-    const allowedT = T.filter((t) => t.id !== "rams" && !t.retired && !t.internal && IC.can("form:" + t.id) && !(IC.can("qa") && QA_FORMS.includes(t.id)));
+    const allowedT = T.filter((t) => t.id !== "rams" && !t.retired && !t.internal && (!t.workshop || IC.can("workshop")) && IC.can("form:" + t.id) && !(IC.can("qa") && QA_FORMS.includes(t.id)));
     const group = (g) => !allowedT.some((t) => t.group === g) ? "" : '<div class="section-h">' + g + "</div>" + allowedT.filter((t) => t.group === g).map((t) =>
       '<a class="tile-row" href="' + (t.id === "toolbox" ? "#/toolbox" : t.id === "plant" ? "#/plant" : "#/form-new/" + t.id) + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
     const row = (f) => { const t = tpl(f.templateId) || { title: f.templateId };

@@ -11,6 +11,9 @@
 
   const TYPES = ["CSCS", "CPCS", "NPORS", "IPAF", "PASMA", "SMSTS", "SSSTS", "First aid at work", "Slinger / signaller", "Abrasive wheels",
     "Welder qualification (BS EN ISO 9606-1)", "Working at height", "Manual handling", "Asbestos awareness", "Other"];
+  // Workshop staff (Liam, 21 Nov): no CSCS or other site cards; welder qualifications and copies of the weld procedures
+  const WS_TYPES = ["Welder qualification (BS EN ISO 9606-1): 135 MAG", "Welder qualification (BS EN ISO 9606-1): 111 MMA", "Weld procedure (WPS)", "Visual weld inspection", "Other"];
+  const wsMode = () => IC.can("workshop") && !IC.can("drawings");
   const SOON_DAYS = 60;
 
   // Valid / expiring (within 60 days) / expired, from the expiry date.
@@ -34,20 +37,20 @@
 
   // ---------------------------------------------------------------- my cards
   route("cards", async () => {
-    setBar("My cards", "Show these at the gate or induction", false);
+    setBar(wsMode() ? "Weld certificates" : "My cards", wsMode() ? "Welder qualifications and weld procedures" : "Show these at the gate or induction", false);
     const mine = (await Data.list("cards")).filter(live).sort((a, b) => (a.expiry || "9").localeCompare(b.expiry || "9"));
     const due = mine.filter((c) => { const s = state(c); return s.days != null && s.days <= SOON_DAYS; });
     $("main").innerHTML = (due.length ? '<div class="warnbox">' + due.map((c) => esc(name(c)) + ": " + esc(state(c).label.toLowerCase())).join("<br>") + ". Book the renewal and tell the office.</div>" : "") +
-      '<a class="btn primary block" href="#/card-new">Add a card</a><div class="section-h">My cards (' + mine.length + ")</div>" +
-      (mine.length ? mine.map((c) => row(c)).join("") : '<div class="empty small">No cards yet. Add your CSCS card and any others (CPCS, IPAF, PASMA, first aid …) so they\'re on your phone on site.</div>');
+      '<a class="btn primary block" href="#/card-new">' + (wsMode() ? "Add a certificate" : "Add a card") + '</a><div class="section-h">' + (wsMode() ? "My certificates" : "My cards") + " (" + mine.length + ")</div>" +
+      (mine.length ? mine.map((c) => row(c)).join("") : '<div class="empty small">' + (wsMode() ? "Nothing yet. Add your welder qualifications and copies of the weld procedures you work to." : "No cards yet. Add your CSCS card and any others (CPCS, IPAF, PASMA, first aid …) so they\'re on your phone on site.") + "</div>");
   });
 
   route("card-new", async (args) => {
     const editing = args[0] ? await Data.get("cards", args[0]) : null;
-    setBar(editing ? "Update card" : "Add a card", "", true);
+    setBar(editing ? "Update" : wsMode() ? "Add a certificate" : "Add a card", "", true);
     const c = editing || {};
     $("main").innerHTML = '<form class="frm" novalidate>' +
-      '<label class="fl">Card<select id="cType"><option value="">Choose…</option>' + TYPES.map((t) => "<option" + (t === c.type ? " selected" : "") + ">" + esc(t) + "</option>").join("") + "</select></label>" +
+      '<label class="fl">Card<select id="cType"><option value="">Choose…</option>' + (wsMode() ? WS_TYPES : TYPES).map((t) => "<option" + (t === c.type ? " selected" : "") + ">" + esc(t) + "</option>").join("") + "</select></label>" +
       '<label class="fl" id="cOtherL" hidden>Which card?<input id="cOther" value="' + esc(c.otherType || "") + '"></label>' +
       '<div class="row"><label class="fl">Card number<input id="cNo" value="' + esc(c.number || "") + '" autocomplete="off"></label><label class="fl">Expiry date<input type="date" id="cExp" value="' + esc(c.expiry || "") + '"></label></div>' +
       '<label class="fl">Category / level (optional)<input id="cCat" value="' + esc(c.category || "") + '" placeholder="e.g. Skilled worker (blue), 3a/3b, A60 telehandler"></label>' +
