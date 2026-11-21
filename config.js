@@ -29,7 +29,7 @@ window.SITE_CONFIG = {
   // pin of the workshop (right-click the door > the two numbers). Clock in is refused further away than radiusM (plus the
   // phone's stated accuracy, to a limit of 100 m) or with location off; clocking out away is allowed but flagged with a reason.
   // Only the distance is kept, never the position. Until lat / lng are set there is no check (the demo has none).
-  workshopLocation: { lat: null, lng: null, radiusM: 150 },
+  workshopLocation: { lat: null, lng: null, radiusM: 500 },
 
   // Holidays: month the leave year starts (1 = January); warn when this many people are already off
   leaveYearStartMonth: 1,

@@ -64,7 +64,7 @@
       const done = async () => { const r = await Data.save("time", rec); toast((type === "in" ? "Clocked in " : "Clocked out ") + fmtTime(r.at)); IC.refreshView(); };
       if (w.lat == null || w.lng == null) return done();
       const sh = sheet("<h3>" + (type === "in" ? "Clocking in" : "Clocking out") + '</h3><p>Checking you are at the workshop…</p><div class="progress"><div class="indet"></div></div>');
-      const pos = await locate(), dist = pos.error ? null : distanceM(pos, w), ok = dist != null && dist <= (w.radiusM || 150) + Math.min(pos.accuracy || 0, 100);
+      const pos = await locate(), dist = pos.error ? null : distanceM(pos, w), ok = dist != null && dist <= (w.radiusM || 500) + Math.min(pos.accuracy || 0, 100);
       rec.locationChecked = true; rec.distanceM = dist == null ? null : Math.round(dist); rec.locationError = pos.error || "";
       if (ok) { sh.close(); return done(); }
       const why = pos.error || "You are " + fmtDistance(dist) + " from the workshop.";
