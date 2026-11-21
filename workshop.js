@@ -79,6 +79,7 @@
   }
 
   // ---------------------------------------------------------------- one job: mark each QA list line through the four stages
+  const search = {}; // what was typed in each job's search box, kept while marking
   async function viewJob(wno, filter) {
     const j = jobOf(wno); if (!j) { location.hash = "#/workshop"; return; }
     setBar(j.wno, [j.client, j.phase].filter(Boolean).join(" · "), true);
@@ -97,10 +98,23 @@
       '<div class="small">' + esc((j.list || "QA list") + " · " + p.pcs + " pieces · " + tonnes(p.kg)) + "</div>" + STAGES.map(([s, name]) => bar(name, p[s])).join("") + "</div>" +
       (draws.length ? '<details class="fab-docs"><summary>Fabrication details (' + draws.length + " drawings)</summary>" + draws.map((f) => '<a class="doc-link" href="#/view/' + encodeURIComponent(j.bssFolder) + "/" + encodeURIComponent(f.path) + '">' + esc(f.name) + "</a>").join("") + "</details>" : "") +
       '<div class="chips fab-filter">' + F.map(([k, n]) => '<a class="pill' + (k === filter ? " on" : "") + '" href="#/workshop/' + encodeURIComponent(wno) + "/" + k + '">' + n + "</a>").join("") + "</div>" +
-      (mark && filter !== "all" && shown.length ? '<button class="btn block" id="fabAll">Mark all ' + shown.length + " shown as " + LABEL[filter].toLowerCase() + "</button>" : "") +
+      '<input type="search" id="fabSearch" class="fab-search" placeholder="Search mark or section" aria-label="Search assemblies" autocomplete="off" autocapitalize="characters" value="' + esc(search[wno] || "") + '">' +
+      (mark && filter !== "all" && shown.length ? '<button class="btn block" id="fabAll"></button>' : "") +
       '<div class="fab-key small">F fabricated · W welded · C checked · L loaded. Checked is marked by someone other than the welder.</div>' +
-      (shown.length ? shown.map((l) => '<div class="fab-line"><div class="fab-line-t"><b>' + esc(l.mark) + (l.qty > 1 ? " ×" + l.qty : "") + '</b><span class="small"> ' + esc([l.section, l.length ? l.length + " mm" : "", l.kg ? tonnes(l.kg) + (l.qty > 1 ? " each" : "") : "", l.finish].filter(Boolean).join(" · ")) + "</span></div>" +
-        '<div class="fab-bs">' + STAGES.map((s) => btn(l, s)).join("") + "</div></div>").join("") : '<div class="empty small">Nothing left ' + esc(LABEL[filter] ? "to mark as " + LABEL[filter].toLowerCase() : "") + ".</div>");
+      (shown.length ? shown.map((l) => '<div class="fab-line" data-mark="' + esc(l.mark) + '"><div class="fab-line-t"><b>' + esc(l.mark) + (l.qty > 1 ? " ×" + l.qty : "") + '</b><span class="small"> ' + esc([l.section, l.length ? l.length + " mm" : "", l.kg ? tonnes(l.kg) + (l.qty > 1 ? " each" : "") : "", l.finish].filter(Boolean).join(" · ")) + "</span></div>" +
+        '<div class="fab-bs">' + STAGES.map((s) => btn(l, s)).join("") + "</div></div>").join("") : '<div class="empty small">Nothing left ' + esc(LABEL[filter] ? "to mark as " + LABEL[filter].toLowerCase() : "") + ".</div>") + '<div class="empty small" id="fabNone" hidden>No assembly matches the search.</div>';
+
+    // search box: every word typed must be in the mark, section or finish; "Mark all shown" follows what is in view
+    const hit = (l) => { const q = (search[wno] || "").toLowerCase().split(/\s+/).filter(Boolean), txt = (l.mark + " " + (l.section || "") + " " + (l.finish || "")).toLowerCase(); return q.every((w) => txt.includes(w)); };
+    const inView = () => shown.filter(hit);
+    const applySearch = () => {
+      const marks = new Set(inView().map((l) => l.mark));
+      $("main").querySelectorAll(".fab-line").forEach((el) => { el.hidden = !marks.has(el.dataset.mark); });
+      if ($("fabNone")) $("fabNone").hidden = !shown.length || marks.size > 0;
+      if ($("fabAll")) { $("fabAll").hidden = !marks.size; $("fabAll").textContent = "Mark all " + marks.size + " shown as " + LABEL[filter].toLowerCase(); }
+    };
+    $("fabSearch").oninput = () => { search[wno] = $("fabSearch").value; applySearch(); };
+    applySearch();
 
     // why this person can't mark this line at this stage ("" = they can)
     const blocked = (l, s) => (s === "checked" && (t.who[l.mark].welded[me()] || 0) > 0 ? "Checked has to be marked by someone other than the person who welded it" : "");
@@ -131,7 +145,7 @@
     $("main").querySelectorAll(".fab-filter a").forEach((x) => (x.onclick = (e) => { e.preventDefault(); location.replace(x.getAttribute("href")); }));
     if ($("fabAll")) $("fabAll").onclick = async () => {
       let n = 0, skipped = 0;
-      for (const l of shown) { const r = room(l, t.done[l.mark], filter); if (!r) continue; if (blocked(l, filter)) { skipped++; continue; } await add(l, filter, r); n++; }
+      for (const l of inView()) { const r = room(l, t.done[l.mark], filter); if (!r) continue; if (blocked(l, filter)) { skipped++; continue; } await add(l, filter, r); n++; }
       if (skipped) toast(skipped + " left for someone else to check (you welded them)");
       after();
     };
