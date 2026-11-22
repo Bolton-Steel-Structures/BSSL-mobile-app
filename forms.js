@@ -38,6 +38,12 @@
   // non-mechanical sheet (Liam, 21 Nov). Cranes only show as a crane symbol on the days they're on site.
   // Workshop equipment pre-use checks (PUWER reg. 5 and 6; lifting parts under LOLER). First draft: to be read by the
   // workshop supervisor against the manufacturers' instructions before use.
+  // Daily vehicle walk-round check (Liam, 22 Nov), supervisors and operatives driving a company vehicle; based on the
+  // DVSA daily walkaround check. First draft: for the transport / H&S adviser to confirm (approvals A8).
+  const VEHICLE_CHECKS = ["Tyres: tread, no cuts or bulges, inflated", "Wheel nuts secure (indicators in line)", "Lights, indicators and hazard lights working",
+    "Mirrors, windscreen and wipers: clean, no cracks, washers working", "Oil, coolant and screen wash topped up", "Brakes and handbrake working",
+    "No warning lights on the dashboard", "Horn and seat belts working", "Bodywork, doors and tail lift undamaged and secure",
+    "Load secure and within the vehicle's payload", "Fire extinguisher, first aid kit and spill kit on board", "No fuel, oil or water leaks"];
   const WS_CHECKS = {
     "Overhead crane": ["Thorough examination (LOLER) in date; safe working load marked on the crane and hoist", "Pendant or remote: every button does what it is marked, and returns when released",
       "Emergency stop works", "Hoist upper and lower limit switches work", "Long travel and cross travel run smoothly; brakes hold and travel limits work", "Hoist brake holds a load without creeping",
@@ -151,6 +157,19 @@
         { type: "yesno", id: "safe", label: "Safe to use?", badAnswer: "No", required: true, warn: "Do not use. Isolate it, tag it out of use and tell the workshop manager." },
         { type: "photos", id: "photos", label: "Photos" },
         { type: "text", id: "operator", label: "Checked by", prefill: "me", required: true },
+        { type: "signature", id: "sig", label: "Signature", required: true }
+      ] },
+    { id: "vehicle", group: "Safety", noJob: true, image: "icons/bss-van.jpg", title: "Daily vehicle check", ref: "Walk-round check",
+      blurb: "Before driving a company vehicle each day.",
+      fields: [
+        { type: "date", id: "checkDate", label: "Date of check", prefill: "today", max: "today", back: 7, required: true, hint: "Today unless you're recording a check done earlier" },
+        { type: "text", id: "reg", label: "Registration", placeholder: "e.g. AB12 CDE", required: true },
+        { type: "number", id: "mileage", label: "Mileage", required: true },
+        { type: "checklist", id: "checks", label: "Checks", items: VEHICLE_CHECKS, badAnswer: "No", required: true },
+        { type: "text", id: "defects", label: "Other comments", multiline: true },
+        { type: "yesno", id: "safe", label: "Safe to drive?", badAnswer: "No", required: true, warn: "Don't drive it. Tell your manager straight away." },
+        { type: "photos", id: "photos", label: "Photos of any damage" },
+        { type: "text", id: "operator", label: "Driver", prefill: "me", required: true },
         { type: "signature", id: "sig", label: "Signature", required: true }
       ] },
     { id: "lifting", group: "Safety", title: "Lifting accessories check", ref: "QFC05 Q05.10 · Lifting equipment register",
@@ -617,7 +636,7 @@
     if (!existing) IC.LS.del(templateId + "Prefill");
     // HC4.10: never pick a job silently. The job opened, the last job used, or the only job; otherwise "Choose…".
     // A draft saved with "No job / yard" keeps that; the workshop equipment check has no job at all.
-    const noJob = t.id === "wscheck";
+    const noJob = t.id === "wscheck" || !!t.noJob;
     // HC4.11: workshop staff pick one of the workshop's W jobs (an NCR is raised against the W job), not a BSS site job
     const wsOnly = IC.can("workshop") && !IC.can("drawings") && IC.Workshop;
     const wsJobs = wsOnly ? IC.Workshop.jobs() : [];
@@ -626,7 +645,7 @@
     const chosen = !!folder || (existing && existing.noJob === true);
     const jobOpts = wsOnly ? '<option value="">Not a job (workshop / yard)</option>' + wsJobs.map((w) => '<option value="ws:' + esc(w.wno) + '"' + ("ws:" + w.wno === folder ? " selected" : "") + ">" + esc(w.wno + " · " + [w.client, w.phase].filter(Boolean).join(" · ")) + "</option>").join("") : jobOptions(folder, t.id !== "rams" && t.id !== "ramsbrief");
     setBar(t.title, t.ref, true);
-    $("main").innerHTML = '<form class="frm" novalidate>' + (noJob ? '<input type="hidden" id="fJob" value="">' : '<label class="fl">Job<select id="fJob">' + (chosen ? "" : '<option value="__choose" selected>Choose…</option>') + jobOpts + "</select></label>") + '<div class="small" id="fWhen">' + esc(fmtDay(rec.createdAt || new Date()) + " · " + ((Data.profile && Data.profile.name) || "")) + '</div><div id="fFields"></div>' +
+    $("main").innerHTML = '<form class="frm" novalidate>' + (noJob ? '<input type="hidden" id="fJob" value="">' : '<label class="fl">Job<select id="fJob">' + (chosen ? "" : '<option value="__choose" selected>Choose…</option>') + jobOpts + "</select></label>") + '<div class="small" id="fWhen">' + (t.image ? '<img class="form-photo" src="' + esc(t.image) + '" alt="">' : "") + esc(fmtDay(rec.createdAt || new Date()) + " · " + ((Data.profile && Data.profile.name) || "")) + '</div><div id="fFields"></div>' +
       '<div class="err" id="fErr" hidden></div><div class="row sticky-actions"><button type="button" class="btn" id="fDraft">Save draft</button><button type="submit" class="btn primary" id="fSend">Submit</button></div></form>';
     let widgets = [];
     const jobVal = () => ($("fJob").value === "__choose" ? "" : $("fJob").value);
@@ -867,9 +886,14 @@
     }));
   });
 
-  IC.route("form-new", (args) => {
+  IC.route("form-new", async (args) => {
     const id = args[0];
     if ((tpl(id) || {}).retired) { IC.toast("That check is now part of the site inspection / handover in QA"); location.hash = "#/qa" + (args[1] ? "/" + args[1] : ""); return; }
+    // vehicle check: the registration from the person's last check, to save typing it each day
+    if (id === "vehicle" && !IC.LS.get("vehiclePrefill", null)) {
+      const me = (Data.profile || {}).email, last = (await Data.list("forms")).filter((f) => f.templateId === "vehicle" && f.status !== "draft" && f.user === me && f.values).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0];
+      if (last) IC.LS.set("vehiclePrefill", { reg: last.values.reg });
+    }
     if (id === "ncr") { const p = IC.LS.get("ncrPrefill", null); IC.LS.del("ncrPrefill"); if (p) return viewForm("ncr", { templateId: "ncr", status: "draft", values: { what: p.what, where: p.where, clause: p.clause }, jobFolder: p.jobFolder }); }
     if ((id === "rams" || id === "ramsbrief") && args[2]) IC.LS.set(id + "Prefill", { docPath: decodeURIComponent(args[2]) });
     return viewForm(id, null, args[1] ? decodeURIComponent(args[1]) : "");

@@ -47,7 +47,7 @@
   // holiday or on the planner's Off row (manifest allocations with off: true). Set the time with checkInBy in config.js.
   // Live: the Azure API runs the same check at 09:00 and sends it to the managers (push / email); here it shows when the
   // app is opened.
-  const SITE_ROLE = /operative|supervisor/i;
+  const SITE_ROLE = /^(?!workshop).*(operative|supervisor)/i; // site staff only: workshop staff clock in at the workshop, not on the 9am site alert
   function checkInBy() {
     const t = String((window.SITE_CONFIG || {}).checkInBy || "09:00").split(":"), x = new Date();
     x.setHours(Number(t[0]) || 9, Number(t[1]) || 0, 0, 0);
@@ -120,18 +120,21 @@
     const offSoon = d.leave.filter((r) => r.status === "approved" && r.to >= isoDate(new Date()) && r.from <= isoDate(((x) => (x.setDate(x.getDate() + 13), x))(new Date()))).sort((a, b) => a.from.localeCompare(b.from));
 
     const weekFlags = d.time.filter((e) => e.flagged && new Date(e.at) >= wk && !sameDay(e.at, new Date())).sort((a, b) => b.at.localeCompare(a.at));
-    const r9 = roll(d), eq = IC.can("workshop") ? await equipmentWeek() : {};
+    const r9 = roll(d), eq = IC.can("workshop") ? await equipmentWeek() : {}, vc = ws ? null : await vehicleToday(d);
     const link = (href, icon, title, sub, n) => '<a class="tile-row" href="' + href + '"><span class="ti">' + icon + "</span><span><b>" + esc(title) + '</b><span class="small">' + esc(sub) + "</span></span>" + (n ? '<span class="pill pending">' + n + "</span>" : "") + "›</a>";
     $("main").innerHTML =
       '<div class="stats"><div><b>' + onSite + "/" + d.team.length + "</b><span>" + (ws ? "clocked in now" : "on site now") + "</span></div><div><b>" + pendLeave.length + "</b><span>holiday requests</span></div>" +
       "<div><b>" + pendExp.length + "</b><span>claims to approve</span></div><div><b>" + cardsDue.length + "</b><span>cards expiring / expired</span></div></div>" +
       (!ws && r9.late && r9.missing.length ? '<a class="todo alert-row" href="#/manager/live"><span class="ti">' + IC.ICON.clock + "</span><span><b>" + r9.missing.length + " not checked in by " + esc(hhmm(r9.by)) + '</b><span class="small">' + esc(r9.missing.map((x) => x.p.name).join(", ")) + "</span></span>›</a>" : "") +
+      (vc && vc.defects.length ? '<a class="todo alert-row" href="#/manager/vehicles"><span class="ti">' + IC.ICON.check + "</span><span><b>" + vc.defects.length + " vehicle" + (vc.defects.length > 1 ? "s" : "") + ' with a defect today</b><span class="small">' + esc(vc.defects.map((c) => String(c.values.reg || "").toUpperCase() + (c.values.safe === "No" ? " (not safe to drive)" : "")).join(", ")) + "</span></span>›</a>" : "") +
+      (vc && vc.missing.length && r9.late ? '<a class="todo alert-row" href="#/manager/vehicles"><span class="ti">' + IC.ICON.check + "</span><span><b>" + vc.missing.length + " vehicle check" + (vc.missing.length > 1 ? "s" : "") + ' not done today</b><span class="small">' + esc(vc.missing.map((p) => p.name).join(", ")) + "</span></span>›</a>" : "") +
       (ws ? link("#/manager/live", IC.ICON.clock, "Who's in (live)", r9.onSite.length + " clocked in" + (r9.off.length ? " · " + r9.off.length + " off" : "")) : link("#/manager/live", IC.ICON.clock, "Who's on site (live)", r9.onSite.length + " on site" + (r9.missing.length ? " · " + r9.missing.length + (r9.late ? " not in by " : " due by ") + hhmm(r9.by) : "") + (r9.off.length ? " · " + r9.off.length + " off" : ""), r9.late ? r9.missing.length : 0)) +
       '<div class="section-h">Waiting for you</div>' +
       link("#/leave/team", IC.ICON.leave, "Holiday requests", pendLeave.length ? pendLeave.map((r) => r.userName.split(" ")[0]).join(", ") : "None waiting · team calendar", pendLeave.length) +
       link("#/expenses/team", IC.ICON.money, "Expense claims", pendExp.length ? fmtMoney(pendExp.reduce((t, e) => t + e.amount, 0)) + " to approve" + (toPay.length ? " · " + fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "") : (toPay.length ? fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "None waiting"), pendExp.length) +
       (ws ? link("#/hours-team", IC.ICON.clock, "Workshop hours", "Clocked and booked, payroll sheet") : link("#/manager/time/-1", IC.ICON.clock, "Timesheets to approve", toApprove.length ? "Week of " + fmtDay(lastWs) + ": " + toApprove.map((p) => p.name.split(" ")[0]).join(", ") : "Last week all approved", toApprove.length)) +
       (ws ? "" : link("#/manager/plant", IC.ICON.check, "Plant checks", "Every machine on every job this week")) +
+      (vc ? link("#/manager/vehicles", IC.ICON.check, "Vehicle checks", vc.today.length + " checked today" + (vc.missing.length ? " · " + vc.missing.length + " not done" : "") + (vc.defects.length ? " · " + vc.defects.length + " with a defect" : ""), vc.defects.length) : "") +
       (IC.can("workshop") ? link("#/manager/equipment", IC.ICON.check, "Workshop equipment checks", eq.defects ? eq.defects + " not safe or with a defect this week" : eq.missing ? eq.missing + " not checked today" : "Overhead cranes and forklifts this week", eq.defects) : "") +
       link("#/manager/cards", IC.ICON.card, ws ? "Weld certificates" : "Competency cards", cardsDue.length || noCscs.length ? [cardsDue.length ? cardsDue.length + " expiring or expired" : "", noCscs.length ? noCscs.length + " with no CSCS / CPCS on record" : ""].filter(Boolean).join(" · ") : "All in date", cardsDue.length + noCscs.length) +
       '<div class="section-h">Today</div>' + (states.length ? states.map((s) =>
@@ -217,6 +220,39 @@
     };
   }
 
+  // ---------------------------------------------------------------- daily vehicle checks (Liam, 22 Nov)
+  // Regular drivers = anyone in the team with a vehicle check in the last 14 days. On a working day, a regular driver
+  // who isn't off and has no check today is "not done"; any "No" answer or "not safe to drive" today is a defect.
+  async function vehicleToday(d) {
+    d = d || (await load());
+    const now = new Date(), iso = isoDate(now), since = new Date(now); since.setDate(since.getDate() - 14);
+    const team = new Set(d.team.map((p) => p.email));
+    const checks = (await Data.list("forms", "team")).filter((c) => c.templateId === "vehicle" && c.status !== "draft" && c.values && team.has(c.user));
+    const day = (c) => IC.plantCheckDay(c);
+    const today = checks.filter((c) => sameDay(day(c), now));
+    const bad = (c) => c.values.safe === "No" || (c.flags || []).length > 0;
+    const drivers = [...new Set(checks.filter((c) => day(c) >= since).map((c) => c.user))];
+    const missing = !IC.isWorkingDay(now) ? [] : drivers.filter((u) => !today.some((c) => c.user === u) && !onLeave(d.leave, u, iso) && !planned(u).off).map((u) => d.team.find((p) => p.email === u)).filter(Boolean);
+    return { today, defects: today.filter(bad), missing, checks, bad };
+  }
+  async function viewVehicles() {
+    setBar("Vehicle checks", "This week", true);
+    const v = await vehicleToday(), mon = weekStart(new Date()), days = Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(x.getDate() + i); return x; });
+    const regKey = (c) => String(c.values.reg || "").replace(/\s+/g, "").toUpperCase();
+    const groups = {};
+    v.checks.filter((c) => IC.plantCheckDay(c) >= mon).forEach((c) => { (groups[regKey(c)] = groups[regKey(c)] || []).push(c); });
+    const rows = Object.keys(groups).sort().map((k) => {
+      const list = groups[k], last = list.slice().sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0];
+      const st = (dd) => { const dc = list.filter((c) => sameDay(IC.plantCheckDay(c), dd)); return !dc.length ? "" : dc.some(v.bad) ? "bad" : "ok"; };
+      return '<a class="tile-row" href="#/form/' + esc(last.id) + '"><span><b>' + esc(String(last.values.reg || k).toUpperCase()) + '</b><span class="small">' + esc((last.values.operator || last.userName || "") + (last.values.mileage ? " · " + last.values.mileage + " miles" : "")) + "</span>" +
+        '<span class="small">' + days.map((dd) => '<span class="pd ' + st(dd) + '">' + dd.toLocaleDateString("en-GB", { weekday: "narrow" }) + "</span>").join("") + "</span>" +
+        list.filter(v.bad).map((c) => '<span class="flag">' + esc(fmtDay(IC.plantCheckDay(c)) + ": " + (c.values.safe === "No" ? "not safe to drive · " : "") + (c.flags || []).filter((f) => !/^Safe to drive/.test(f.text)).map((f) => f.text).join("; ")) + "</span>").join("") + "</span>›</a>";
+    });
+    $("main").innerHTML = '<div class="stats"><div><b>' + v.today.length + '</b><span>checked today</span></div><div><b>' + v.missing.length + '</b><span>not done yet</span></div><div><b>' + v.defects.length + "</b><span>with a defect today</span></div></div>" +
+      (v.missing.length ? '<div class="section-h">Not done today</div>' + v.missing.map((p) => '<a class="tile-row" href="#/manager/person/' + encodeURIComponent(p.email) + '/0"><span><b>' + esc(p.name) + '</b><span class="small">Drives a company vehicle; no check yet today</span></span>›</a>').join("") : "") +
+      '<div class="section-h">Vehicles this week</div>' + (rows.length ? rows.join("") : '<div class="empty small">No vehicle checks this week.</div>');
+  }
+
   // ---------------------------------------------------------------- workshop equipment checks (HC4.11)
   // Every overhead crane and forklift checked this week, one row each (type + the number or bay typed on the check), a
   // dot per day (green fine, red a "No" or not safe, grey no check) and the defects listed underneath.
@@ -247,7 +283,11 @@
   }
 
   // for Home's to-do list: who's late in (empty before the check-in time or on a non-working day)
-  IC.Manager = { async lateCheckIns() { const r = roll(await load()); const list = r.late ? r.missing : []; list.by = hhmm(r.by); return list; } };
+  IC.Manager = {
+    async lateCheckIns() { const r = roll(await load()); const list = r.late ? r.missing : []; list.by = hhmm(r.by); return list; },
+    // for Home's to-do list, beside the check-in alert: vehicles with a defect today, and (after the check-in time) checks not done
+    async vehicleAlerts() { const d = await load(), r = roll(d), v = await vehicleToday(d); return { defects: v.defects, missing: r.late ? v.missing : [] }; }
+  };
 
   // Plant checks across the jobs (Liam, 20 Nov: managers oversee these and can complete them): every machine on hire to
   // a live job, this week's daily checks (green OK, red defect, grey none), today's state first. Tap a machine for its
@@ -278,6 +318,7 @@
     if (args[0] === "cards") return viewCards();
     if (args[0] === "plant") return viewPlant();
     if (args[0] === "equipment") return viewEquipment();
+    if (args[0] === "vehicles") return viewVehicles();
     if (args[0] === "person" && args[1]) return viewPerson(decodeURIComponent(args[1]), Number(args[2] || 0));
     return dashboard();
   });

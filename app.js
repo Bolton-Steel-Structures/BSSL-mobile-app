@@ -86,6 +86,7 @@
     }
     setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
+    const vehDone = (await Data.list("forms")).some((f) => f.templateId === "vehicle" && f.status !== "draft" && f.user === p.email && f.values && IC.sameDay(IC.plantCheckDay(f), new Date()));
     const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
     // Directors (both sides): Site | Workshop switch at the top of Home (Liam, 21 Nov); the choice is remembered
     const both = can("workshop") && can("drawings"), side = both ? LS.get("homeSide", "site") : "site";
@@ -110,6 +111,7 @@
       // workshop tiles: on the Workshop side for directors, on Home for workshop staff
       (both ? "" : tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
         (can("ws-hours") ? tile("ws-hours", "#/hours", ICON.clock, "My hours", "Book hours to jobs") : can("ws-hours-team") ? tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") : "")) +
+      (can("manager") ? "" : tile("form:vehicle", "#/form-new/vehicle", '<img class="tile-photo" src="icons/bss-van-thumb.jpg" alt="">', "Vehicle check", vehDone ? "Done today" : "Daily walk-round, before driving")) +
       tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
       tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
       (can("ws-hours") ? "" : tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week")) +
@@ -153,6 +155,12 @@
       todo.push('<a class="todo" href="#/workshop/' + encodeURIComponent(w.wno) + '"><span class="ti">' + ICON.check + "</span><span><b>" + esc(w.wno) + ' is ready for dispatch</b><span class="small">' + esc([w.site, w.phase].filter(Boolean).join(" · ")) + " · checked and loaded</span></span>›</a>");
     wire();
     const drafts = (await Data.list("forms")).filter((f) => f.status === "draft").length;
+    // daily vehicle check (22 Nov): anyone who has driven a company vehicle in the last 2 weeks is reminded on working days
+    if (can("form:vehicle") && !can("manager") && !vehDone && IC.isWorkingDay(new Date())) {
+      const since = new Date(); since.setDate(since.getDate() - 14);
+      const driver = (await Data.list("forms")).some((f) => f.templateId === "vehicle" && f.status !== "draft" && f.user === p.email && f.values && IC.plantCheckDay(f) >= since);
+      if (driver) todo.push('<a class="todo" href="#/form-new/vehicle"><span class="ti safety">' + ICON.check + '</span><span><b>Vehicle check not done today</b><span class="small">Walk-round check before driving</span></span>›</a>');
+    }
     if (drafts) todo.push('<a class="todo" href="#/forms"><span class="ti">' + ICON.forms + "</span><span><b>" + drafts + " form" + (drafts > 1 ? "s" : "") + ' not finished</b><span class="small">Saved as drafts</span></span>›</a>');
     const myDue = !can("cards") ? [] : (await Data.list("cards")).filter((c) => IC.Cards.live(c) && (IC.Cards.state(c).days ?? 999) <= IC.Cards.SOON_DAYS);
     if (myDue.length) todo.push('<a class="todo" href="#/cards"><span class="ti">' + ICON.card + "</span><span><b>" + esc(myDue.map(IC.Cards.name).join(", ")) + (myDue.length > 1 ? " cards" : " card") + (myDue.some((c) => IC.Cards.state(c).days < 0) ? " out of date" : " expiring") + '</b><span class="small">' + esc(IC.Cards.state(myDue[0]).label) + "</span></span>›</a>");
@@ -160,6 +168,11 @@
       const l = await IC.Leave.pendingForManager(), e = await IC.Expenses.pendingForManager();
       if (l) todo.push('<a class="todo" href="#/leave/team"><span class="ti">' + ICON.leave + "</span><span><b>" + l + " holiday request" + (l > 1 ? "s" : "") + ' to review</b><span class="small">Team calendar</span></span>›</a>');
       const late = await IC.Manager.lateCheckIns();
+      if (!IC.roleOf(p).startsWith("Workshop")) {
+        const va = await IC.Manager.vehicleAlerts();
+        if (va.defects.length) todo.push('<a class="todo alert-row" href="#/manager/vehicles"><span class="ti">' + ICON.check + "</span><span><b>" + va.defects.length + " vehicle" + (va.defects.length > 1 ? "s" : "") + ' with a defect today</b><span class="small">' + esc(va.defects.map((c) => String(c.values.reg || "").toUpperCase()).join(", ")) + "</span></span>›</a>");
+        if (va.missing.length) todo.push('<a class="todo alert-row" href="#/manager/vehicles"><span class="ti">' + ICON.check + "</span><span><b>" + va.missing.length + " vehicle check" + (va.missing.length > 1 ? "s" : "") + ' not done today</b><span class="small">' + esc(va.missing.map((x) => x.name).join(", ")) + "</span></span>›</a>");
+      }
       if (late.length) todo.push('<a class="todo alert-row" href="#/manager/live"><span class="ti">' + ICON.clock + "</span><span><b>" + late.length + " not checked in by " + esc(late.by) + '</b><span class="small">' + esc(late.map((x) => x.p.name).join(", ")) + "</span></span>›</a>");
       if (e) todo.push('<a class="todo" href="#/expenses/team"><span class="ti">' + ICON.money + "</span><span><b>" + e + " expense claim" + (e > 1 ? "s" : "") + ' to approve</b></span>›</a>');
     }

@@ -194,7 +194,7 @@
   const DEFAULT_ROLES = {
     Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:nearmiss", "form:ncr"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ncr"],
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
@@ -388,7 +388,7 @@
     // the workshop (the Workshop Manager's team)
     wsTeam: [["c.dale@example.com", "Chris Dale", "Workshop Supervisor"], ["t.reid@example.com", "Tom Reid", "Fabricator/Welder"]],
     async seed() {
-      if (LS.get("demoSeeded", 0) === 6) return;
+      if (LS.get("demoSeeded", 0) === 8) return;
       await Data.clearAll();
       const now = new Date(), d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
       const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records");
@@ -425,6 +425,15 @@
       await shift(dan, 0, job, 7, 52, null, null, { in: { distanceM: 1240, flagged: true, reason: "Collecting bolts from the yard first" } });
       await shift(mark, 0, job, 7, 12, null);
       // the workshop: clocked at the premises; one flagged clock-out, one holiday request, one equipment defect (HC4.8, HC4.11)
+      // daily vehicle checks (22 Nov): two vans driven most days; one check found a defect yesterday
+      const vans = [[this.team.find((x) => /Supervisor/.test(x[2])) || this.team[0], "BX21 KLM", 48210], [this.team.find((x) => /^Operative$/.test(x[2])) || this.team[1], "BV19 FHP", 72545]];
+      for (const [who, reg, miles] of vans) for (let back = 1, first = true; back <= 8; back++) {
+        const day = at(back, 7, 10); if (day.getDay() === 0 || day.getDay() === 6) continue;
+        const defect = first && reg === "BV19 FHP"; first = false;
+        await put("forms", { id: uid(), templateId: "vehicle", templateTitle: "Daily vehicle check", status: "submitted", user: who[0], userName: who[1], jobFolder: "", jobNumber: "", noJob: true, createdAt: day.toISOString(), submittedAt: day.toISOString(),
+          values: { checkDate: isoDate(day), reg, mileage: String(miles - back * 60), checks: defect ? { "Tyres: tread, no cuts or bulges, inflated": "No" } : {}, checksActions: defect ? { "Tyres: tread, no cuts or bulges, inflated": "Nearside rear tyre has a bulge; booked in for a new tyre" } : {}, safe: defect ? "No" : "Yes", operator: who[1] },
+          flags: defect ? [{ text: "Tyres: tread, no cuts or bulges, inflated: No (action: Nearside rear tyre has a bulge; booked in for a new tyre)" }, { text: "Safe to drive?: No" }] : [] });
+      }
       const [chris, tom] = this.wsTeam, wsj = { jobFolder: "", jobNumber: "", site: "Workshop" };
       for (let back = 1; back <= 6; back++) { await shift(chris, back, wsj, 7, 25, 16, 5, back === 1 ? { out: { distanceM: 3400, flagged: true, reason: "Clocked out after dropping steel at the galvaniser" } } : null); await shift(tom, back, wsj, 7, 28, 16, 2); }
       await put("leave", { id: uid(), user: tom[0], userName: tom[1], from: d(6), to: d(7), type: "Annual leave", status: "pending", note: "", days: null, createdAt: now.toISOString() });
@@ -442,7 +451,7 @@
       await card(sam, "CSCS", "00377120", "Skilled worker (blue)", 520, true);
       await card(sam, "CPCS", "CP-118842", "A60 telehandler", 700, true);
       await card(mark, "Welder qualification (BS EN ISO 9606-1)", "WQ-0417", "135 P FW 1.1 S t10 PB ml", 90, true);
-      LS.set("demoSeeded", 6);
+      LS.set("demoSeeded", 8);
     }
   };
   // ---------------------------------------------------------------- UI helpers
