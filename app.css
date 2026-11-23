@@ -449,3 +449,73 @@ main:has(.board) { padding-left: 16px; padding-right: 16px; }
 /* van picture on the vehicle check (Liam, 22 Nov) */
 .form-photo { display: block; width: 100%; max-height: 190px; object-fit: contain; background: #fff; border-radius: 12px; margin: 0 0 8px; }
 .tile-photo { width: 64px; height: 30px; object-fit: contain; border-radius: 6px; display: block; }
+
+/* HR (23 Nov) */
+.qr-box { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin: 12px 0; text-align: center; }
+.qr-box svg { width: 240px; height: 240px; max-width: 80vw; display: block; margin: 0 auto 6px; }
+.doc-body p { margin: 0 0 10px; line-height: 1.45; }
+details.doc-body summary { cursor: pointer; padding: 4px 0; font-size: 16px; }
+details.doc-body[open] summary { margin-bottom: 8px; }
+.sig-img { background: #fff; width: 160px !important; height: 70px !important; object-fit: contain !important; }
+.join-logo { display: block; width: 240px; max-width: 75%; margin: 4px auto 12px; }
+
+/* Home for everyone (23 Nov): greeting and today, Needs you, notices, Me, My work */
+.hello { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; border-left: 4px solid var(--brand-orange); }
+.hello-h { font-size: 22px; font-weight: 700; }
+.hello-d { color: var(--sub); margin-top: 2px; }
+.hello-t { margin-top: 10px; font-weight: 600; }
+.hello #timeCard { margin-top: 12px; }
+.todo.all-clear { opacity: .85; }
+.sh-link { float: right; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--link); text-decoration: none; }
+.notice { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+.notice.pinned { border-left: 4px solid var(--brand-orange); }
+.notice-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.notice-b { font-size: 15px; line-height: 1.4; margin-bottom: 6px; }
+
+/* ===================== computer screens (Liam, 23 Nov): a proper website for office staff =====================
+   Phones are unchanged. From 1024 px wide: a side bar in place of the bottom bar, a wider page, Home in two columns,
+   HR people as a table, a person's record in two columns, pop-ups in the middle of the screen. */
+.desk-only { display: none !important; }
+@media (min-width: 1024px) {
+  body:has(#nav:not([hidden])) { display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  body:has(#nav:not([hidden])) .bar { grid-column: 2; grid-row: 1; }
+  body:has(#nav:not([hidden])) .status { grid-column: 2; grid-row: 2; }
+  body:has(#nav:not([hidden])) main { grid-column: 2; grid-row: 3; }
+  main { padding: 20px max(24px, calc((100% - 1180px) / 2 + 24px)) 40px; }
+  .tabbar:not([hidden]) { grid-column: 1; grid-row: 1 / span 3; position: static; flex-direction: column; justify-content: flex-start; gap: 2px;
+    border-top: 0; border-right: 1px solid var(--line); padding: 14px 10px; overflow-y: auto; }
+  .tabbar a { flex: none; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 10px 12px; font-size: 15px; border-radius: 8px; }
+  .tabbar a.on { background: var(--accent-light); color: var(--text); }
+  .tabbar a span { font-size: 14.5px; }
+  .tabbar a:hover { background: var(--accent-light); }
+  .tabbar .desk-only { display: flex !important; }
+  .nav-brand { padding: 6px 8px 16px; } .nav-brand img { width: 100%; max-width: 190px; background: #fff; border-radius: 8px; padding: 8px; box-sizing: border-box; }
+  .toast { bottom: 28px; }
+  .sheet { align-items: center; justify-content: center; } .sheet-panel { border-radius: 16px; max-width: 560px; max-height: 85vh; overflow-y: auto; }
+  .home-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0 28px; align-items: start; }
+  .home-b > .section-h:first-child { margin-top: 0; }
+  .home-b .tiles { margin-top: 0; }
+  .cols2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; align-items: start; }
+  .hr-tbl th, .hr-tbl td { padding: 10px 8px; white-space: nowrap; }
+  .hr-tbl tbody tr { cursor: pointer; } .hr-tbl tbody tr:hover td { background: var(--accent-light); }
+  main:has(.cards-m) { padding-left: 24px; padding-right: 24px; }
+}
+
+/* App admin (23 Nov): wide editable tables */
+main:has(.admin) { max-width: none; }
+@media (min-width: 1024px) { main:has(.admin) { padding-left: 24px; padding-right: 24px; } }
+.admin-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.admin-top .tabs { margin: 0; flex: 1 1 420px; }
+.admin-acts { display: flex; flex-wrap: wrap; gap: 6px; } .admin-acts .btn { margin: 0; min-height: 40px; padding: 8px 14px; }
+.ad-wrap { max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.ad-grid, .ad-people { border-collapse: separate; border-spacing: 0; margin: 0; }
+.ad-grid thead th, .ad-people thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); }
+.ad-grid .ad-feat { position: sticky; left: 0; z-index: 1; background: var(--surface); min-width: 220px; text-align: left; }
+.ad-grid thead .ad-feat { z-index: 3; }
+.ad-feat .small { display: block; font-weight: 400; }
+.ad-role { min-width: 74px; vertical-align: bottom; font-size: 12.5px; text-align: center; }
+.ad-cell { text-align: center; } .ad-cell input { width: 20px; height: 20px; }
+.ad-group td { background: var(--accent-light); font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: .04em; position: sticky; left: 0; }
+.ad-people input:not([type]), .ad-people input[type="email"], .ad-people select { font: inherit; font-size: 14px; padding: 6px 8px; min-width: 110px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+.ad-people input[data-k="email"] { min-width: 220px; } .ad-people input[data-k="notes"] { min-width: 180px; }
+.ad-grid td input[data-k="notes"] { font: inherit; font-size: 13px; min-width: 160px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }

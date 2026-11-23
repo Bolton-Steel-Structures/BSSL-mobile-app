@@ -40,10 +40,12 @@
   // workshop supervisor against the manufacturers' instructions before use.
   // Daily vehicle walk-round check (Liam, 22 Nov), supervisors and operatives driving a company vehicle; based on the
   // DVSA daily walkaround check. First draft: for the transport / H&S adviser to confirm (approvals A8).
-  const VEHICLE_CHECKS = ["Tyres: tread, no cuts or bulges, inflated", "Wheel nuts secure (indicators in line)", "Lights, indicators and hazard lights working",
+  const VEHICLE_CHECKS = ["Tyres: tread, no cuts or bulges, inflated", "Wheel nuts secure", "Lights, indicators and hazard lights working",
     "Mirrors, windscreen and wipers: clean, no cracks, washers working", "Oil, coolant and screen wash topped up", "Brakes and handbrake working",
     "No warning lights on the dashboard", "Horn and seat belts working", "Bodywork, doors and tail lift undamaged and secure",
-    "Load secure and within the vehicle's payload", "Fire extinguisher, first aid kit and spill kit on board", "No fuel, oil or water leaks"];
+    "Load secure and within the vehicle's payload", "No fuel, oil or water leaks"];
+  const PPE_ITEMS = ["Safety boots", "Hard hat", "Hi-vis vest", "Hi-vis jacket", "Hi-vis trousers", "Safety glasses", "Gloves", "Cut-resistant gloves",
+    "Ear defenders / plugs", "Dust mask / RPE", "Harness", "Lanyard", "Welding helmet", "Welding gloves", "Welding jacket / leathers", "Overalls", "Waterproofs", "Other"];
   const WS_CHECKS = {
     "Overhead crane": ["Thorough examination (LOLER) in date; safe working load marked on the crane and hoist", "Pendant or remote: every button does what it is marked, and returns when released",
       "Emergency stop works", "Hoist upper and lower limit switches work", "Long travel and cross travel run smoothly; brakes hold and travel limits work", "Hoist brake holds a load without creeping",
@@ -171,6 +173,18 @@
         { type: "photos", id: "photos", label: "Photos of any damage" },
         { type: "text", id: "operator", label: "Driver", prefill: "me", required: true },
         { type: "signature", id: "sig", label: "Signature", required: true }
+      ] },
+    // PPE request (Liam, 22 Nov): anyone can ask their manager for new or replacement essential PPE. The manager marks it
+    // Ordered, Issued or Declined (with a reason) in Manager tools; the person sees the answer on the request and on Home.
+    { id: "ppe", group: "Safety", noJob: true, title: "Request PPE", ref: "PPE request",
+      blurb: "Ask your manager for new or replacement PPE.",
+      fields: [
+        { type: "rows", id: "items", label: "What do you need?", required: true, columns: [
+          { id: "item", label: "Item", type: "select", options: PPE_ITEMS }, { id: "size", label: "Size", type: "text" }, { id: "qty", label: "Qty", type: "number" }] },
+        { type: "select", id: "reason", label: "Why?", options: ["Worn out", "Damaged", "Lost", "Doesn't fit", "New starter", "Needed for a new task", "Other"], required: true },
+        { type: "text", id: "details", label: "Anything else the manager should know", multiline: true },
+        { type: "yesno", id: "safeNow", label: "Have you got what you need to work safely today?", na: false, badAnswer: "No", required: true, warn: "Don't do the task without it. Ring your supervisor or the office now." },
+        { type: "photos", id: "photos", label: "Photos of the worn or damaged PPE" }
       ] },
     { id: "lifting", group: "Safety", title: "Lifting accessories check", ref: "QFC05 Q05.10 · Lifting equipment register",
       fields: [
@@ -623,7 +637,7 @@
       '<a class="tile-row" href="' + (t.id === "toolbox" ? "#/toolbox" : t.id === "plant" ? "#/plant" : "#/form-new/" + t.id) + '"><span class="ti ' + g.toLowerCase() + '">' + (g === "Safety" ? IC.ICON.hs : IC.ICON.check) + '</span><span><b>' + esc(t.title) + '</b><span class="small">' + esc(t.ref) + "</span></span></a>").join("");
     const row = (f) => { const t = tpl(f.templateId) || { title: f.templateId };
       return '<a class="tile-row" href="#/form/' + f.id + '"><span class="ti">' + IC.ICON.file + "</span><span><b>" + esc(t.title) + '</b><span class="small">' + esc((f.jobNumber || "No job") + " · " + fmtDay(f.updatedAt) + " " + fmtTime(f.updatedAt)) + "</span></span>" +
-        (f.status === "draft" ? '<span class="pill warn">Draft</span>' : f.flags && f.flags.length ? '<span class="pill new">Issue</span>' : '<span class="pill ok">Sent</span>') + "</a>"; };
+        (f.status === "draft" ? '<span class="pill warn">Draft</span>' : f.templateId === "ppe" ? '<span class="pill ' + IC.ppeState(f)[1] + '">' + esc(IC.ppeState(f)[0]) + "</span>" : f.flags && f.flags.length ? '<span class="pill new">Issue</span>' : '<span class="pill ok">Sent</span>') + "</a>"; };
     $("main").innerHTML = (drafts.length ? '<div class="section-h">Drafts</div>' + drafts.map(row).join("") : "") + group("Safety") + group("Quality").replace('<div class="section-h">Quality</div>', '<div class="section-h">' + (IC.can("qa") ? "Day work" : "Quality") + "</div>") +
       (done.length ? '<div class="section-h">Recently completed</div>' + done.map(row).join("") : "");
   }
@@ -765,6 +779,7 @@
       extra += await IC.QA.inspectionStatusHtml(rec);
     }
     if (rec.templateId === "supcomp") extra += await IC.QA.inspectionStatusHtml(rec);
+    if (rec.templateId === "ppe") extra += IC.ppeStatusHtml(rec);
     $("main").innerHTML = extra + (rec.flags && rec.flags.length ? '<div class="warnbox"><b>Flagged for the office</b><br>' + rec.flags.map((x) => esc(x.text)).join("<br>") + "</div>" : "") +
       '<div class="small">' + esc((rec.userName || "") + " · submitted " + fmtDay(rec.submittedAt || rec.updatedAt) + " " + fmtTime(rec.submittedAt || rec.updatedAt)) + "</div>" + parts.join("") +
       (rec.history && rec.history.length ? '<div class="small">' + rec.history.map((h) => esc(fmtDay(h.at) + " · " + (h.by || "") + " · " + h.note)).join("<br>") + "</div>" : "");
@@ -787,6 +802,12 @@
   const checkDay = (c) => (c.values.checkDate ? IC.parseDate(c.values.checkDate) : new Date(c.submittedAt || c.updatedAt));
   const lateEntry = (c) => c.values.checkDate && c.submittedAt && c.values.checkDate !== isoDate(new Date(c.submittedAt));
   IC.plantCheckDay = checkDay;
+  // PPE request state (Liam, 22 Nov): submitted = waiting for a manager; the manager sets ordered, issued or declined
+  const PPE_STATE = { ordered: ["Ordered", "pending"], issued: ["Issued", "approved"], declined: ["Declined", "declined"] };
+  IC.ppeState = (rec) => PPE_STATE[rec.status] || ["Waiting for a manager", ""];
+  IC.ppeStatusHtml = (rec) => { const st = IC.ppeState(rec);
+    return '<div class="note"><span class="pill ' + st[1] + '">' + esc(st[0]) + "</span>" + (rec.decidedBy ? " " + esc(rec.decidedBy + " · " + fmtDay(rec.decidedAt)) : "") +
+      (rec.decisionNote ? "<br>" + esc(rec.decisionNote) : "") + "</div>"; };
   async function plantChecks(folder) { return (await Data.list("forms", "team")).filter((f) => f.templateId === "plant" && f.status !== "draft" && f.jobFolder === folder && f.values && (f.values.plantKey || f.values.plantRef)); }
   // machines on a job: its hired plant, plus any other machine checked there in the last 4 weeks
   async function machinesFor(folder) {

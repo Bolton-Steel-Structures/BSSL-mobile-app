@@ -19,6 +19,7 @@ window.SITE_CONFIG = {
   returnsLibrary: "Site Returns",
 
   // Azure back end for check-ins, forms, holidays and expenses (see API.md)
+  publicUrl: "",                         // new-starter links and QR codes point here (the app's public address); blank = the address the app is opened at
   apiBase: "/api",                        // same site when hosted on Azure Static Web Apps with its API
   apiScope: "api://YOUR-APP-CLIENT-ID/Site.ReadWrite",
 
@@ -53,21 +54,38 @@ window.SITE_CONFIG = {
   //   ws-hours   book my workshop hours to jobs    ws-hours-team  see and book the workshop team's hours    ws-payroll  weekly payroll spreadsheet
   //   workshop   Workshop: fabrication status by job (dashboard and QA list)     fab-mark  mark lines Fabricated / Welded / Checked / Loaded
   //   form:<id>  each form, e.g. form:toolbox, form:plant ("form:*" = all forms)
-  //     Safety: toolbox, plant, lifting, handover, nearmiss
+  //     Safety: toolbox, plant, vehicle, lifting, handover, nearmiss, ppe (PPE request), wscheck
   //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
   roles: {
-    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
-    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ncr"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "hr", "hr-admin", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
+    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ppe", "form:ncr"],
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:ncr"],
-    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"],
+    // Workshop Director (Liam, 23 Nov): a director of the workshop company only (e.g. Dave Williams). Sees the workshop and its
+    // staff like the Workshop Manager, and nothing of BSS: no site jobs, drawings, planner or BSS staff.
+    "Workshop Director": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "hr-workshop", "cards", "form:wscheck", "form:ppe", "form:ncr"],
+    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
+    "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
+    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
+    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
     // Screens (Liam, 21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
     //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
+    // HR Admin (Liam, 23 Nov): the office person who runs HR; sees every employee's HR record, issues documents, sets up new starters.
+    //   hr = My HR (own details, documents to sign, absence)   hr-admin = everyone's HR records (directors have it too)
+    //   hr-workshop = every HR record in full, for workshop staff only (Workshop Director)
+    "HR Admin": ["leave", "expenses", "hr", "hr-admin", "cards"],
+    // From Liam's roles workbook (23 Nov). Change these in the app: App admin > Permissions.
+    Accounts: ["leave", "expenses", "hr", "hr-admin", "manager", "form:ppe"],
+    Admin: ["expenses", "hr", "manager", "form:ppe"],
+    Estimators: ["leave", "expenses", "hr", "form:ppe"],
+    "Project Managers": ["drawings", "all-jobs", "rams", "time", "leave", "expenses", "hr", "cards", "week", "team-week", "model", "erect", "qa", "manager", "form:*"],
+    Draughtsmen: ["drawings", "all-jobs", "model", "leave", "expenses", "hr", "form:ppe"],
+    "QA Manager": ["drawings", "all-jobs", "rams", "leave", "expenses", "hr", "cards", "week", "model", "erect", "qa", "form:*"],
+    "Workshop Accounts": ["leave", "expenses", "hr", "form:ppe"],
+    // App Admin (Liam, 23 Nov): runs the app once live: roles, permissions, people, action owners, content. Given alongside a normal role.
+    "App Admin": ["app-admin"],
     Screens: ["workshop", "board", "screens"]
   },
 

@@ -192,39 +192,97 @@
 
   // ---------------------------------------------------------------- roles: what each person sees (config.js roles)
   const DEFAULT_ROLES = {
-    Manager: ["drawings", "all-jobs", "leave", "expenses", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
-    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
-    Operative: ["drawings", "rams", "time", "leave", "expenses", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ncr"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "hr", "hr-admin", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
+    Supervisor: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
+    Operative: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ppe", "form:ncr"],
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "cards", "form:ncr"],
-    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "cards", "form:wscheck", "form:ncr"],
-    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "cards", "form:ncr"],
+    // Workshop Director (Liam, 23 Nov): a director of the workshop company only (e.g. Dave Williams). Sees the workshop and its
+    // staff like the Workshop Manager, and nothing of BSS: no site jobs, drawings, planner or BSS staff.
+    "Workshop Director": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "hr-workshop", "cards", "form:wscheck", "form:ppe", "form:ncr"],
+    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
+    "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
+    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
+    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
     // Screens (Liam, 21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
     //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
+    // HR Admin (Liam, 23 Nov): the office person who runs HR; sees every employee's HR record, issues documents, sets up new starters.
+    //   hr = My HR (own details, documents to sign, absence)   hr-admin = everyone's HR records (directors have it too)
+    //   hr-workshop = every HR record in full, for workshop staff only (Workshop Director)
+    "HR Admin": ["leave", "expenses", "hr", "hr-admin", "cards"],
+    // From Liam's roles workbook (23 Nov). Change these in the app: App admin > Permissions.
+    Accounts: ["leave", "expenses", "hr", "hr-admin", "manager", "form:ppe"],
+    Admin: ["expenses", "hr", "manager", "form:ppe"],
+    Estimators: ["leave", "expenses", "hr", "form:ppe"],
+    "Project Managers": ["drawings", "all-jobs", "rams", "time", "leave", "expenses", "hr", "cards", "week", "team-week", "model", "erect", "qa", "manager", "form:*"],
+    Draughtsmen: ["drawings", "all-jobs", "model", "leave", "expenses", "hr", "form:ppe"],
+    "QA Manager": ["drawings", "all-jobs", "rams", "leave", "expenses", "hr", "cards", "week", "model", "erect", "qa", "form:*"],
+    "Workshop Accounts": ["leave", "expenses", "hr", "form:ppe"],
+    // App Admin (Liam, 23 Nov): runs the app once live: roles, permissions, people, action owners, content. Given alongside a normal role.
+    "App Admin": ["app-admin"],
     Screens: ["workshop", "board", "screens"]
   };
   // config.js roles are laid over the defaults: a role changed there replaces the default, a new one is added (HC4.21)
-  const ROLES = Object.assign({}, DEFAULT_ROLES, CFG.roles || {});
+  let ROLES = Object.assign({}, DEFAULT_ROLES, CFG.roles || {});
+  // the workbook's names for two of the built-in roles
+  const ROLE_ALIAS = { directors: "Manager", director: "Manager", operatives: "Operative" };
+  const ROLE_LABEL = { Manager: "Directors", Operative: "Operatives" };
   // HC4.16: a role the app doesn't recognise gets nothing (it used to become an Operative, with drawings and RAMS)
-  function roleOf(p) {
-    const r = String((p && p.role) || "").trim().toLowerCase();
-    const key = Object.keys(ROLES).find((k) => k.toLowerCase() === r);
-    return key || (p && p.isManager && ROLES.Manager ? "Manager" : "");
+  // A person can hold up to three roles (Liam, 23 Nov: people with more than one job); they get everything each allows.
+  function roleKey(r) {
+    const k = String(r || "").trim().toLowerCase();
+    if (!k) return "";
+    if (ROLE_ALIAS[k]) return ROLE_ALIAS[k];
+    return Object.keys(ROLES).find((x) => x.toLowerCase() === k) || "";
   }
+  function rolesOf(p) {
+    const list = (p && Array.isArray(p.roles) && p.roles.length ? p.roles : [p && p.role]).map(roleKey).filter(Boolean);
+    if (!list.length && p && p.isManager && ROLES.Manager) list.push("Manager");
+    return [...new Set(list)];
+  }
+  function roleOf(p) { return rolesOf(p)[0] || ""; }
   // can("qa"), can("form:plant") … for the signed-in person (or a given profile)
   function can(feature, profile) {
-    const p = profile || Data.profile, list = ROLES[roleOf(p)] || [];
-    return list.includes(feature) || (feature.startsWith("form:") && list.includes("form:*"));
+    const p = profile || Data.profile;
+    return rolesOf(p).some((r) => { const list = ROLES[r] || []; return list.includes(feature) || (feature.startsWith("form:") && list.includes("form:*")); });
   }
+
+  // ---------------------------------------------------------------- app settings (App admin, Liam 23 Nov)
+  // Roles and permissions, people (roles, line manager, van, clocking), desktop page access and action owners, changed in
+  // the app by the App Admin and kept on the server (/api/settings), not in a release. Every save is logged.
+  const Settings = {
+    cur: {},
+    async load() {
+      let s = null;
+      if (DEMO) { const r = await Store.get("settings:app", "records"); s = r && r.rec; }
+      else {
+        if (navigator.onLine) { try { s = await Api.call("GET", "/settings"); LS.set("settings", s); } catch (e) { console.warn("settings", e); } }
+        if (!s) s = LS.get("settings", null);
+      }
+      this.apply(s || {});
+      return this.cur;
+    },
+    apply(s) { this.cur = s || {}; ROLES = Object.assign({}, DEFAULT_ROLES, CFG.roles || {}, this.cur.roles || {}); },
+    roles() { return ROLES; },
+    defaults() { return Object.assign({}, DEFAULT_ROLES, CFG.roles || {}); },
+    person(email) { const e = String(email || "").toLowerCase(); return e ? (this.cur.people || []).find((p) => String(p.email || "").toLowerCase() === e) || null : null; },
+    async save(next, summary) {
+      const s = Object.assign({}, next);
+      s.revision = (this.cur.revision || 0) + 1; s.updatedAt = new Date().toISOString(); s.updatedBy = Data.profile ? Data.profile.name : "";
+      s.history = (this.cur.history || []).concat([{ at: s.updatedAt, by: s.updatedBy, rev: s.revision, summary }]).slice(-300);
+      if (DEMO) await Store.put({ key: "settings:app", kind: "settings", rec: s }, "records");
+      else { await Api.call("POST", "/settings", s); LS.set("settings", s); }
+      this.apply(s);
+      return s;
+    }
+  };
 
   // ---------------------------------------------------------------- data layer
   // Records are kept on the device first, then sent. With no signal they wait in the outbox and go when signal returns.
   // Kinds: time, forms, leave, expenses, snags, cards (competency cards), timesheets (weeks approved by a manager).
   // In demo mode everything stays on this device.
-  const KINDS = ["time", "forms", "leave", "expenses", "snags", "cards", "timesheets"];
+  const KINDS = ["time", "forms", "leave", "expenses", "snags", "cards", "timesheets", "notices"];
   const TEAM_KINDS = ["leave", "expenses", "time", "cards", "timesheets"]; // a manager also gets their team's records
   const Api = {
     async call(method, path, body, raw) {
@@ -253,8 +311,15 @@
       }
       // Manager tools follow the role's permissions (config.js roles), whatever the API says
       this.profile.isManager = can("manager", this.profile);
-      LS.set("profile", this.profile);
       if (DEMO) await Demo.seed();
+      // App admin settings: the roles table, and this person's roles from the People table (live: the server does this for /me)
+      await Settings.load();
+      if (DEMO && !Settings.cur.people) await Settings.save(Object.assign({}, Settings.cur, { people: Demo.people() }), "Sample people for the demo");
+      const sp = Settings.person(this.profile.email);
+      if (sp && sp.roles && sp.roles.filter(Boolean).length) this.profile.roles = sp.roles.filter(Boolean);
+      if (sp && sp.appAdmin) this.profile.roles = (this.profile.roles || [this.profile.role]).concat(["App Admin"]);
+      this.profile.isManager = can("manager", this.profile);
+      LS.set("profile", this.profile);
       return this.profile;
     },
 
@@ -284,7 +349,7 @@
     async pull() {
       if (DEMO || !navigator.onLine) return;
       for (const kind of KINDS) {
-        const scopes = kind === "snags" || kind === "forms" ? ["jobs"] : this.profile && this.profile.isManager && TEAM_KINDS.includes(kind) ? ["mine", "team"] : ["mine"];
+        const scopes = kind === "notices" ? ["all"] : kind === "snags" || kind === "forms" ? ["jobs"] : this.profile && this.profile.isManager && TEAM_KINDS.includes(kind) ? ["mine", "team"] : ["mine"];
         for (const scope of scopes) {
           try {
             const rows = await Api.call("GET", "/" + kind + "?scope=" + scope);
@@ -379,6 +444,8 @@
     { id: "wsmanager", name: "Paul Shaw", email: "p.shaw@example.com", role: "Workshop Manager", leaveAllowance: 25 },
     { id: "wssupervisor", name: "Chris Dale", email: "c.dale@example.com", role: "Workshop Supervisor", leaveAllowance: 22 },
     { id: "fabricator", name: "Tom Reid", email: "t.reid@example.com", role: "Fabricator/Welder", leaveAllowance: 22 },
+    { id: "wsdirector", name: "Gary Holt", email: "g.holt@example.com", role: "Workshop Director", leaveAllowance: 25 }, // workshop company director only (23 Nov)
+    { id: "hradmin", name: "Kate Bennett", email: "k.bennett@example.com", role: "HR Admin", leaveAllowance: 25 }, // office / HR (23 Nov)
     { id: "screens", name: "Workshop screen", email: "screens@boltonstructures.com", role: "Screens", leaveAllowance: 0 }
   ];
   const Demo = {
@@ -387,8 +454,17 @@
       ["s.khan@example.com", "Sam Khan", "Operative"], ["m.wilson@example.com", "Mark Wilson", "Operative (welder)"], ["l.hart@example.com", "Lee Hart", "Operative"]],
     // the workshop (the Workshop Manager's team)
     wsTeam: [["c.dale@example.com", "Chris Dale", "Workshop Supervisor"], ["t.reid@example.com", "Tom Reid", "Fabricator/Welder"]],
+    // the App admin People table for the demo (the sample logins and the extra team members)
+    people() {
+      const ws = (r) => /^Workshop|Fabricator/.test(r);
+      const all = SAMPLES.filter((x) => x.role !== "Screens").map((x) => [x.email, x.name, x.role]).concat(this.team.slice(2), this.wsTeam.filter((t) => !SAMPLES.some((x) => x.email === t[0])));
+      const vans = { "ian.jones@boltonstructures.com": "BX21 KLM", "daniel.wiseman@boltonstructures.com": "BV19 FHP" };
+      return all.map(([email, name, role]) => ({ name, email, bss: !ws(role) || role === "Workshop Director" ? !ws(role) : false, workshop: ws(role) || role === "Manager",
+        roles: [role], appAdmin: role === "Manager", manager: role === "Manager" || role === "Workshop Director" ? "No approver needed" : ws(role) ? "Paul Shaw" : "Liam Pilkington",
+        deputy: "", van: !!vans[email], vanReg: vans[email] || "", clocksIn: /Operative|Supervisor|Fabricator/.test(role) && role !== "Workshop Manager", notes: "" }));
+    },
     async seed() {
-      if (LS.get("demoSeeded", 0) === 8) return;
+      if (LS.get("demoSeeded", 0) === 9) return;
       await Data.clearAll();
       const now = new Date(), d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
       const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records");
@@ -440,6 +516,12 @@
       await put("forms", { id: uid(), templateId: "wscheck", templateTitle: "Workshop equipment check", status: "submitted", user: chris[0], userName: chris[1], jobFolder: "", jobNumber: "", createdAt: at(1, 7, 40).toISOString(), submittedAt: at(1, 7, 45).toISOString(),
         values: { checkDate: d(-1), equipType: "Forklift", equipRef: "Forklift 1", checks: { "Forks, carriage and chains undamaged": "No" }, checksActions: { "Forks, carriage and chains undamaged": "Chain stretched; hire company called" }, safe: "No", operator: chris[1] },
         flags: [{ text: "Forks, carriage and chains undamaged: No (action: Chain stretched; hire company called)" }, { text: "Safe to use?: No" }] });
+      // PPE requests (Liam, 22 Nov): Sam waiting, Lee's ordered, Tom (workshop) waiting
+      const ppe = (p, ago, items, reason, status, extra) => put("forms", Object.assign({ id: uid(), templateId: "ppe", templateTitle: "Request PPE", status, user: p[0], userName: p[1], jobFolder: "", jobNumber: "", noJob: false,
+        createdAt: at(ago, 7, 10).toISOString(), submittedAt: at(ago, 7, 12).toISOString(), values: { items, reason, safeNow: "Yes", details: "" } }, extra || {}));
+      await ppe(sam, 0, [{ item: "Safety boots", size: "10", qty: 1 }, { item: "Gloves", size: "L", qty: 2 }], "Worn out", "submitted");
+      await ppe(this.team[4], 2, [{ item: "Hi-vis jacket", size: "XL", qty: 1 }], "Damaged", "ordered", { decidedBy: "Liam Pilkington", decidedAt: at(1, 9, 0).toISOString(), decisionNote: "Due Wednesday" });
+      await ppe(this.wsTeam[1], 1, [{ item: "Welding gloves", size: "", qty: 1 }], "Worn out", "submitted");
       // competency cards: one expired, two expiring, one person with no CSCS on record
       const card = (p, type, number, category, off, verified) => put("cards", { id: uid(), user: p[0], userName: p[1], type, number, category, expiry: d(off), photos: [], status: verified ? "verified" : "current", decidedBy: verified ? "Liam Pilkington" : undefined, decidedAt: verified ? now.toISOString() : undefined, createdAt: now.toISOString() });
       await card(liam, "CSCS", "00412345", "Manager (black)", 400, true);
@@ -451,7 +533,7 @@
       await card(sam, "CSCS", "00377120", "Skilled worker (blue)", 520, true);
       await card(sam, "CPCS", "CP-118842", "A60 telehandler", 700, true);
       await card(mark, "Welder qualification (BS EN ISO 9606-1)", "WQ-0417", "135 P FW 1.1 S t10 PB ml", 90, true);
-      LS.set("demoSeeded", 8);
+      LS.set("demoSeeded", 9);
     }
   };
   // ---------------------------------------------------------------- UI helpers
@@ -661,8 +743,9 @@
   }
 
   window.IC = {
-    CFG, DEMO, LS, SAMPLES, can, roleOf, paidMs, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
-    Store, Src, Graph, Data, routes, route, status, setBar, sheet, ask, toast, shrinkImage, stampPhoto, fmtStamp, signaturePad, locate,
+    wide: () => window.matchMedia("(min-width: 1024px)").matches, // a computer screen: desktop-only screens (App admin)
+    CFG, DEMO, LS, SAMPLES, can, roleOf, rolesOf, roleKey, ROLE_LABEL, Settings, paidMs, $, esc, pad, fmtDate, fmtDay, fmtTime, fmtMoney, fmtHours, isoDate, parseDate, uid, sameDay, distanceM, fmtDistance,
+    Store, Src, Graph, Api, Data, routes, route, status, setBar, sheet, ask, toast, shrinkImage, stampPhoto, fmtStamp, signaturePad, locate,
     loadBankHolidays, isBankHoliday, isWorkingDay, workingDays, S, myJobs, myWeek, jobByFolder, viewableJobs, jobOptions, cranesOn, DEMO_TEAM: Demo.team
   };
 })();

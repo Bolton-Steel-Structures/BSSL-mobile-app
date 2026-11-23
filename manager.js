@@ -132,6 +132,8 @@
       '<div class="section-h">Waiting for you</div>' +
       link("#/leave/team", IC.ICON.leave, "Holiday requests", pendLeave.length ? pendLeave.map((r) => r.userName.split(" ")[0]).join(", ") : "None waiting · team calendar", pendLeave.length) +
       link("#/expenses/team", IC.ICON.money, "Expense claims", pendExp.length ? fmtMoney(pendExp.reduce((t, e) => t + e.amount, 0)) + " to approve" + (toPay.length ? " · " + fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "") : (toPay.length ? fmtMoney(toPay.reduce((t, e) => t + e.amount, 0)) + " approved, to pay" : "None waiting"), pendExp.length) +
+      link("#/hr", IC.ICON.hr, IC.can("hr-admin") ? "HR" : "Team HR", "Absence, documents, training, new starters") +
+      ((ppeW) => link("#/manager/ppe", IC.ICON.ppe, "PPE requests", ppeW.length ? ppeW.map((f) => (f.userName || "").split(" ")[0]).join(", ") : "None waiting", ppeW.length))(await IC.Manager.ppePending()) +
       (ws ? link("#/hours-team", IC.ICON.clock, "Workshop hours", "Clocked and booked, payroll sheet") : link("#/manager/time/-1", IC.ICON.clock, "Timesheets to approve", toApprove.length ? "Week of " + fmtDay(lastWs) + ": " + toApprove.map((p) => p.name.split(" ")[0]).join(", ") : "Last week all approved", toApprove.length)) +
       (ws ? "" : link("#/manager/plant", IC.ICON.check, "Plant checks", "Every machine on every job this week")) +
       (vc ? link("#/manager/vehicles", IC.ICON.check, "Vehicle checks", vc.today.length + " checked today" + (vc.missing.length ? " · " + vc.missing.length + " not done" : "") + (vc.defects.length ? " · " + vc.defects.length + " with a defect" : ""), vc.defects.length) : "") +
@@ -283,7 +285,42 @@
   }
 
   // for Home's to-do list: who's late in (empty before the check-in time or on a non-working day)
+  // ---------------------------------------------------------------- PPE requests (Liam, 22 Nov)
+  // Requests from the manager's team: waiting (submitted) first, then ordered and still to hand out. Mark one Ordered
+  // (optional note, e.g. when it's due), Issued, or Declined with a reason the person sees.
+  async function ppeAll() {
+    const ts = await Data.teamSet(), me = (Data.profile || {}).email;
+    return (await Data.list("forms", "team")).filter((f) => f.templateId === "ppe" && f.status !== "draft" && f.values && f.user !== me && ts.has(f.user))
+      .sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
+  }
+  const ppeItems = (f) => (f.values.items || []).filter((r) => r.item).map((r) => (r.qty && Number(r.qty) > 1 ? r.qty + " × " : "") + r.item + (r.size ? " (" + r.size + ")" : "")).join(", ");
+  async function viewPpe() {
+    setBar("PPE requests", "Your team", true);
+    const all = await ppeAll(), since = new Date(); since.setDate(since.getDate() - 30);
+    const waiting = all.filter((f) => f.status === "submitted"), ordered = all.filter((f) => f.status === "ordered");
+    const done = all.filter((f) => (f.status === "issued" || f.status === "declined") && new Date(f.decidedAt || 0) >= since);
+    const row = (f, btns) => '<div class="req"><div><b>' + esc(f.userName || f.user) + '</b><div class="small">' + esc(fmtDay(f.submittedAt) + " · " + (f.values.reason || "")) + "</div>" +
+      "<div>" + esc(ppeItems(f) || "No items listed") + "</div>" + (f.values.details ? '<div class="small">“' + esc(f.values.details) + "”</div>" : "") +
+      (f.values.safeNow === "No" ? '<div class="flag">Says they haven\'t got what they need to work safely today</div>' : "") +
+      (f.status !== "submitted" ? '<div class="small">' + esc(IC.ppeState(f)[0] + " by " + (f.decidedBy || "") + " · " + fmtDay(f.decidedAt)) + (f.decisionNote ? " · " + esc(f.decisionNote) : "") + "</div>" : "") +
+      '<a class="link small" href="#/form/' + esc(f.id) + '">Open request</a></div><div class="req-r">' + btns + "</div></div>";
+    $("main").innerHTML = '<div class="stats"><div><b>' + waiting.length + '</b><span>waiting</span></div><div><b>' + ordered.length + '</b><span>ordered, to hand out</span></div><div><b>' + done.length + "</b><span>dealt with (30 days)</span></div></div>" +
+      '<div class="section-h">Waiting for you</div>' + (waiting.length ? waiting.map((f) => row(f, '<button class="btn sm go" data-st="issued" data-id="' + f.id + '">Issued</button><button class="btn sm" data-st="ordered" data-id="' + f.id + '">Ordered</button><button class="btn sm" data-st="declined" data-id="' + f.id + '">Decline</button>')).join("") : '<div class="empty small">Nothing waiting.</div>') +
+      (ordered.length ? '<div class="section-h">Ordered, to hand out</div>' + ordered.map((f) => row(f, '<button class="btn sm go" data-st="issued" data-id="' + f.id + '">Issued</button>')).join("") : "") +
+      (done.length ? '<div class="section-h">Dealt with in the last 30 days</div>' + done.map((f) => row(f, '<span class="pill ' + IC.ppeState(f)[1] + '">' + esc(IC.ppeState(f)[0]) + "</span>")).join("") : "");
+    document.querySelectorAll("[data-st]").forEach((b) => (b.onclick = async () => {
+      const st = b.dataset.st, id = b.dataset.id;
+      if (st === "issued") { await Data.decide("forms", id, "issued"); toast("Marked as issued"); return IC.refreshView(); }
+      const sh = IC.sheet(st === "declined" ? '<h3>Decline request</h3><label class="fl">Reason (shown to them)<textarea id="why" rows="2"></textarea></label><button class="btn primary block" id="go">Decline</button><button class="btn block" id="x">Cancel</button>'
+        : '<h3>Mark as ordered</h3><label class="fl">Note for them (optional, e.g. when it\'s due)<textarea id="why" rows="2"></textarea></label><button class="btn primary block" id="go">Ordered</button><button class="btn block" id="x">Cancel</button>');
+      $("x").onclick = sh.close;
+      $("go").onclick = async () => { const why = $("why").value.trim(); if (st === "declined" && !why) { toast("Give a reason"); return; }
+        await Data.decide("forms", id, st, why); sh.close(); toast(st === "declined" ? "Declined" : "Marked as ordered"); IC.refreshView(); };
+    }));
+  }
+
   IC.Manager = {
+    async ppePending() { return (await ppeAll()).filter((f) => f.status === "submitted"); },
     async lateCheckIns() { const r = roll(await load()); const list = r.late ? r.missing : []; list.by = hhmm(r.by); return list; },
     // for Home's to-do list, beside the check-in alert: vehicles with a defect today, and (after the check-in time) checks not done
     async vehicleAlerts() { const d = await load(), r = roll(d), v = await vehicleToday(d); return { defects: v.defects, missing: r.late ? v.missing : [] }; }
@@ -319,6 +356,7 @@
     if (args[0] === "plant") return viewPlant();
     if (args[0] === "equipment") return viewEquipment();
     if (args[0] === "vehicles") return viewVehicles();
+    if (args[0] === "ppe") return viewPpe();
     if (args[0] === "person" && args[1]) return viewPerson(decodeURIComponent(args[1]), Number(args[2] || 0));
     return dashboard();
   });

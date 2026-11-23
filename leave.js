@@ -112,5 +112,5 @@
     }));
   }
 
-  IC.Leave = { summary, pendingForManager: async () => { const ts = await Data.teamSet(); return (await Data.list("leave", "team")).filter((r) => r.status === "pending" && r.user !== Data.profile.email && ts.has(r.user)).length; } };
+  IC.Leave = { summary, leaveYear, daysOf, pendingForManager: async () => { const ts = await Data.teamSet(); return (await Data.list("leave", "team")).filter((r) => r.status === "pending" && r.user !== Data.profile.email && ts.has(r.user)).length; } };
 })();

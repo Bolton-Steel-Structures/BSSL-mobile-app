@@ -10,6 +10,8 @@
   const D = { viewed: LS.get("viewed", {}), offlineJobs: LS.get("offlineJobs", []), saved: new Set(), loading: false };
 
   const ICON = {
+    hr: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 16.5c.8-1.8 2-2.5 3.5-2.5s2.7.7 3.5 2.5"/><path d="M14 10h4M14 13h3"/></svg>',
+    ppe: '<svg viewBox="0 0 24 24"><path d="M3 18h18"/><path d="M5 18v-2a7 7 0 0 1 14 0v2"/><path d="M10 9V6h4v3"/></svg>',
     file: '<svg viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6z"/><path d="M14 2v5h5M9 13h7M9 17h7"/></svg>',
     hs: '<svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>',
     check: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg>',
@@ -84,43 +86,71 @@
       $("main").innerHTML = '<div class="empty"><b>Your role isn\u2019t set up in the app yet</b><br>Your account says \u201c' + esc(p.role || "no role") + '\u201d. Ask the office to set your role, then sign in again.</div>';
       return;
     }
-    setBar((h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening") + ", " + String(p.name || S.user.name).split(" ")[0], fmtDay(new Date()), false);
+    // Home (Liam, 23 Nov): everyone has the app now, so one Home for all: a shared top (greeting and today, Needs you,
+    // notices, Me) and a role-specific "My work" below. Directors switch Site | Workshop inside My work.
+    setBar("Bolton Steel Structures", "", false);
+    if (IC.HR && !LS.get("welcomed:" + p.email, false) && !can("screens")) { location.replace("#/welcome"); return; }
+    const first = String(p.name || S.user.name).split(" ")[0];
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
+    const hrc = await IC.HR.homeCounts(); // documents to sign; new starters ready (HR admins)
+    // my latest PPE request, for the tile (Liam, 22 Nov)
+    const myPpe = can("form:ppe") ? (await Data.list("forms")).filter((f) => f.templateId === "ppe" && f.status !== "draft" && f.user === p.email).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0] : null;
+    const ppeSub = !myPpe ? "New or replacement" : myPpe.status === "submitted" ? "Waiting for a manager" : IC.ppeState(myPpe)[0] + " · " + IC.fmtDay(myPpe.decidedAt || myPpe.submittedAt);
     const vehDone = (await Data.list("forms")).some((f) => f.templateId === "vehicle" && f.status !== "draft" && f.user === p.email && f.values && IC.sameDay(IC.plantCheckDay(f), new Date()));
     const anyForm = IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
-    // Directors (both sides): Site | Workshop switch at the top of Home (Liam, 21 Nov); the choice is remembered
     const both = can("workshop") && can("drawings"), side = both ? LS.get("homeSide", "site") : "site";
-    const sw = both ? '<div class="seg home-side"><button type="button" data-side="site" class="' + (side === "site" ? "on" : "") + '">Site</button><button type="button" data-side="workshop" class="' + (side === "workshop" ? "on" : "") + '">Workshop</button></div>' : "";
+    const wsStaff = can("workshop") && !can("drawings"), siteStaff = can("drawings");
     const wire = () => document.querySelectorAll("[data-side]").forEach((b) => (b.onclick = () => { LS.set("homeSide", b.dataset.side); viewHome(); }));
-    if (side === "workshop") {
-      // Workshop side for directors: its own tiles, then the fabrication status (Liam, 21 Nov)
-      $("main").innerHTML = sw + '<div class="tiles">' +
-        tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
-        tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") +
-        tile("board", "#/board", ICON.team, "Wall board", "Open on a TV screen") +
-        tile("form:wscheck", "#/form-new/wscheck", ICON.check, "Equipment checks", "Overhead crane, forklift") + "</div>" +
-        (await IC.Workshop.dashboardHtml());
-      wire(); return;
-    }
-    $("main").innerHTML = sw + (can("time") ? '<div class="card" id="timeCard"></div>' : "") + '<div id="myweek"></div>' + '<div id="todo"></div>' +
-      '<div class="tiles">' +
-      tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
-      tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
+
+    // today, in one line
+    const todayIso = IC.isoDate(new Date());
+    const onLeave = can("leave") && (await Data.list("leave")).find((r) => r.status === "approved" && r.from <= todayIso && (r.to || r.from) >= todayIso);
+    const alloc = siteStaff && can("time") ? myWeek().find((a) => a.date === todayIso) : null;
+    const allocJob = alloc && !alloc.off ? jobByFolder(alloc.folder) : null;
+    const todayLine = onLeave ? "On holiday today. Enjoy it."
+      : !IC.isWorkingDay(new Date()) ? (IC.isBankHoliday(todayIso) ? "Bank holiday." : "Weekend.")
+      : alloc ? (alloc.off ? "Off today on the planner." : "Today: " + (alloc.jobNumber || "") + (alloc.site ? " · " + alloc.site : "") + (allocJob && allocJob.startTime ? " · start " + allocJob.startTime : ""))
+      : wsStaff ? (can("ws-hours") ? "In the workshop today." : "Workshop") : siteStaff ? (can("time") ? "Not on the planner today." : "") : "In the office today.";
+    const leaveLeft = can("leave") ? (await IC.Leave.summary()).left : null;
+
+    const hello = '<div class="hello"><div class="hello-h">' + (h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening") + ", " + esc(first) + '</div><div class="hello-d">' + esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })) + "</div>" +
+      (todayLine ? '<div class="hello-t">' + esc(todayLine) + "</div>" : "") + (can("time") && !onLeave ? '<div id="timeCard"></div>' : "") + "</div>";
+
+    const me = '<div class="section-h">Me</div><div class="tiles">' +
+      tile("leave", "#/leave", ICON.leave, "Holidays", leaveLeft != null ? leaveLeft + " day" + (leaveLeft === 1 ? "" : "s") + " left" : "Request and calendar") +
+      tile("hr", "#/hr/me", ICON.hr, "My HR", hrc.sign ? hrc.sign + " document" + (hrc.sign > 1 ? "s" : "") + " to sign" : "Details and documents") +
+      tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
+      (wsStaff ? tile("cards", "#/cards", ICON.card, "Weld certificates", "Qualifications, WPS") : tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …")) +
+      tile("form:ppe", "#/form-new/ppe", ICON.ppe, "Request PPE", ppeSub) +
+      (can("manager") ? "" : tile("form:vehicle", "#/form-new/vehicle", '<img class="tile-photo" src="icons/bss-van-thumb.jpg" alt="">', "Vehicle check", vehDone ? "Done today" : "Before driving")) +
+      (wsStaff ? tile("ws-hours", "#/hours", ICON.clock, "My hours", "Book hours to jobs") : tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week")) + "</div>";
+
+    // My work: by role
+    const mgmt = tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
+      tile("hr-admin", "#/hr", ICON.hr, "HR", hrc.ready ? hrc.ready + " new starter" + (hrc.ready > 1 ? "s" : "") + " ready" : "People, documents, starters") +
+      (IC.wide() ? tile("app-admin", "#/admin", ICON.check, "App admin", "Roles, people, permissions") : ""); // computer screens only (Liam, 23 Nov)
+    const siteWork = tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
       (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:powra") || can("form:toolbox") ? "Safety" : can("form:wscheck") ? "Checks" : "NCR") + "</b><span>" + (!can("form:powra") && !can("form:toolbox") ? (can("form:wscheck") ? "Crane and forklift checks, NCR" : "Report a non-conformance") : can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
-      // workshop tiles: on the Workshop side for directors, on Home for workshop staff
-      (both ? "" : tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
-        (can("ws-hours") ? tile("ws-hours", "#/hours", ICON.clock, "My hours", "Book hours to jobs") : can("ws-hours-team") ? tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") : "")) +
-      (can("manager") ? "" : tile("form:vehicle", "#/form-new/vehicle", '<img class="tile-photo" src="icons/bss-van-thumb.jpg" alt="">', "Vehicle check", vehDone ? "Done today" : "Daily walk-round, before driving")) +
-      tile("leave", "#/leave", ICON.leave, "Holidays", "Request and calendar") +
-      tile("expenses", "#/expenses", ICON.money, "Expenses", "Claims and receipts") +
-      (can("ws-hours") ? "" : tile("time", "#/time", ICON.clock, "Timesheet", "Hours this week")) +
-      tile("week", "#/week", ICON.jobs, "This week", can("team-week") ? "Me and the team" : can("crew") ? "My sites and who's with me" : "Where I'm working") +
-      (can("workshop") && !can("drawings") ? tile("cards", "#/cards", ICON.card, "Weld certificates", "Welder qualifications, WPS") : tile("cards", "#/cards", ICON.card, "My cards", "CSCS, IPAF, PASMA …")) + "</div>";
+      tile("week", "#/week", ICON.jobs, "This week", can("team-week") ? "Me and the team" : can("crew") ? "My sites and who's with me" : "Where I'm working");
+    const wsWork = tile("workshop", "#/workshop", ICON.jobs, "Workshop", "Fabrication status by job") +
+      tile("ws-hours-team", "#/hours-team", ICON.clock, "Workshop hours", "Team hours, payroll sheet") +
+      tile("board", "#/board", ICON.team, "Wall board", "Open on a TV screen") +
+      tile("form:wscheck", "#/form-new/wscheck", ICON.check, "Equipment checks", "Overhead crane, forklift") +
+      (wsStaff && anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>NCR</b><span>Report a non-conformance</span></a>" : "");
+    const area = both ? "" : siteStaff ? "Site" : wsStaff ? "Workshop" : "Office";
+    const workTiles = both ? (side === "workshop" ? mgmt + wsWork : mgmt + siteWork) : siteStaff ? mgmt + siteWork : wsStaff ? mgmt + wsWork : mgmt;
+    const work = (workTiles || both ? '<div class="section-h">My work' + (area ? ": " + area.toLowerCase() : "") + "</div>" : "") +
+      (both ? '<div class="seg home-side"><button type="button" data-side="site" class="' + (side === "site" ? "on" : "") + '">Site</button><button type="button" data-side="workshop" class="' + (side === "workshop" ? "on" : "") + '">Workshop</button></div>' : "") +
+      (workTiles ? '<div class="tiles">' + workTiles + "</div>" : "") + '<div id="myweek"></div>' + '<div id="wsdash"></div>';
+
+    $("main").innerHTML = '<div class="home-grid"><div class="home-a">' + hello + '<div id="todo"></div>' + '<div id="notices"></div></div><div class="home-b">' + me + work + "</div></div>";
     if ($("timeCard")) IC.Time.card($("timeCard"));
+    IC.Notices.homeHtml().then((x) => { if ($("notices")) { $("notices").innerHTML = x; IC.Notices.markSeen(); } });
+    if (both && side === "workshop" && $("wsdash")) $("wsdash").innerHTML = await IC.Workshop.dashboardHtml();
     // My week: where the labour planner has me for the next 7 days (W2)
     const in6 = new Date(); in6.setDate(in6.getDate() + 6); const week = can("time") ? myWeek().filter((a) => a.date <= IC.isoDate(in6)) : [];
-    if (week.length && $("myweek")) {
+    if (week.length && $("myweek") && side === "site") {
       $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Details ›</a></div>' + week.map((a) => {
         const d = IC.parseDate(a.date), isToday = a.date === IC.isoDate(new Date()), job = jobByFolder(a.folder);
         if (a.off) return '<div class="todo info"><span class="ti">' + ICON.leave + "</span><span><b>" + (isToday ? "Today" : esc(fmtDay(d))) + ': Off</b><span class="small">On the planner as off</span></span></div>';
@@ -129,6 +159,9 @@
     }
     // things to do
     const todo = [];
+    // HR (23 Nov): documents to read and sign; new starters ready to set up (HR admins)
+    if (hrc.sign) todo.push('<a class="todo" href="#/hr/me"><span class="ti">' + ICON.hr + "</span><span><b>" + hrc.sign + " document" + (hrc.sign > 1 ? "s" : "") + ' to read and sign</b><span class="small">My HR</span></span>›</a>');
+    if (hrc.ready) todo.push('<a class="todo" href="#/hr/people/starting"><span class="ti">' + ICON.hr + "</span><span><b>" + hrc.ready + " new starter" + (hrc.ready > 1 ? "s" : "") + ' ready to set up</b><span class="small">Onboarding form done; set up their app account</span></span>›</a>');
     // RAMS to sign: only for the site you're on today (Liam, 20 Nov: people can be reallocated before later days), i.e.
     // today's planner allocation and the job you're checked in at
     const todaySites = await sitesToday();
@@ -174,10 +207,12 @@
         if (va.missing.length) todo.push('<a class="todo alert-row" href="#/manager/vehicles"><span class="ti">' + ICON.check + "</span><span><b>" + va.missing.length + " vehicle check" + (va.missing.length > 1 ? "s" : "") + ' not done today</b><span class="small">' + esc(va.missing.map((x) => x.name).join(", ")) + "</span></span>›</a>");
       }
       if (late.length) todo.push('<a class="todo alert-row" href="#/manager/live"><span class="ti">' + ICON.clock + "</span><span><b>" + late.length + " not checked in by " + esc(late.by) + '</b><span class="small">' + esc(late.map((x) => x.p.name).join(", ")) + "</span></span>›</a>");
+      const ppe = await IC.Manager.ppePending();
+      if (ppe.length) todo.push('<a class="todo" href="#/manager/ppe"><span class="ti safety">' + ICON.ppe + "</span><span><b>" + ppe.length + " PPE request" + (ppe.length > 1 ? "s" : "") + ' to review</b><span class="small">' + esc(ppe.map((f) => (f.userName || "").split(" ")[0]).join(", ")) + "</span></span>›</a>");
       if (e) todo.push('<a class="todo" href="#/expenses/team"><span class="ti">' + ICON.money + "</span><span><b>" + e + " expense claim" + (e > 1 ? "s" : "") + ' to approve</b></span>›</a>');
     }
     if (Data.pending) todo.push('<div class="todo info"><span class="ti">' + ICON.clock + "</span><span><b>" + Data.pending + ' item(s) waiting to send</b><span class="small">They\'ll go when you have signal</span></span></div>');
-    if ($("todo")) $("todo").innerHTML = todo.length ? '<div class="section-h">To do</div>' + todo.join("") : "";
+    if ($("todo")) $("todo").innerHTML = '<div class="section-h">Needs you</div>' + (todo.length ? todo.join("") : '<div class="todo info all-clear"><span class="ti">' + ICON.check + '</span><span><b>Nothing needs you right now</b><span class="small">Anything waiting on you shows here</span></span></div>');
   }
 
   // ---------------------------------------------------------------- jobs and drawings
@@ -438,11 +473,13 @@
     const sh = sheet("<h3>" + esc(p.name || S.user.name) + "</h3><p>" + esc(S.user.emails[0]) + " · " + esc(roleOf(p) || "No role set up in the app") + "</p>" +
 
       (p.isManager ? '<a class="btn block" href="#/manager" id="sMgrTools">Manager tools</a>' : "") +
+      '<a class="btn block" href="#/welcome" id="sWelcome">Welcome page</a>' + (IC.Notices.canPost() ? '<a class="btn block" href="#/notices/new" id="sNotice">Post a notice</a>' : "") +
       '<button class="btn block" id="sCheck">Check for updates</button>' + (DEMO ? '<button class="btn block" id="sReset">Demo: reset sample data</button>' : "") +
       '<button class="btn block" id="sOut">' + (DEMO ? "Switch sample login" : "Sign out") + "</button>" + '<button class="btn block" id="sClose">Close</button>');
     $("sCheck").onclick = () => { sh.close(); refresh(); };
     $("sClose").onclick = sh.close;
     if ($("sMgrTools")) $("sMgrTools").onclick = () => sh.close();
+    ["sWelcome", "sNotice"].forEach((id) => { if ($(id)) $(id).onclick = () => sh.close(); });
     if ($("sReset")) $("sReset").onclick = async () => { LS.set("demoSeeded", 0); await Data.loadProfile(S.user); sh.close(); toast("Sample data reset"); route(); };
     $("sOut").onclick = async () => {
       if (Data.pending && !(await IC.ask(Data.pending + " item(s) haven't been sent yet and will be lost. Sign out anyway?", "Sign out"))) return;
@@ -451,13 +488,22 @@
     };
   }
 
-  const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new"], ""], ["workshop", "Workshop", ICON.jobs, ["workshop"], "workshop-nav"], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
-    ["leave", "Holidays", ICON.leave, ["leave", "leave-new"], "leave"], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"], "expenses"]];
+  // Bottom bar on phones; on a computer screen (1024 px and wider) it becomes a side bar, with extra desktop-only entries
+  // (the 6th item, true) for the screens office staff use most (Liam, 23 Nov: open it as a proper website).
+  const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new", "hr", "notices", "welcome"], ""],
+    ["hr/me", "My HR", ICON.hr, [], "hr", true], ["notices", "Notices", ICON.forms, [], "", true],
+    ["workshop", "Workshop", ICON.jobs, ["workshop"], "workshop-nav"], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
+    ["leave", "Holidays", ICON.leave, ["leave", "leave-new"], "leave"], ["expenses", "Expenses", ICON.money, ["expenses", "expense", "expense-new"], "expenses"],
+    ["manager", "Manager tools", ICON.team, [], "manager", true], ["hr", "HR", ICON.team, [], "hr-team", true], ["admin", "App admin", ICON.check, [], "app-admin", true]];
   const anyForm = () => IC.Forms.templates.some((t) => t.id !== "rams" && !t.retired && !t.internal && can("form:" + t.id));
-  const allowed = (f) => !f || (f === "forms" ? anyForm() : f === "workshop-nav" ? can("workshop") && !can("drawings") : can(f));
+  const allowed = (f) => !f || (f === "forms" ? anyForm() : f === "workshop-nav" ? can("workshop") && !can("drawings") : f === "hr-team" ? can("hr-admin") || can("manager") : can(f));
   function drawNav(name) {
     $("nav").hidden = false;
-    $("nav").innerHTML = NAV.filter((n) => allowed(n[4])).map(([h, t, ic, names]) => '<a href="#/' + h + '" class="' + (names.includes(name) ? "on" : "") + '">' + ic + "<span>" + t + "</span></a>").join("");
+    // desktop-only entries light up by the longest matching address (#/hr/me is My HR, #/hr/... is HR); then Home is not lit
+    const hash = location.hash.replace(/^#\/?/, ""), list = NAV.filter((n) => allowed(n[4]));
+    const desk = list.filter((n) => n[5] && (hash === n[0] || hash.startsWith(n[0] + "/"))).sort((a, b) => b[0].length - a[0].length)[0];
+    $("nav").innerHTML = '<div class="nav-brand desk-only"><img src="icons/bss-logo.jpg" alt="Bolton Steel Structures Ltd"></div>' +
+      list.map(([h, t, ic, names, , d]) => '<a href="#/' + h + '" class="' + [d ? "desk-only" : "", (d ? desk && desk[0] === h : !desk && names.includes(name)) ? "on" : ""].filter(Boolean).join(" ") + '">' + ic + "<span>" + t + "</span></a>").join("");
   }
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
@@ -480,6 +526,8 @@
     if (name === "time") return can("time");
     if (["cards", "card-new"].includes(name)) return can("cards");
     if (name === "manager") return can("manager");
+    if (name === "hr") return can("hr");
+    if (name === "admin") return can("app-admin");
     if (name === "week") return can("week");
     if (name === "model") return can("model");
     return true;
@@ -487,8 +535,10 @@
 
   function route() {
     closeViewer(); window.scrollTo(0, 0); $("main").scrollTop = 0; // the page itself never scrolls: only main does (see app.css, app shell)
-    if (!S.user) { viewSignIn(); return; }
     const parts = location.hash.replace(/^#\/?/, "").split("/"), name = parts[0] || "", args = parts.slice(1);
+    // new-starter onboarding link: works without signing in (HR, 23 Nov)
+    if (name === "join") { $("sheet").hidden = true; IC.HR.join(args).catch((e) => { console.error(e); $("main").innerHTML = '<div class="empty">Something went wrong: ' + esc(e.message) + "</div>"; }); return; }
+    if (!S.user) { viewSignIn(); return; }
     drawNav(name);
     $("sheet").hidden = true;
     if (!permitted(name, args)) { toast("That isn't part of your role in the app"); location.hash = "#/"; return; }
