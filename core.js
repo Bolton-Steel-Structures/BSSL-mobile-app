@@ -198,7 +198,7 @@
     // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    // Workshop Director (Liam, 23 Nov): a director of the workshop company only (e.g. Dave Williams). Sees the workshop and its
+    // Workshop Director (Liam, 23 Nov): a director of the workshop company only. Sees the workshop and its
     // staff like the Workshop Manager, and nothing of BSS: no site jobs, drawings, planner or BSS staff.
     "Workshop Director": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "hr-workshop", "cards", "form:wscheck", "form:ppe", "form:ncr"],
     "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
