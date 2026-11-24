@@ -458,11 +458,51 @@
       const all = SAMPLES.filter((x) => x.role !== "Screens").map((x) => [x.email, x.name, x.role]).concat(this.team.slice(2), this.wsTeam.filter((t) => !SAMPLES.some((x) => x.email === t[0])));
       const vans = { "sam.carter@example.com": "BX21 KLM", "jordan.lee@example.com": "BV19 FHP" };
       return all.map(([email, name, role]) => ({ name, email, bss: !ws(role) || role === "Workshop Director" ? !ws(role) : false, workshop: ws(role) || role === "Manager",
-        roles: [role], appAdmin: role === "Manager", manager: role === "Manager" || role === "Workshop Director" ? "No approver needed" : ws(role) ? "Paul Shaw" : "Alex Morgan",
+        roles: role === "Fabricator/Welder" ? [role, "Equipment Checker"] : [role], appAdmin: role === "Manager", manager: role === "Manager" || role === "Workshop Director" ? "No approver needed" : ws(role) ? "Paul Shaw" : "Alex Morgan",
         deputy: "", van: !!vans[email], vanReg: vans[email] || "", clocksIn: /Operative|Supervisor|Fabricator/.test(role) && role !== "Workshop Manager", notes: "" }));
     },
+    // welding sets, certificates, checks, activities, pauses (24 Nov): added once, on top of the main demo data.
+    // Fictional serial and certificate numbers; set makes and models as BSS's own; readings as a real certificate.
+    async seedWorkshop() {
+      if (LS.get("demoSeededWs", 0) === 1) return;
+      const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records"), now = new Date();
+      const d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
+      const at = (back, h, m) => { const x = new Date(now); x.setDate(x.getDate() - back); x.setHours(h, m, 0, 0); return x; };
+      const [chris, tom] = this.wsTeam, jake = ["j.hughes@example.com", "Jake Hughes"], ravi = ["r.patel@example.com", "Ravi Patel"];
+      const sets = [["1", "Tec Arc", "Kaymig 400"], ["2", "Tec Arc", "Kaymig 400S", tom], ["3", "Tec Arc", "SWF 400 S"], ["4", "Tec Arc", "TS-Mig 423 HD", jake], ["5", "Tec Arc", "TS-Mig 363HD", chris], ["6", "Tec Arc", "403 HD"],
+        ["7", "Tec Arc", "SWF 400 S"], ["8", "Tec Arc", "SWF 400", ravi], ["9", "Tec Arc", "SWF 400"], ["10", "Tec Arc", "363 HD"], ["11", "Oerlikon", "Citoline 4500 TS"], ["12", "Stealth", "Digi-Mig 400F SYN"], ["13", "Oerlikon", "Citoline 4500 TS"],
+        ["14", "Tec Arc", "403 HD"], ["15", "Oerlikon", "Citoline 4500 TS"], ["16", "Tec Arc", "363 HD"], ["20", "Jasic", "Mig 250F"], ["21", "Stealth", "Digi-Mig 400F"], ["22", "Stealth", "Digi-Mig 400F SYN"], ["23", "Stealth", "Digi-Mig 400F SYN"], ["WC1", "Stealth", "Digi-Mig 400F SYN"], ["WC2", "Stealth", "Digi-Mig 400F SYN"]];
+      const pts = [[100, 19, 97, 19.4, 99, 19.4, 2, 0, "PASS"], [150, 21.5, 156, 22, 155, 22.4, -1, 0.3, "PASS"], [200, 24, 215, 24.2, 210, 23.9, -5, -0.4, "PASS"], [250, 26.5, 255, 26.7, 259, 27, 4, 0.3, "PASS"], [300, 29, 307, 28.6, 309, 28.3, 2, -0.4, "PASS"]];
+      let n = 100;
+      for (const [set, make, model, who] of sets) {
+        await put("weldset", { id: "set-" + set, set, make, model, serial: "DEMO-" + String(4000 + n), process: "MIG", assignedTo: who ? who[0] : "", assignedName: who ? who[1] : "", status: who ? "In use" : "Spare", createdAt: now.toISOString() });
+        const wire = ["21", "23", "WC1"].includes(set), due = set === "8" ? d(20) : set === "3" ? d(-12) : "2027-09-01", cal = set === "3" ? d(-377) : set === "8" ? d(-345) : "2026-09-02";
+        await put("weldcert", { id: "cert-" + set, set, kind: wire ? "Wire speed" : "Calibration", certNo: "DEMO-K" + (11000 + n), make, model, process: "MIG", calibrated: cal, due, status: "PASS", by: "Calibration company (sample)", standard: "IEC 60974-14",
+          cols: wire ? ["Set (m/min)", "Reading (m/min)", "Error", "Result"] : ["Set A", "Set V", "Machine A", "Machine V", "Meter A", "Meter V", "Error A", "Error V", "Result"], points: wire ? [[5, 4.9, -0.1, "PASS"], [10, 9.6, -0.5, "PASS"], [15, 14.6, -0.5, "PASS"], [20, 18.7, -1.4, "PASS"]] : pts, fileName: "", createdAt: now.toISOString() });
+        n++;
+      }
+      // this week's Monday check: Chris and Jake done (Jake's flow low); Tom's still to do
+      const mon = new Date(now); mon.setHours(7, 40, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7)); const wk = isoDate(mon);
+      await put("weldcheck", { id: uid(), weekOf: wk, set: "5", wps: "2", role: "W", weldType: "FW", amps: 280, volts: 31.5, gasOk: true, gas: "Ar + 13% CO2 + 1.5% O2", flow: 17, inRange: { a: true, v: true, f: true }, ok: true, certNo: "DEMO-K11104", person: chris[0], personName: chris[1], user: chris[0], userName: chris[1], createdAt: mon.toISOString() });
+      await put("weldcheck", { id: uid(), weekOf: wk, set: "4", wps: "2", role: "F", weldType: "FW", amps: 262, volts: 30.4, gasOk: true, gas: "Ar + 13% CO2 + 1.5% O2", flow: 12, inRange: { a: true, v: true, f: false }, ok: false, certNo: "DEMO-K11103", person: jake[0], personName: jake[1], user: jake[0], userName: jake[1], createdAt: mon.toISOString() });
+      // equipment checks: the Geka and compressor this week, the pillar drill last week
+      const eq = (who, back, type, ok, defect) => put("forms", { id: uid(), templateId: "wscheck", templateTitle: "Workshop equipment check", status: "submitted", user: who[0], userName: who[1], jobFolder: "", jobNumber: "", noJob: true, createdAt: at(back, 7, 35).toISOString(), submittedAt: at(back, 7, 40).toISOString(),
+        values: { checkDate: d(-back), equipType: type, equipRef: "", checks: defect ? { [defect]: "No" } : {}, safe: ok ? "Yes" : "No", operator: who[1] }, flags: defect ? [{ text: defect + ": No" }] : [] });
+      await eq(tom, 0, "Geka Metalworker", true); await eq(tom, 1, "Compressor", true, "Air receiver drained of water"); await eq(chris, 8, "Pillar Drill", true); await eq(tom, 0, "Overhead crane – daily basic", true); await eq(chris, 1, "Overhead crane – weekly detailed", true);
+      // hours by activity over the last week, and allocated hours on the two workshop jobs (manifest)
+      const acts = [["W1208-001", "Fabricating", 4], ["W1208-001", "Welding", 3], ["W1208-001", "Sorting fittings", 1], ["W1209-001", "Unloading wagon", 1.5], ["W1209-001", "Prep works (drilling / sawing)", 2], ["W1208-001", "Painting", 1], ["W1209-001", "Loading", 1]];
+      for (let back = 1; back <= 5; back++) for (const who of [chris, tom]) for (const [wno, activity, h] of acts.filter((_, i) => (i + back + (who === tom ? 1 : 0)) % 2 === 0))
+        await put("wshours", { id: uid(), date: d(-back), wno, activity, hours: h, note: "", person: who[0], personName: who[1], bookedBy: who[0], bookedByName: who[1], status: "booked", user: who[0], userName: who[1], createdAt: at(back, 16, 0).toISOString() });
+      // a piece timed with a pause for missing materials
+      const fw = (back, h, m, action, extra) => put("fabwork", Object.assign({ id: uid(), wno: "W1208-001", mark: "B101", line: "B101", piece: 1, pieceName: "B101/1", stage: "fabricated", action, user: chris[0], userName: chris[1], createdAt: at(back, h, m).toISOString() }, extra || {}));
+      await fw(1, 8, 0, "start"); await fw(1, 9, 10, "pause", { reason: "Missing materials", note: "end plates for B101 not delivered" }); await fw(1, 11, 0, "start"); await fw(1, 12, 15, "stop");
+      LS.set("demoSeededWs", 1);
+      // phones already set up before the Equipment checker role: give Tom it
+      const s = await Store.get("settings:app", "records");
+      if (s && s.rec && s.rec.people) { const p = s.rec.people.find((x) => x.email === tom[0]); if (p && !(p.roles || []).includes("Equipment Checker")) { p.roles = (p.roles || []).concat(["Equipment Checker"]); await Store.put(s, "records"); } }
+    },
     async seed() {
-      if (LS.get("demoSeeded", 0) === 9) return;
+      if (LS.get("demoSeeded", 0) === 9) return this.seedWorkshop();
       await Data.clearAll();
       const now = new Date(), d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
       const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records");
@@ -532,6 +572,7 @@
       await card(sam, "CPCS", "CP-118842", "A60 telehandler", 700, true);
       await card(mark, "Welder qualification (BS EN ISO 9606-1)", "WQ-0417", "135 P FW 1.1 S t10 PB ml", 90, true);
       LS.set("demoSeeded", 9);
+      LS.del("demoSeededWs"); await this.seedWorkshop();
     }
   };
   // ---------------------------------------------------------------- UI helpers

@@ -184,6 +184,8 @@
       }
     }
     // workshop loads that are checked and loaded (managers): dispatch them on Goods Out once collected
+    // welding set Monday check, calibration, sets outside the WPS, equipment checks due / unsafe (24 Nov)
+    for (const t of await IC.Welding.todos()) todo.push('<a class="todo' + (t.alert ? " alert-row" : "") + '" href="' + t.href + '"><span class="ti safety">' + ICON.check + "</span><span><b>" + esc(t.title) + '</b><span class="small">' + esc(t.sub) + "</span></span>›</a>");
     if (can("fab-ready")) for (const w of await IC.Workshop.readyTodos())
       todo.push('<a class="todo" href="#/workshop/' + encodeURIComponent(w.wno) + '"><span class="ti">' + ICON.check + "</span><span><b>" + esc(w.wno) + ' is ready for dispatch</b><span class="small">' + esc([w.site, w.phase].filter(Boolean).join(" · ")) + " · checked and loaded</span></span>›</a>");
     wire();
@@ -525,11 +527,16 @@
     if (name === "workshop") return can("workshop");
     if (name === "hours") return can("ws-hours") || can("ws-hours-team");
     if (name === "hours-team") return can("ws-hours-team");
+    if (name === "weld") return can("weld") || can("weld-admin");
+    if (name === "weld-cert") return can("weld") || can("weld-admin");
+    if (name === "weld-check") return can("weld");
+    if (name === "equip") return can("equip-review") || can("equip-check");
+    if (name === "ws-perf") return can("ws-performance");
     if (name === "view") return can("drawings") || can("workshop");
     if (["jobs", "job", "project"].includes(name)) return can("drawings");
     if (["qa", "snag", "register"].includes(name)) return can("qa");
     if (name === "forms") return anyForm();
-    if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]) && (args[0] !== "wscheck" || can("workshop"));
+    if (name === "form-new") return args[0] === "rams" ? can("rams") : can("form:" + args[0]) && (args[0] !== "wscheck" || can("workshop") || can("equip-check"));
     if (name === "toolbox") return can("form:toolbox");
     if (name === "plant") return can("form:plant");
     if (["leave", "leave-new"].includes(name)) return can("leave");

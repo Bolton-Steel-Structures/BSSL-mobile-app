@@ -502,7 +502,8 @@
      "kg": 12,
      "finish": "Galv"
     }
-   ]
+   ],
+   "allocatedHours": 120
   },
   {
    "wno": "W1209-001",
@@ -554,7 +555,8 @@
      "kg": 8,
      "finish": "Primed"
     }
-   ]
+   ],
+   "allocatedHours": 60
   }
  ]
 }

@@ -72,20 +72,27 @@
     P.forEach((p) => { p.next = (STAGES.find(([s]) => !p.at[s]) || [null])[0]; p.started = !!p.at.fabricated; });
     return P;
   }
-  // Work sessions on pieces: open ones (started, not stopped) and time per piece and stage, in ms
+  // Work sessions on pieces: open ones (started, not stopped), paused ones (24 Nov: pause with a reason, then resume),
+  // time per piece and stage, and the time lost while paused, by reason. A pause left overnight counts to the end of that day.
+  const PAUSE = ["Break time", "Missing materials", "Change of job", "Other"];
   function workOf(job, wlog) {
-    const recs = wlog.filter((r) => r.wno === job.wno).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
-    const open = {}, ms = {}; // open[user] = start record; ms[line|piece][stage] = ms
+    const recs = wlog.filter((r) => !job || r.wno === job.wno).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const open = {}, paused = {}, ms = {}, lost = [];
+    const endOfDay = (at) => { const d = new Date(at); d.setHours(17, 0, 0, 0); return Math.max(d.getTime(), new Date(at).getTime()); };
+    const closePause = (u, at) => { const p = paused[u]; if (!p) return; const end = at ? new Date(at).getTime() : IC.sameDay(p.createdAt, new Date()) ? Date.now() : endOfDay(p.createdAt); lost.push({ wno: p.wno, user: u, userName: p.userName, reason: p.reason || "Other", note: p.note || "", ms: Math.max(0, end - new Date(p.createdAt)), at: p.createdAt, piece: p.pieceName || p.mark }); delete paused[u]; };
     recs.forEach((r) => {
-      const k = r.line + "|" + r.piece, cur = open[r.user];
-      if (cur && (r.action === "start" || (cur.line === r.line && cur.piece === r.piece))) {
-        const kk = cur.line + "|" + cur.piece; ms[kk] = ms[kk] || {}; ms[kk][cur.stage] = (ms[kk][cur.stage] || 0) + Math.max(0, new Date(r.createdAt) - new Date(cur.createdAt));
+      const cur = open[r.user];
+      if (cur && (r.action === "start" || (cur.line === r.line && cur.piece === r.piece && cur.wno === r.wno))) {
+        const kk = cur.wno + "|" + cur.line + "|" + cur.piece; ms[kk] = ms[kk] || {}; ms[kk][cur.stage] = (ms[kk][cur.stage] || 0) + Math.max(0, new Date(r.createdAt) - new Date(cur.createdAt));
         delete open[r.user];
       }
+      if (r.action === "start" || r.action === "stop") closePause(r.user, r.createdAt);
       if (r.action === "start") open[r.user] = r;
-      void k;
+      if (r.action === "pause") paused[r.user] = r;
     });
-    return { open, ms, live: (k, stage) => { const o = Object.values(open).filter((x) => x.line + "|" + x.piece === k && (!stage || x.stage === stage)); return o.reduce((n, x) => n + (Date.now() - new Date(x.createdAt)), 0); } };
+    Object.keys(paused).forEach((u) => { const p = paused[u]; const end = IC.sameDay(p.createdAt, new Date()) ? Date.now() : endOfDay(p.createdAt); lost.push({ wno: p.wno, user: u, userName: p.userName, reason: p.reason || "Other", note: p.note || "", ms: Math.max(0, end - new Date(p.createdAt)), at: p.createdAt, piece: p.pieceName || p.mark, still: true }); });
+    const wk = (k) => (job ? job.wno + "|" + k : k);
+    return { open, paused, ms, lost, msOf: (k) => ms[wk(k)] || {}, live: (k, stage) => { const o = Object.values(open).filter((x) => x.wno + "|" + x.line + "|" + x.piece === wk(k) && (!stage || x.stage === stage)); return o.reduce((n, x) => n + (Date.now() - new Date(x.createdAt)), 0); } };
   }
   const dur = (ms) => { const m = Math.round(ms / 60000); return m < 60 ? m + "m" : Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m"; };
 
@@ -114,7 +121,10 @@
 
   async function viewDashboard() {
     setBar("Workshop", "Fabrication status", false);
-    $("main").innerHTML = (await dashboardHtml()) + (can("board") ? '<a class="btn block" href="#/board">Open as a wall board (TV screen)</a>' : "");
+    // managers and directors: hours tiles; everyone with a set or the equipment: the welding sets and equipment checks
+    const links = (can("weld") || can("weld-admin") ? '<a class="tile-row card" href="#/weld"><span><b>Welding sets</b><span class="small">' + (can("weld-admin") ? "Sets, certificates and this week\u2019s check sheet" : "My set, its certificate and the Monday check") + "</span></span>›</a>" : "") +
+      (can("equip-review") || can("equip-check") ? '<a class="tile-row card" href="#/equip"><span><b>Equipment checks</b><span class="small">Forklift, cranes, Geka, compressor, saws, pillar drill</span></span>›</a>' : "");
+    $("main").innerHTML = (can("ws-performance") ? await IC.WsHours.perfTiles() : "") + links + (await dashboardHtml()) + (can("board") ? '<a class="btn block" href="#/board">Open as a wall board (TV screen)</a>' : "");
   }
 
   // Wall board for a TV in the workshop or office: every job, large, no menus, refreshed every minute
@@ -209,26 +219,29 @@
     const j = jobOf(wno); if (!j) { location.hash = "#/workshop"; return; }
     setBar(j.wno, [j.client, j.phase].filter(Boolean).join(" · "), true);
     const log = await Data.list("fab", "team"), t = tally(j, log), p = progress(j, t), mark = can("fab-mark");
-    const wlog = await Data.list("fabwork", "team"), W = workOf(j, wlog), mine = W.open[me()];
+    const wlog = await Data.list("fabwork", "team"), W = workOf(j, wlog), mine = W.open[me()], myPause = W.paused[me()];
     const jobLog = log.filter((r) => r.wno === j.wno), states = {};
     j.lines.forEach((l) => { states[l.key] = pieceStates(l, jobLog); });
     const nameOf = (u) => (wlog.concat(log).find((x) => x.user === u) || {}).userName || u;
     // the pieces of a line, under it, folded away until opened; the next piece not started gets "Start work"
     const piecesHtml = (l) => {
-      const P = states[l.key], first = P.find((x) => !x.started && !Object.values(W.open).some((o) => o.line === l.key && o.piece === x.n));
+      const P = states[l.key], first = P.find((x) => !x.started && !Object.values(W.open).concat(Object.values(W.paused)).some((o) => o.line === l.key && o.piece === x.n));
       const busy = P.filter((x) => Object.values(W.open).some((o) => o.line === l.key && o.piece === x.n)).length, done = P.filter((x) => !x.next).length;
       const rows = P.map((x) => {
-        const k = l.key + "|" + x.n, o = Object.values(W.open).find((w) => w.line === l.key && w.piece === x.n), t0 = W.ms[k] || {};
+        const k = l.key + "|" + x.n, o = Object.values(W.open).find((w) => w.line === l.key && w.piece === x.n), t0 = W.msOf(k);
         const times = WORK.map((s) => { const v = (t0[s] || 0) + W.live(k, s); return v ? STAGES.find((y) => y[0] === s)[2] + " " + dur(v) : ""; }).filter(Boolean).join(" · ");
         const who = STAGES.filter(([s]) => x.by[s]).map(([s, , letter]) => letter + " " + (x.by[s].userName || "").split(" ")[0]).join(" · ");
-        const status = o ? (o.user === me() ? "You: " : nameOf(o.user).split(" ")[0] + ": ") + VERB[o.stage] + " since " + fmtTime(o.createdAt) : !x.next ? "Loaded" : x.at.checked ? "Checked" : x.at.welded ? "Welded" : x.at.fabricated ? "Fabricated" : "Not started";
+        const pz2 = !o && Object.values(W.paused).find((w) => w.line === l.key && w.piece === x.n);
+        const status = o ? (o.user === me() ? "You: " : nameOf(o.user).split(" ")[0] + ": ") + VERB[o.stage] + " since " + fmtTime(o.createdAt) : pz2 ? "Paused (" + pz2.reason.toLowerCase() + ") " + (pz2.user === me() ? "by you" : "by " + nameOf(pz2.user).split(" ")[0]) + " at " + fmtTime(pz2.createdAt) : !x.next ? "Loaded" : x.at.checked ? "Checked" : x.at.welded ? "Welded" : x.at.fabricated ? "Fabricated" : "Not started";
         let act = "";
         if (mark && x.next) {
-          if (o && o.user === me()) act = '<button class="btn sm" data-pc="stop" data-k="' + esc(k) + '">Stop</button><button class="btn sm primary" data-pc="finish" data-k="' + esc(k) + '">Done: ' + LABEL[o.stage].toLowerCase() + "</button>";
+          const pz = Object.values(W.paused).find((w) => w.line === l.key && w.piece === x.n);
+          if (o && o.user === me()) act = '<button class="btn sm" data-pc="pause" data-k="' + esc(k) + '">Pause</button><button class="btn sm primary" data-pc="finish" data-k="' + esc(k) + '">Done: ' + LABEL[o.stage].toLowerCase() + "</button>";
+          else if (!o && pz && pz.user === me()) act = '<button class="btn sm primary" data-pc="resume" data-k="' + esc(k) + '">Resume</button>';
           else if (!o && WORK.includes(x.next)) act = '<button class="btn sm' + (x === first || x.started ? " primary" : "") + '" data-pc="start" data-k="' + esc(k) + '">Start ' + (x.next === "welded" ? "welding" : "work") + "</button>";
           else if (!o) act = '<button class="btn sm" data-pc="mark" data-k="' + esc(k) + '">' + LABEL[x.next] + "</button>";
         }
-        return '<div class="pc' + (o ? " on" : !x.next ? " done" : "") + (x === first ? " next" : "") + '"><div class="pc-t"><b>' + esc(x.name) + "</b>" + (x === first ? ' <span class="pill">Next</span>' : "") +
+        return '<div class="pc' + (o ? " on" : pz2 ? " paused" : !x.next ? " done" : "") + (x === first ? " next" : "") + '"><div class="pc-t"><b>' + esc(x.name) + "</b>" + (x === first ? ' <span class="pill">Next</span>' : "") +
           '<div class="small">' + esc(status) + (times ? " · " + esc(times) : "") + (who ? " · " + esc(who) : "") + '</div></div><div class="pc-a">' + act + (mark || can("fab-correct") ? '<button class="link" data-pc="more" data-k="' + esc(k) + '" aria-label="More for ' + esc(x.name) + '">⋯</button>' : "") + "</div></div>";
       }).join("");
       const sum = (l.qty > 1 ? esc(l.mark) + "/1–/" + l.qty : esc(l.mark)) + " · " + done + " of " + l.qty + " loaded" + (busy ? " · " + busy + " in progress" : "") + (first ? " · next " + esc(first.name) : "");
@@ -253,7 +266,8 @@
     $("main").innerHTML = '<div class="card"><b>' + jobSub(j) + "</b>" + (p.ready ? ' <span class="pill ok">Ready for dispatch</span>' : "") +
       '<div class="small">' + esc([j.bssJob ? "BSS job " + j.bssJob : "", j.fabIssue, j.exc, j.requiredOn ? "required " + fmtDay(IC.parseDate(j.requiredOn)) : ""].filter(Boolean).join(" · ")) + "</div>" +
       '<div class="small">' + esc((j.list || "QA list") + " · " + p.pcs + " pieces · " + tonnes(p.kg)) + "</div>" + STAGES.map(([s, name]) => bar(name, p[s])).join("") + "</div>" +
-      (mine ? '<div class="note fab-now"><b>You are ' + VERB[mine.stage] + " " + esc(mine.pieceName || mine.mark) + (mine.wno !== j.wno ? " (job " + esc(mine.wno) + ")" : "") + "</b> since " + esc(fmtTime(mine.createdAt)) + (mine.wno === j.wno ? '<div class="row"><button class="btn sm" data-pc="stop" data-k="' + esc(mine.line + "|" + mine.piece) + '">Stop</button><button class="btn sm primary" data-pc="finish" data-k="' + esc(mine.line + "|" + mine.piece) + '">Done: ' + LABEL[mine.stage].toLowerCase() + "</button></div>" : "") + "</div>" : "") +
+      (myPause && !mine ? '<div class="note warn fab-now"><b>Paused: ' + esc(VERB[myPause.stage] + " " + (myPause.pieceName || myPause.mark)) + "</b> · " + esc(myPause.reason.toLowerCase() + (myPause.note ? ": " + myPause.note : "")) + " since " + esc(fmtTime(myPause.createdAt)) + (myPause.wno === j.wno ? '<div class="row"><button class="btn sm primary" data-pc="resume" data-k="' + esc(myPause.line + "|" + myPause.piece) + '">Resume</button></div>' : " (job " + esc(myPause.wno) + ")") + "</div>" : "") +
+      (mine ? '<div class="note fab-now"><b>You are ' + VERB[mine.stage] + " " + esc(mine.pieceName || mine.mark) + (mine.wno !== j.wno ? " (job " + esc(mine.wno) + ")" : "") + "</b> since " + esc(fmtTime(mine.createdAt)) + (mine.wno === j.wno ? '<div class="row"><button class="btn sm" data-pc="pause" data-k="' + esc(mine.line + "|" + mine.piece) + '">Pause</button><button class="btn sm primary" data-pc="finish" data-k="' + esc(mine.line + "|" + mine.piece) + '">Done: ' + LABEL[mine.stage].toLowerCase() + "</button></div>" : "") + "</div>" : "") +
       (can("ws-hours") ? '<button class="btn block" id="fabHours">Book hours to this job</button>' : "") +
       (draws.length ? '<details class="fab-docs"><summary>Fabrication details (' + draws.length + " drawings" + (withDwg < j.lines.length ? "; " + (j.lines.length - withDwg) + " assemblies have no drawing of their own" : "") + ")</summary>" + draws.map((f) => '<a class="doc-link" href="#/view/' + encodeURIComponent(j.bssFolder) + "/" + encodeURIComponent(f.path) + '">' + esc(f.name) + "</a>").join("") + "</details>" : "") +
       '<div class="chips fab-filter">' + F.map(([k, n]) => '<a class="pill' + (k === filter ? " on" : "") + '" href="#/workshop/' + encodeURIComponent(wno) + "/" + k + '">' + n + "</a>").join("") + "</div>" +
@@ -339,6 +353,24 @@
         await work("start", x.next); toast("Started " + VERB[x.next] + " " + x.name); return viewJob(wno, filter);
       }
       if (act === "stop") { await work("stop", mine ? mine.stage : x.next); toast("Stopped " + x.name); return viewJob(wno, filter); }
+      if (act === "pause") {
+        const sh = sheet("<h3>Pause " + esc(x.name) + '</h3><label class="fl">Why?<select id="pzWhy">' + PAUSE.map((r) => "<option>" + esc(r) + "</option>").join("") + '</select></label><label class="fl" id="pzNoteL" hidden>What for?<input id="pzNote" type="text" placeholder="e.g. waiting for the crane"></label>' +
+          '<button class="btn primary block" id="pzGo">Pause</button><button class="btn block" id="pzNo">Carry on working</button>');
+        const w = sh.q("#pzWhy"); w.onchange = () => { sh.q("#pzNoteL").hidden = w.value !== "Other" && w.value !== "Missing materials"; sh.q("#pzNote").placeholder = w.value === "Missing materials" ? "e.g. cleats for B101 not here" : "e.g. waiting for the crane"; };
+        sh.q("#pzNo").onclick = () => sh.close();
+        sh.q("#pzGo").onclick = async () => {
+          if (w.value === "Other" && !sh.q("#pzNote").value.trim()) { toast("Say what for"); return; }
+          const reason = w.value, note = sh.q("#pzNote").value.trim(); sh.close();
+          await Data.save("fabwork", { wno: j.wno, mark: l.mark, line: key, piece: x.n, pieceName: x.name, stage: mine ? mine.stage : x.next, action: "pause", reason, note });
+          toast("Paused " + x.name + ": " + reason.toLowerCase()); viewJob(wno, filter);
+        };
+        return;
+      }
+      if (act === "resume") {
+        const pz = W.paused[me()];
+        if (mine) await Data.save("fabwork", { wno: mine.wno, mark: mine.mark, line: mine.line, piece: mine.piece, pieceName: mine.pieceName, stage: mine.stage, action: "stop" });
+        await work("start", pz && pz.line === key && pz.piece === x.n ? pz.stage : x.next); toast("Resumed " + x.name); return viewJob(wno, filter);
+      }
       if (act === "finish" || act === "mark") {
         const s = act === "finish" && mine ? mine.stage : x.next;
         if (s === "checked" && x.by.welded && x.by.welded.user === me()) { toast("Checked has to be marked by someone other than the person who welded it"); return; }
@@ -359,7 +391,7 @@
         // the last stage this piece reached, taken back by the person who marked it (that day) or a supervisor
         const last = [...STAGES].reverse().find(([s]) => x.by[s]), rec = last && x.by[last[0]];
         const canUndo = rec && (can("fab-correct") || (rec.user === me() && IC.sameDay(rec.createdAt, new Date())));
-        const k = key + "|" + x.n, t0 = W.ms[k] || {};
+        const k = key + "|" + x.n, t0 = W.msOf(k);
         const sh = sheet("<h3>" + esc(x.name) + "</h3><p>" + STAGES.map(([s, name]) => name + ": " + (x.by[s] ? esc((x.by[s].userName || "") + ", " + fmtDay(x.by[s].createdAt) + " " + fmtTime(x.by[s].createdAt)) + (s === "fabricated" && x.by[s].stamped ? " · stamped " + esc(x.name) : "") : x.at[s] ? "yes (marked before pieces were numbered)" : "–")).join("<br>") +
           "</p><p class=\"small\">Time: " + (WORK.map((s) => { const v = (t0[s] || 0) + W.live(k, s); return v ? LABEL[s].toLowerCase() + " " + dur(v) : ""; }).filter(Boolean).join(" · ") || "none recorded") + "</p>" +
           (mark && x.next && !WORK.includes(x.next) ? "" : mark && x.next ? '<button class="btn block" id="pcMark">Mark ' + LABEL[x.next].toLowerCase() + " without timing</button>" : "") +
@@ -385,6 +417,7 @@
   // Home to-do for managers: loads that became ready in the last 3 days (the office then dispatches on Goods Out)
   IC.Workshop = {
     dashboardHtml,
+    workOf, PAUSE, progress, tally, jobsList: () => jobs(),
     jobs,
     drawingFor,
     // the BSS job a workshop job is linked to: workshop staff may open its drawings (and nothing else of the job)

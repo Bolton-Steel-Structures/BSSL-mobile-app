@@ -46,17 +46,47 @@
     "Load secure and within the vehicle's payload", "No fuel, oil or water leaks"];
   const PPE_ITEMS = ["Safety boots", "Hard hat", "Hi-vis vest", "Hi-vis jacket", "Hi-vis trousers", "Safety glasses", "Gloves", "Cut-resistant gloves",
     "Ear defenders / plugs", "Dust mask / RPE", "Harness", "Lanyard", "Welding helmet", "Welding gloves", "Welding jacket / leathers", "Overalls", "Waterproofs", "Other"];
+  // Forklift and overhead crane (24 Nov): a basic check every working day before use, and a detailed check once a
+  // week, on a Monday (the Monday detailed check also counts as that day's basic check). The other machines weekly.
   const WS_CHECKS = {
-    "Overhead crane": ["Thorough examination (LOLER) in date; safe working load marked on the crane and hoist", "Pendant or remote: every button does what it is marked, and returns when released",
+    "Overhead crane – daily basic": ["Pendant or remote: every button does what it is marked, and returns when released", "Emergency stop works", "Hoist upper limit switch works",
+      "Hoist brake holds a load without creeping", "Hook and safety catch: no visible damage; catch works", "Wire rope or chain: no visible kinks, broken wires or damage", "Travel path and rails clear",
+      "Slings, chains, shackles and plate clamps for today tagged, in date and undamaged"],
+    "Forklift – daily basic": ["Forks, mast and chains: no visible damage; locking pins in", "No hydraulic, fuel or oil leaks under the truck", "Tyres and wheels: no visible damage",
+      "Foot brake and parking brake hold", "Steering works", "Horn, lights, beacon and reversing alarm work", "Seat belt works", "Fuel, gas or battery charge enough for the shift"],
+    "Overhead crane – weekly detailed": ["Thorough examination (LOLER) in date; safe working load marked on the crane and hoist", "Pendant or remote: every button does what it is marked, and returns when released",
       "Emergency stop works", "Hoist upper and lower limit switches work", "Long travel and cross travel run smoothly; brakes hold and travel limits work", "Hoist brake holds a load without creeping",
       "Hook: no cracks, opening or twist; safety catch works; hook turns freely", "Wire rope or chain: no kinks, broken wires, twists or corrosion; seated properly on the drum and sheaves",
       "Warning sounder and lights work (if fitted)", "Rails, end stops and travel path clear of obstructions", "Isolator within reach and working", "No oil leaking from the hoist or gearboxes",
       "Slings, chains, shackles and plate clamps tagged, in date and undamaged"],
-    "Forklift": ["Thorough examination (LOLER) in date; capacity plate fitted and legible", "Forks: no cracks, bends or heavy wear; locking pins in", "Mast, chains and carriage: no damage; chains evenly tensioned and lubricated",
+    "Forklift – weekly detailed": ["Thorough examination (LOLER) in date; capacity plate fitted and legible", "Forks: no cracks, bends or heavy wear; locking pins in", "Mast, chains and carriage: no damage; chains evenly tensioned and lubricated",
       "Hydraulics: no leaks; lift, lower and tilt work smoothly", "Tyres and wheels: no damage; wheel nuts tight", "Foot brake and parking brake hold", "Steering works without excess play",
       "Lights, horn, beacon and reversing alarm work", "Seat, seat belt and overhead guard secure and undamaged", "Load backrest fitted",
-      "Fuel, gas bottle or battery: secure, no leaks, enough charge", "Engine oil, coolant and hydraulic oil levels (where fitted)", "Controls labelled; cab and floor clear"]
+      "Fuel, gas bottle or battery: secure, no leaks, enough charge", "Engine oil, coolant and hydraulic oil levels (where fitted)", "Controls labelled; cab and floor clear"],
+    // 24 Nov: the rest of the workshop machines, checked by the Equipment checkers (PUWER regulation 6)
+    "Geka Metalworker": ["Guards fitted and adjusted at the punch, shear, notcher and section shear stations", "Hold-downs and strippers set to the material thickness",
+      "Foot pedal guarded and working; returns when released", "Emergency stop works", "Punch and die aligned, sharp and undamaged; tooling locked in", "Blades sharp, undamaged and correctly gapped",
+      "No hydraulic leaks; hoses undamaged; oil level OK", "Lubrication done as the maker says", "Back gauge and stops secure", "Isolator within reach and working", "Area around the machine clear; no offcuts underfoot"],
+    "Compressor": ["Written scheme of examination (PSSR) in date", "Safety valve fitted and not tampered with", "Pressure gauge reads and the cut-out stops at the set pressure",
+      "Air receiver drained of water", "Belt and flywheel guards fitted", "Hoses, couplings and airlines undamaged; whip checks fitted", "No air leaks", "Oil level OK (where fitted)",
+      "Isolator within reach and working", "Area clear and ventilated"],
+    "Big Bandsaw": ["Blade guard fitted and adjusted to the work", "Blade: no cracks or missing teeth; tension correct", "Vice and clamps grip the work", "Emergency stop works",
+      "Limit switch stops the saw at the end of the cut", "Feed (hydraulic or gravity) works smoothly; no leaks", "Coolant level OK; no spills on the floor", "Roller tables and material supports secure and level",
+      "Swarf cleared", "Isolator within reach and working"],
+    "Little Bandsaw": ["Blade guard fitted and adjusted to the work", "Blade: no cracks or missing teeth; tension correct", "Vice and clamps grip the work", "Emergency stop works",
+      "Limit switch stops the saw at the end of the cut", "Coolant level OK; no spills on the floor", "Material supports secure", "Swarf cleared", "Isolator within reach and working"],
+    "Pillar Drill": ["Chuck guard fitted and the interlock works", "Emergency stop works", "Belt guard closed", "Drill bits sharp and undamaged; chuck key removed from the chuck",
+      "Work held in a machine vice or clamped, never by hand", "Table and head locked", "Coolant (where used) topped up", "Swarf cleared with a brush, not by hand", "Isolator within reach and working"]
   };
+  // how often each is checked (the owner to confirm): lifting equipment every working day before use; the machines weekly
+  // each machine and its checks: "day" = every working day before use; "week" = once a week, by Monday's end
+  const WS_EQUIP = [
+    { name: "Forklift", checks: [["Forklift – daily basic", "day"], ["Forklift – weekly detailed", "week"]] },
+    { name: "Overhead crane", checks: [["Overhead crane – daily basic", "day"], ["Overhead crane – weekly detailed", "week"]] },
+    { name: "Geka Metalworker", checks: [["Geka Metalworker", "week"]] }, { name: "Compressor", checks: [["Compressor", "week"]] },
+    { name: "Big Bandsaw", checks: [["Big Bandsaw", "week"]] }, { name: "Little Bandsaw", checks: [["Little Bandsaw", "week"]] }, { name: "Pillar Drill", checks: [["Pillar Drill", "week"]] }];
+  // checks recorded before the split were the full list: they count as the weekly detailed check
+  const WS_OLD = { "Forklift": "Forklift – weekly detailed", "Overhead crane": "Overhead crane – weekly detailed" };
   const PLANT_TYPES = ["Telehandler", "Cherry picker – diesel", "Cherry picker – electric", "Scissor lift – diesel", "Scissor lift – electric", "Genie SuperLift", "Mini crane", "Mechanical plant (other)", "Non-mechanical plant"];
   const MEWP_COMMON = ["Ground and platform controls working; emergency stop at both", "Emergency lowering / auxiliary descent checked", "Tilt alarm and overload (load sensing) working",
     "Platform guardrails, gate and toe boards intact", "No hydraulic leaks; hoses and cylinders undamaged", "Tyres and wheels in good condition", "Alarms, beacon and horn working",
@@ -178,11 +208,11 @@
       ] },
     // Workshop equipment (21 Nov): PUWER pre-use checks, generally by the workshop supervisor; workshop roles only
     { id: "wscheck", group: "Safety", workshop: true, title: "Workshop equipment check", ref: "PUWER · LOLER",
-      blurb: "Pre-use check of an overhead crane or a forklift.",
+      blurb: "Forklift and overhead cranes: a basic check every working day before use, and a detailed check every Monday. Geka Metalworker, compressor, bandsaws and pillar drill: weekly. Equipment checkers, supervisors and managers.",
       fields: [
         { type: "date", id: "checkDate", label: "Date of check", prefill: "today", max: "today", back: 7, required: true, hint: "Today unless you're recording a check done earlier" },
         { type: "select", id: "equipType", label: "Equipment", options: Object.keys(WS_CHECKS), required: true },
-        { type: "text", id: "equipRef", label: "Which one (number or bay on the equipment)", placeholder: "e.g. Crane 2, bay 1 / Forklift 1", required: true },
+        { type: "text", id: "equipRef", label: "Which one (number or bay on the equipment)", placeholder: "e.g. Crane 2, bay 1 / Forklift 1", requiredIf: ["equipType", "Overhead crane – daily basic", "Overhead crane – weekly detailed", "Forklift – daily basic", "Forklift – weekly detailed"] },
         { type: "checklist", id: "checks", label: "Checks", itemsBy: "equipType", itemsFor: WS_CHECKS, badAnswer: "No", required: true },
         { type: "text", id: "defects", label: "Other comments", multiline: true },
         { type: "yesno", id: "safe", label: "Safe to use?", badAnswer: "No", required: true, warn: "Do not use. Isolate it, tag it out of use and tell the workshop manager." },
@@ -749,7 +779,7 @@
       e.preventDefault();
       const valueOf = (id) => { const w = widgets.find((x) => x.f.id === id); return w ? w.el.querySelector("select,input,textarea") && w.el.querySelector("select,input,textarea").value : ""; };
       const errs = widgets.map((w) => {
-        if (w.f.requiredIf) { const want = valueOf(w.f.requiredIf[0]) === w.f.requiredIf[1]; w.f.required = want; if (!want) return ""; }
+        if (w.f.requiredIf) { const want = w.f.requiredIf.slice(1).includes(valueOf(w.f.requiredIf[0])); w.f.required = want; if (!want) return ""; }
         return w.check();
       }).filter(Boolean);
       if (t.id === "ramsadd") {
@@ -981,9 +1011,11 @@
     }
     if (id === "ncr") { const p = IC.LS.get("ncrPrefill", null); IC.LS.del("ncrPrefill"); if (p) return viewForm("ncr", { templateId: "ncr", status: "draft", values: { what: p.what, where: p.where, clause: p.clause }, jobFolder: p.jobFolder }); }
     if (isRamsT(id) && args[2]) IC.LS.set(id + "Prefill", { docPath: decodeURIComponent(args[2]) });
+    // an equipment check started from the register: the equipment already chosen
+    if (id === "wscheck" && args[1]) return viewForm("wscheck", { templateId: "wscheck", status: "draft", values: { equipType: decodeURIComponent(args[1]) } });
     return viewForm(id, null, args[1] ? decodeURIComponent(args[1]) : "");
   });
   IC.route("form", (args) => viewDone(args[0]));
 
-  IC.Forms = { templates: T, tpl, isRamsT, siteAddenda, addLine, ramsStatus, ramsRegister, ramsStillToSign, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
+  IC.Forms = { templates: T, tpl, WS_CHECKS, WS_EQUIP, WS_OLD, isRamsT, siteAddenda, addLine, ramsStatus, ramsRegister, ramsStillToSign, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
 })();

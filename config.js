@@ -57,7 +57,7 @@ window.SITE_CONFIG = {
   //     Safety: toolbox, plant, vehicle, lifting, handover, nearmiss, ppe (PPE request), wscheck
   //     Quality: daywork, foundation, erection, bolting, welding, snag, ncr, works, completion
   roles: {
-    Manager: ["drawings", "all-jobs", "leave", "expenses", "hr", "hr-admin", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
+    Manager: ["drawings", "all-jobs", "leave", "expenses", "hr", "hr-admin", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*", "weld-admin", "equip-review", "ws-performance"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ppe", "form:ncr"],
     // Workshop (the workshop's own staff; 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
@@ -65,11 +65,18 @@ window.SITE_CONFIG = {
     //   Directors use the Manager role above (everything on both sides).
     // Workshop Director (23 Nov): a director of the workshop company only. Sees the workshop and its
     // staff like the Workshop Manager, and nothing of BSS: no site jobs, drawings, planner or BSS staff.
-    "Workshop Director": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "hr-workshop", "cards", "form:wscheck", "form:ppe", "form:ncr"],
-    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
+    "Workshop Director": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "hr-workshop", "cards", "form:wscheck", "form:ppe", "form:ncr", "weld-admin", "equip-review", "ws-performance"],
+    "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr", "weld-admin", "equip-review", "ws-performance"],
     "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
-    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
-    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
+    "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr", "weld", "weld-admin", "equip-review"],
+    "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr", "weld"],
+    // Equipment checker (24 Nov): an extra role given to chosen operatives on top of their own (People: up to three
+    // roles). They do the pre-use checks on the workshop equipment (forklift, overhead crane, Geka Metalworker, compressor,
+    // big and little bandsaw, pillar drill); supervisors, managers and directors review them (equip-review).
+    //   weld = my welding set, its calibration certificate and the Monday welding set check (WM-14-7)
+    //   weld-admin = assign sets, import calibration certificates, see and verify the week's check sheet
+    //   ws-performance = fabrication hours against allocated hours, hours by activity, paused time (managers and directors)
+    "Equipment Checker": ["form:wscheck", "equip-check"],
     // Screens (21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
     //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
     // HR Admin (23 Nov): the office person who runs HR; sees every employee's HR record, issues documents, sets up new starters.

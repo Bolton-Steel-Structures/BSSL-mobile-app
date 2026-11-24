@@ -31,13 +31,13 @@
       ["Forms", [["form:*", "Every form", "Ticks all the forms below"]].concat(forms.map((t) => ["form:" + t.id, t.title, t.group || ""]))],
       ["Workshop", [["workshop", "Workshop dashboard and QA lists", "Jobs, % complete, status by line"], ["fab-mark", "Mark lines", "Fabricated, welded, checked, loaded"], ["fab-correct", "Undo anyone's mark", ""],
         ["fab-ready", "Told when a load is ready", "Checked and loaded"], ["ws-hours", "Clock in / out at the workshop", "At the premises only; my hours"], ["ws-hours-team", "Workshop hours", "Who's in, team hours"],
-        ["ws-payroll", "Workshop payroll sheet", ""], ["form:wscheck", "Equipment checks", "Overhead crane, forklift"], ["board", "Wall board", "Open on a TV screen"]]],
+        ["ws-payroll", "Workshop payroll sheet", ""], ["form:wscheck", "Equipment checks", "Forklift, overhead crane, Geka, compressor, bandsaws, pillar drill"], ["equip-check", "Equipment checker", "Told when a check is due"], ["equip-review", "Review equipment checks", "Register and every check"], ["weld", "My welding set", "Certificate and Monday check"], ["weld-admin", "Welding sets", "Assign, import certificates, verify the week"], ["ws-performance", "Workshop hours v allocated", "By job, activity, pauses"], ["board", "Wall board", "Open on a TV screen"]]],
       ["Management", [["manager", "Manager tools", "Approvals, alerts, PPE requests, team HR, new starters, notices"], ["hr-admin", "HR: every record", "Full records, documents, starters, leavers"],
         ["hr-workshop", "HR: workshop staff records", "Full records, workshop staff only"], ["screens", "Screens login", "TV wall board only"], ["app-admin", "App admin", "This page"]]]
     ];
   }
   const roleOrder = (roles) => { const first = ["Manager", "Workshop Director", "App Admin", "HR Admin", "Accounts", "Admin", "Estimators", "Project Managers", "Draughtsmen", "QA Manager", "Supervisor", "Operative", "Operative (welder)",
-    "Workshop Manager", "Workshop Admin", "Workshop Accounts", "Workshop Supervisor", "Fabricator/Welder", "Screens"];
+    "Workshop Manager", "Workshop Admin", "Workshop Accounts", "Workshop Supervisor", "Fabricator/Welder", "Equipment Checker", "Screens"];
     return first.filter((r) => roles[r]).concat(Object.keys(roles).filter((r) => !first.includes(r)).sort()); };
 
   // the working copy: edits stay here until Save
@@ -298,5 +298,5 @@
     IC.sheet('<h3>Imported, not saved yet</h3><p>' + esc(found.join("; ")) + '.</p><p class="small">Check the tables, then press Save changes. Permissions are set on the Permissions tab here (the workbook\'s Site app and Workshop app tabs are not read).</p>');
   }
 
-  IC.Admin = { exportXlsx };
+  IC.Admin = { exportXlsx, readXlsx };
 })();

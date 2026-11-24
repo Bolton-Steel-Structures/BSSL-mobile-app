@@ -539,3 +539,30 @@ main:has(.admin) { max-width: none; }
 .pc.next { box-shadow: inset 3px 0 0 var(--accent); }
 .fab-now { margin: 10px 0; }
 .fab-now .row { margin-top: 8px; gap: 8px; }
+/* welding sets, equipment checks, workshop hours (24 Nov) */
+.ws-set { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
+.ws-set > span:last-child { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.ws-no { flex: none; min-width: 48px; height: 48px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.ws-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.ws-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.ws-a { display: flex; gap: 6px; flex: none; }
+.ws-sheet td, .ws-sheet th { text-align: center; } .ws-sheet td:nth-child(3) { text-align: left; }
+.ws-sheet td.ok { color: var(--ok); font-weight: 700; } .ws-sheet td.bad, td.bad { color: var(--danger, #c50f1f); font-weight: 700; }
+.ws-sheet tr.bad-row { background: var(--warn-bg); }
+.drop { border: 2px dashed var(--line); border-radius: 12px; padding: 18px; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center; cursor: pointer; }
+.drop.on, .drop:focus-visible { border-color: var(--accent); background: var(--bg); }
+.rng.ok { color: var(--ok); } .rng.bad { color: var(--danger, #c50f1f); font-weight: 600; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0; } .kv dt { color: var(--muted, #666); } .kv dd { margin: 0; }
+.card.eq.bad { border-color: var(--danger, #c50f1f); } .card.eq.warn { border-color: var(--warn); }
+.card.eq .btn.sm { margin-top: 8px; }
+.stat.warn b { color: var(--warn); } .stat.bad b { color: var(--danger, #c50f1f); }
+.pf-bar { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; gap: 8px; align-items: center; margin-top: 6px; font-size: 13px; }
+.pf-t { height: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.pf-t i { display: block; height: 100%; background: var(--accent); } .pf-t i.bad { background: var(--danger, #c50f1f); }
+.pf-n { white-space: nowrap; font-weight: 600; }
+.pf-job { padding: 10px 0; border-top: 1px solid var(--line); } .pf-job a { text-decoration: none; color: inherit; }
+.pf-tiles { display: block; text-decoration: none; color: inherit; }
+.pc.paused { background: var(--bg); }
+.row-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.eq-c { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--line); }
+.eq-a { display: flex; gap: 6px; align-items: center; flex: none; }
