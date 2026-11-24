@@ -522,7 +522,8 @@
   function permitted(name, args) {
     if (!roleOf(Data.profile)) return name === ""; // no role set up: nothing but the message on Home
     // the Screens login only ever shows the wall board (21 Nov)
-    if (can("screens")) return name === "board" || name === "";
+    // ... and, from the board, a job's progress and its drawings, read only (24 Nov)
+    if (can("screens")) return name === "board" || name === "" || (name === "workshop" && !!args[0]) || name === "view";
     if (name === "board") return can("board");
     if (name === "workshop") return can("workshop");
     if (name === "hours") return can("ws-hours") || can("ws-hours-team");

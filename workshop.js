@@ -216,7 +216,9 @@
   const search = {}; // what was typed in each job's search box, kept while marking
   const openPcs = {}; // which piece lists are open, kept while marking
   async function viewJob(wno, filter) {
-    const j = jobOf(wno); if (!j) { location.hash = "#/workshop"; return; }
+    const j = jobOf(wno); if (!j) { location.hash = can("screens") ? "#/board" : "#/workshop"; return; }
+    // the wall board screen: back to the board after 3 minutes untouched, so the TV never stays on one job
+    if (can("screens")) { clearTimeout(boardTimer); boardTimer = setTimeout(() => { if (location.hash.startsWith("#/workshop/")) location.hash = "#/board"; }, 180000); }
     setBar(j.wno, [j.client, j.phase].filter(Boolean).join(" · "), true);
     const log = await Data.list("fab", "team"), t = tally(j, log), p = progress(j, t), mark = can("fab-mark");
     const wlog = await Data.list("fabwork", "team"), W = workOf(j, wlog), mine = W.open[me()], myPause = W.paused[me()];
