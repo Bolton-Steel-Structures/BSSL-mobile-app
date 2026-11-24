@@ -464,7 +464,7 @@
     // welding sets, certificates, checks, activities, pauses (24 Nov): added once, on top of the main demo data.
     // Fictional serial and certificate numbers; set makes and models as BSS's own; readings as a real certificate.
     async seedWorkshop() {
-      if (LS.get("demoSeededWs", 0) === 1) return;
+      if (LS.get("demoSeededWs", 0) === 1) return this.seedEquip();
       const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records"), now = new Date();
       const d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
       const at = (back, h, m) => { const x = new Date(now); x.setDate(x.getDate() - back); x.setHours(h, m, 0, 0); return x; };
@@ -486,9 +486,9 @@
       await put("weldcheck", { id: uid(), weekOf: wk, set: "5", wps: "2", role: "W", weldType: "FW", amps: 280, volts: 31.5, gasOk: true, gas: "Ar + 13% CO2 + 1.5% O2", flow: 17, inRange: { a: true, v: true, f: true }, ok: true, certNo: "DEMO-K11104", person: chris[0], personName: chris[1], user: chris[0], userName: chris[1], createdAt: mon.toISOString() });
       await put("weldcheck", { id: uid(), weekOf: wk, set: "4", wps: "2", role: "F", weldType: "FW", amps: 262, volts: 30.4, gasOk: true, gas: "Ar + 13% CO2 + 1.5% O2", flow: 12, inRange: { a: true, v: true, f: false }, ok: false, certNo: "DEMO-K11103", person: jake[0], personName: jake[1], user: jake[0], userName: jake[1], createdAt: mon.toISOString() });
       // equipment checks: the Geka and compressor this week, the pillar drill last week
-      const eq = (who, back, type, ok, defect) => put("forms", { id: uid(), templateId: "wscheck", templateTitle: "Workshop equipment check", status: "submitted", user: who[0], userName: who[1], jobFolder: "", jobNumber: "", noJob: true, createdAt: at(back, 7, 35).toISOString(), submittedAt: at(back, 7, 40).toISOString(),
-        values: { checkDate: d(-back), equipType: type, equipRef: "", checks: defect ? { [defect]: "No" } : {}, safe: ok ? "Yes" : "No", operator: who[1] }, flags: defect ? [{ text: defect + ": No" }] : [] });
-      await eq(tom, 0, "Geka Metalworker", true); await eq(tom, 1, "Compressor", true, "Air receiver drained of water"); await eq(chris, 8, "Pillar Drill", true); await eq(tom, 0, "Overhead crane – daily basic", true); await eq(chris, 1, "Overhead crane – weekly detailed", true);
+      const eq = (who, back, type, ok, defect, ref) => put("forms", { id: uid(), templateId: "wscheck", templateTitle: "Workshop equipment check", status: "submitted", user: who[0], userName: who[1], jobFolder: "", jobNumber: "", noJob: true, createdAt: at(back, 7, 35).toISOString(), submittedAt: at(back, 7, 40).toISOString(),
+        values: { checkDate: d(-back), equipType: type, equipRef: ref || "", checks: defect ? { [defect]: "No" } : {}, safe: ok ? "Yes" : "No", operator: who[1] }, flags: defect ? [{ text: defect + ": No" }] : [] });
+      await eq(tom, 0, "Geka Metalworker", true); await eq(tom, 1, "Compressor", true, "Air receiver drained of water"); await eq(chris, 8, "Pillar Drill", true); await eq(tom, 0, "Overhead crane – daily basic", true, null, "Crane 1"); await eq(chris, 1, "Overhead crane – weekly detailed", true, null, "Crane 1");
       // hours by activity over the last week, and allocated hours on the two workshop jobs (manifest)
       const acts = [["W1208-001", "Fabricating", 4], ["W1208-001", "Welding", 3], ["W1208-001", "Sorting fittings", 1], ["W1209-001", "Unloading wagon", 1.5], ["W1209-001", "Prep works (drilling / sawing)", 2], ["W1208-001", "Painting", 1], ["W1209-001", "Loading", 1]];
       for (let back = 1; back <= 5; back++) for (const who of [chris, tom]) for (const [wno, activity, h] of acts.filter((_, i) => (i + back + (who === tom ? 1 : 0)) % 2 === 0))
@@ -497,9 +497,22 @@
       const fw = (back, h, m, action, extra) => put("fabwork", Object.assign({ id: uid(), wno: "W1208-001", mark: "B101", line: "B101", piece: 1, pieceName: "B101/1", stage: "fabricated", action, user: chris[0], userName: chris[1], createdAt: at(back, h, m).toISOString() }, extra || {}));
       await fw(1, 8, 0, "start"); await fw(1, 9, 10, "pause", { reason: "Missing materials", note: "end plates for B101 not delivered" }); await fw(1, 11, 0, "start"); await fw(1, 12, 15, "stop");
       LS.set("demoSeededWs", 1);
+      await this.seedEquip();
       // phones already set up before the Equipment checker role: give Tom it
       const s = await Store.get("settings:app", "records");
       if (s && s.rec && s.rec.people) { const p = s.rec.people.find((x) => x.email === tom[0]); if (p && !(p.roles || []).includes("Equipment Checker")) { p.roles = (p.roles || []).concat(["Equipment Checker"]); await Store.put(s, "records"); } }
+    },
+    // the listed forklifts and cranes (24 Nov), added once
+    async seedEquip() {
+      if (LS.get("demoSeededEq", 0) === 1) return;
+      const put = (kind, rec) => Store.put({ key: kind + ":" + rec.id, kind, rec }, "records"), now = new Date();
+      const d = (off) => { const x = new Date(now); x.setDate(x.getDate() + off); return isoDate(x); };
+      // the listed forklifts and cranes (fictional numbers)
+      for (const [ref, type, location, swl, exam] of [["Forklift 1", "Forklift", "Yard", "3 t", d(120)], ["Forklift 2", "Forklift", "Yard", "2.5 t", d(20)], ["Crane 1", "Overhead crane", "Bay 1", "10 t", d(90)], ["Crane 2", "Overhead crane", "Bay 1", "5 t", d(90)], ["Crane 3", "Overhead crane", "Bay 2", "5 t", d(-3)]])
+        await put("equipitem", { id: "eq-" + ref.replace(/\s+/g, "").toLowerCase(), ref, type, location, swl, serial: "", examDue: exam, status: "In use", createdAt: now.toISOString() });
+      // crane checks recorded before the list name Crane 1
+      for (const r of await Store.all("records")) if (r.kind === "forms" && r.rec.templateId === "wscheck" && /Overhead crane/.test(r.rec.values.equipType) && !r.rec.values.equipRef) { r.rec.values.equipRef = "Crane 1"; await Store.put(r, "records"); }
+      LS.set("demoSeededEq", 1);
     },
     async seed() {
       if (LS.get("demoSeeded", 0) === 9) return this.seedWorkshop();
@@ -572,7 +585,7 @@
       await card(sam, "CPCS", "CP-118842", "A60 telehandler", 700, true);
       await card(mark, "Welder qualification (BS EN ISO 9606-1)", "WQ-0417", "135 P FW 1.1 S t10 PB ml", 90, true);
       LS.set("demoSeeded", 9);
-      LS.del("demoSeededWs"); await this.seedWorkshop();
+      LS.del("demoSeededWs"); LS.del("demoSeededEq"); await this.seedWorkshop();
     }
   };
   // ---------------------------------------------------------------- UI helpers

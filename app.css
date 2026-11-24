@@ -566,3 +566,5 @@ main:has(.admin) { max-width: none; }
 .row-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .eq-c { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--line); }
 .eq-a { display: flex; gap: 6px; align-items: center; flex: none; }
+.ws-sheet td.pre, .ws-sheet tr.pre-row td:nth-child(2), .ws-sheet tr.pre-row td:nth-child(4), .ws-sheet tr.pre-row td:nth-child(5) { color: var(--muted, #888); font-size: 12px; white-space: nowrap; }
+.ws-sheet td.ok, .ws-sheet td.bad { white-space: nowrap; }

@@ -212,7 +212,7 @@
       fields: [
         { type: "date", id: "checkDate", label: "Date of check", prefill: "today", max: "today", back: 7, required: true, hint: "Today unless you're recording a check done earlier" },
         { type: "select", id: "equipType", label: "Equipment", options: Object.keys(WS_CHECKS), required: true },
-        { type: "text", id: "equipRef", label: "Which one (number or bay on the equipment)", placeholder: "e.g. Crane 2, bay 1 / Forklift 1", requiredIf: ["equipType", "Overhead crane – daily basic", "Overhead crane – weekly detailed", "Forklift – daily basic", "Forklift – weekly detailed"] },
+        { type: "equipitem", id: "equipRef", label: "Which one", placeholder: "e.g. Crane 2, bay 1 / Forklift 1", requiredIf: ["equipType", "Overhead crane – daily basic", "Overhead crane – weekly detailed", "Forklift – daily basic", "Forklift – weekly detailed"] },
         { type: "checklist", id: "checks", label: "Checks", itemsBy: "equipType", itemsFor: WS_CHECKS, badAnswer: "No", required: true },
         { type: "text", id: "defects", label: "Other comments", multiline: true },
         { type: "yesno", id: "safe", label: "Safe to use?", badAnswer: "No", required: true, warn: "Do not use. Isolate it, tag it out of use and tell the workshop manager." },
@@ -543,6 +543,23 @@
         el.innerHTML = label + (f.multiline ? '<textarea rows="3">' + esc(v) + "</textarea>" : '<input type="' + (f.type === "text" ? "text" : f.type) + '"' + (f.type === "number" ? ' inputmode="decimal" step="any"' : "") + (dMax ? ' max="' + dMax + '"' : "") + (dMin ? ' min="' + dMin + '"' : "") + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : "") + ' value="' + esc(v) + '">') + (f.hint ? '<div class="small">' + esc(f.hint) + "</div>" : "");
         const inp = el.querySelector("input,textarea");
         return { el, get: () => inp.value.trim(), check: () => { const x = inp.value.trim(), n = need(x); if (n || !x || f.type !== "date") return n; if (dMax && x > dMax) return f.label + " can't be in the future"; if (dMin && x < dMin) return f.label + " must be within the last " + f.back + " days"; return ""; } };
+      }
+      // 24 Nov: the forklifts and cranes are listed (Equipment checks > Forklifts and cranes), so the check is done
+      // against a numbered item: a list of the items of the chosen type; typed in when none are listed for that type
+      case "equipitem": {
+        let items = [], type = (ctx.values || {}).equipType || (ctx.prefill || {}).equipType || "";
+        const machineOf = (t) => ((IC.Forms.WS_EQUIP.find((m) => m.checks.some((c) => c[0] === t || IC.Forms.WS_OLD[t] === c[0])) || {}).name || "");
+        const draw = () => {
+          const list = items.filter((i) => i.type === machineOf(type) && i.status !== "Out of use");
+          el.innerHTML = list.length ? label + '<select><option value="">Choose…</option>' + list.map((i) => '<option value="' + esc(i.ref) + '"' + (i.ref === val ? " selected" : "") + ">" + esc(i.ref + (i.location ? " · " + i.location : "") + (i.swl ? " · SWL " + i.swl : "")) + "</option>").join("") + "</select>"
+            : label + '<input type="text" value="' + esc(val || "") + '" placeholder="' + esc(f.placeholder || "") + '">';
+          const c = el.querySelector("select,input"); c.onchange = c.oninput = () => { val = c.value; };
+        };
+        draw();
+        Data.list("equipitem", "team").then((x) => { items = x.sort((a, b) => a.ref.localeCompare(b.ref, undefined, { numeric: true })); draw(); }).catch(() => {});
+        document.addEventListener("ic-field", (e) => { if (e.detail.id === "equipType" && el.isConnected) { type = e.detail.value; val = ""; draw(); } });
+        const get = () => (el.querySelector("select,input") || {}).value || "";
+        return { el, get, check: () => need(get()) };
       }
       case "select": {
         if (val == null && ctx.prefill && ctx.prefill[f.id] != null) val = ctx.prefill[f.id];
@@ -1014,7 +1031,7 @@
     if (id === "ncr") { const p = IC.LS.get("ncrPrefill", null); IC.LS.del("ncrPrefill"); if (p) return viewForm("ncr", { templateId: "ncr", status: "draft", values: { what: p.what, where: p.where, clause: p.clause }, jobFolder: p.jobFolder }); }
     if (isRamsT(id) && args[2]) IC.LS.set(id + "Prefill", { docPath: decodeURIComponent(args[2]) });
     // an equipment check started from the register: the equipment already chosen
-    if (id === "wscheck" && args[1]) return viewForm("wscheck", { templateId: "wscheck", status: "draft", values: { equipType: decodeURIComponent(args[1]) } });
+    if (id === "wscheck" && args[1]) return viewForm("wscheck", { templateId: "wscheck", status: "draft", values: { equipType: decodeURIComponent(args[1]), equipRef: args[2] ? decodeURIComponent(args[2]) : "" } });
     return viewForm(id, null, args[1] ? decodeURIComponent(args[1]) : "");
   });
   IC.route("form", (args) => viewDone(args[0]));

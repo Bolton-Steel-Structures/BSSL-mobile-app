@@ -8,7 +8,9 @@
  * flow, each within the WPS range; a supervisor verifies the week's sheet. Ranges from BSS's WPSs 1, 2 and 3 (Rev 0).
  * BS EN ISO 3834-2 (equipment, validation of measuring) and BS EN 1090-2 7.4.1 (welding to qualified WPSs).
  *
- * Records: "weldset" { set, serial, make, model, process, assignedTo, assignedName, status }   (id "set-<no>")
+ * Records: "weldset" { set, serial, make, model, process, assignedTo, assignedName, status, wps, role }   (id "set-<no>")
+ *          wps / role: the WPS the set is normally used to and whether its operative is the fabricator (F) or welder (W);
+ *          the check sheet and the Monday check are pre-filled from them (24 Nov), as the paper WM-14-7 was
  *          "weldcert" { set, kind (Calibration | Wire speed), certNo, make, model, process, calibrated, due, status, by,
  *                       cols, points, fileName, fileType, fileData (data URL) }
  *          "weldcheck" { weekOf, set, wps, role (F | W), weldType, amps, volts, gasOk, flow, inRange, ok, sig, person }
@@ -29,6 +31,9 @@
     "2": { name: "WPS 2 · single pass fillet welds", type: "FW", a: [250, 305], v: [30, 33], f: [15, 20], note: "4.5–8 mm throat, 1.2 mm wire" },
     "3": { name: "WPS 3 · multi pass fillet welds", type: "FW", a: [275, 315], v: [30, 33], f: [15, 20], note: "All multi pass throat sizes, 1.2 mm wire" }
   };
+  // the WPS and job a set is pre-filled with: set on the set (Assign), else WPS 2 (single pass fillet) and welder, as WM-14-7
+  const defWps = (s) => (s && WPS[s.wps] ? s.wps : "2"), defRole = (s) => (s && (s.role === "F" || s.role === "W") ? s.role : "W");
+  const rng = (r, u) => r[0] + "–" + r[1] + (u ? " " + u : "");
   const inR = (x, r) => x !== "" && x != null && !isNaN(x) && Number(x) >= r[0] && Number(x) <= r[1];
 
   function monday(d) { const x = new Date(d || Date.now()); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
@@ -73,9 +78,12 @@
       h += '<div class="stats"><div class="stat"><b>' + checks.length + "</b><span>checked this week</span></div><div class=\"stat" + (missing.length ? " warn" : "") + '"><b>' + missing.length + "</b><span>not checked yet</span></div><div class=\"stat" + (out.length ? " bad" : "") + '"><b>' + out.length + "</b><span>outside the WPS</span></div><div class=\"stat" + (due.length ? " warn" : "") + '"><b>' + due.length + "</b><span>calibration due or out</span></div></div>" +
         '<div class="card"><div class="row-between"><b>Welding check sheet (WM-14-7), week of ' + esc(fmtDay(monday())) + "</b>" + (ver ? '<span class="pill ok">Checked ' + esc(ver.initials) + "</span>" : "") + "</div>" +
         '<div class="wk-wrap"><table class="tbl ws-sheet"><tr><th>Set</th><th>WPS</th><th>Name</th><th>Job</th><th>Weld</th><th>Amps</th><th>Volts</th><th>Gas</th><th>Flow</th></tr>' +
-        sets.filter((s) => s.status !== "Out of use").map((s) => { const c = checks.find((x) => x.set === s.set), t = (ok) => (c ? (ok ? '<td class="ok">✓</td>' : '<td class="bad">✗</td>') : "<td></td>");
-          return "<tr" + (c && !c.ok ? ' class="bad-row"' : "") + "><td><b>" + esc(s.set) + "</b></td><td>" + (c ? esc(c.wps) : "") + "</td><td>" + esc(c ? c.personName : s.assignedName || s.location || (s.status === "Spare" ? "Spare set" : "")) + "</td><td>" + (c ? esc(c.role) : "") + "</td><td>" + (c ? esc(c.weldType) : "") + "</td>" +
-            (c ? t(c.inRange.a) + t(c.inRange.v) + t(c.gasOk) + t(c.inRange.f) : '<td colspan="4" class="small">' + (s.assignedTo ? "not checked" : "") + "</td>") + "</tr>"; }).join("") + "</table></div>" +
+        // pre-filled from each set's WPS (WPS, job, weld type and the ranges to hit); the readings and ticks once checked
+        sets.filter((s) => s.status !== "Out of use").map((s) => { const c = checks.find((x) => x.set === s.set), wp = c ? c.wps : defWps(s), w = WPS[wp];
+          const t = (ok, val, r) => (c ? '<td class="' + (ok ? "ok" : "bad") + '">' + (val != null ? esc(val) + " " : "") + (ok ? "✓" : "✗") + "</td>" : '<td class="pre">' + esc(r) + "</td>");
+          return "<tr" + (c && !c.ok ? ' class="bad-row"' : c ? "" : ' class="pre-row"') + "><td><b>" + esc(s.set) + "</b></td><td>" + esc(wp) + "</td><td>" + esc(c ? c.personName : s.assignedName || s.location || (s.status === "Spare" ? "Spare set" : "")) + "</td><td>" + esc(c ? c.role : defRole(s)) + "</td><td>" + esc(c ? c.weldType : w.type) + "</td>" +
+            t(c && c.inRange.a, c && c.amps, rng(w.a)) + t(c && c.inRange.v, c && c.volts, rng(w.v)) + t(c && c.gasOk, null, "Ar mix") + t(c && c.inRange.f, c && c.flow, rng(w.f)) + "</tr>"; }).join("") + "</table></div>" +
+        '<p class="small">Grey = what the check is to: each set\u2019s WPS, job and the WPS ranges (amps, volts, gas flow l/min). Change a set\u2019s WPS or F / W with Assign.</p>' +
         (out.length ? '<p class="err">' + esc(out.map((x) => "Set " + x.set + " (" + x.personName + "): " + [!x.inRange.a && "amps " + x.amps, !x.inRange.v && "volts " + x.volts, !x.gasOk && "gas", !x.inRange.f && "flow " + x.flow].filter(Boolean).join(", ")).join("; ")) + ". Don't weld with these until put right.</p>" : "") +
         '<div class="row">' + (!ver ? '<button class="btn primary" id="wsVerify">Checked: sign off the week</button>' : "") + '<button class="btn" id="wsXlsx">Excel (WM-14-7)</button></div></div>' +
         '<div class="card"><b>Add calibration certificates</b><div class="drop" id="wsDrop" tabindex="0" role="button" aria-label="Choose certificate files"><b>Drop certificates here</b><span class="small">W.I.R.E. calibration or wire speed certificates (.xlsx) read automatically; PDFs and photos asked for the set and dates. The set register (.xlsx: Set, Serial, Name) can be dropped too.</span></div><input type="file" id="wsFiles" multiple accept=".xlsx,.pdf,image/*" hidden></div>' +
@@ -108,6 +116,8 @@
       (s ? "" : '<label class="fl">Set number<input id="aSet" placeholder="e.g. 17 or WC3"></label>') +
       '<label class="fl">Assigned to<select id="aWho"><option value="">Nobody (spare)</option>' + ppl.map((p) => '<option value="' + esc(p.email) + '"' + (p.email === cur.assignedTo ? " selected" : "") + ">" + esc(p.name) + "</option>").join("") + "</select></label>" +
       '<label class="fl">Status<select id="aSt">' + ["In use", "Spare", "Out of use"].map((x) => "<option" + (x === cur.status ? " selected" : "") + ">" + x + "</option>").join("") + "</select></label>" +
+      '<label class="fl">Normally welding to<select id="aWps">' + Object.entries(WPS).map(([k, w]) => '<option value="' + k + '"' + (k === defWps(cur) ? " selected" : "") + ">" + esc(w.name) + "</option>").join("") + "</select></label>" +
+      '<label class="fl">Job<select id="aRole"><option value="W"' + (defRole(cur) === "W" ? " selected" : "") + '>Welder (W)</option><option value="F"' + (defRole(cur) === "F" ? " selected" : "") + ">Fabricator (F)</option></select></label>" +
       '<label class="fl">Make<input id="aMake" value="' + esc(cur.make || "") + '"></label><label class="fl">Model<input id="aModel" value="' + esc(cur.model || "") + '"></label><label class="fl">Serial number<input id="aSer" value="' + esc(cur.serial || "") + '"></label>' +
       '<button class="btn primary block" id="aGo">Save</button><button class="btn block" id="aNo">Cancel</button>');
     sh.q("#aNo").onclick = () => sh.close();
@@ -117,7 +127,7 @@
       const who = sh.q("#aWho").value, p = ppl.find((x) => x.email === who);
       // one set per person: taking a set moves them off any other
       if (who) for (const o of await Data.list("weldset", "team")) if (o.assignedTo === who && o.set !== set) { o.assignedTo = ""; o.assignedName = ""; o.status = "Spare"; await Data.save("weldset", o); }
-      await Data.save("weldset", Object.assign({}, cur, { id: "set-" + set, set, assignedTo: who, assignedName: p ? p.name : "", status: who ? "In use" : sh.q("#aSt").value === "In use" ? "Spare" : sh.q("#aSt").value, make: sh.q("#aMake").value.trim(), model: sh.q("#aModel").value.trim(), serial: sh.q("#aSer").value.trim() }));
+      await Data.save("weldset", Object.assign({}, cur, { id: "set-" + set, set, assignedTo: who, assignedName: p ? p.name : "", status: who ? "In use" : sh.q("#aSt").value === "In use" ? "Spare" : sh.q("#aSt").value, wps: sh.q("#aWps").value, role: sh.q("#aRole").value, make: sh.q("#aMake").value.trim(), model: sh.q("#aModel").value.trim(), serial: sh.q("#aSer").value.trim() }));
       sh.close(); toast("Set " + set + " saved"); viewSets();
     };
   }
@@ -171,7 +181,7 @@
     for (const rows of Object.values(sheets)) {
       const hi = rows.findIndex((r) => r && r.some((c) => /set/i.test(String(c || ""))) && r.some((c) => /serial/i.test(String(c || ""))));
       if (hi < 0) continue;
-      const h = rows[hi].map((c) => String(c || "").toLowerCase()), iS = h.findIndex((x) => /set/.test(x)), iN = h.findIndex((x) => /name/.test(x)), iR = h.findIndex((x) => /serial/.test(x));
+      const h = rows[hi].map((c) => String(c || "").toLowerCase()), iS = h.findIndex((x) => /set/.test(x)), iN = h.findIndex((x) => /name/.test(x)), iR = h.findIndex((x) => /serial/.test(x)), iW = h.findIndex((x) => /wps/.test(x)), iJ = h.findIndex((x) => /^job|f\s*\/\s*w/.test(x));
       const ppl = IC.WsHours.people(), match = (n) => ppl.find((p) => p.name.toLowerCase() === n.toLowerCase()) || ppl.find((p) => p.name.split(" ").slice(-1)[0].toLowerCase() === n.split(" ").slice(-1)[0].toLowerCase() && p.name[0].toLowerCase() === n[0].toLowerCase());
       let n = 0, un = [];
       for (const r of rows.slice(hi + 1)) {
@@ -179,7 +189,8 @@
         const set = String(r[iS]).trim().toUpperCase().replace(/^SET\s*/, ""), name = iN >= 0 ? String(r[iN] || "").trim() : "", shared = /top shop|shared|bay/i.test(name), spare = !name || /spare/i.test(name) || shared, p = spare ? null : match(name);
         const prev = (await Data.list("weldset", "team")).find((x) => x.set === set) || {};
         if (!spare && !p) un.push(name);
-        await Data.save("weldset", Object.assign({ id: "set-" + set, make: "", model: "", process: "" }, prev, { set, serial: iR >= 0 ? String(r[iR] || "").trim() : prev.serial || "", assignedTo: p ? p.email : "", assignedName: spare ? "" : p ? p.name : name, location: shared ? name : prev.location || "", status: shared ? "In use" : spare ? "Spare" : "In use" }));
+        await Data.save("weldset", Object.assign({ id: "set-" + set, make: "", model: "", process: "" }, prev, { set, serial: iR >= 0 ? String(r[iR] || "").trim() : prev.serial || "", assignedTo: p ? p.email : "", assignedName: spare ? "" : p ? p.name : name, location: shared ? name : prev.location || "", status: shared ? "In use" : spare ? "Spare" : "In use",
+          wps: iW >= 0 && WPS[String(r[iW] || "").replace(/\D/g, "")] ? String(r[iW]).replace(/\D/g, "") : prev.wps || "2", role: iJ >= 0 && /^[FW]$/i.test(String(r[iJ] || "").trim()) ? String(r[iJ]).trim().toUpperCase() : prev.role || "W" }));
         n++;
       }
       return n + " sets from the register" + (un.length ? " (not matched to an app login, so no Monday reminder until assigned: " + un.join(", ") + ")" : "");
@@ -232,8 +243,9 @@
       '<div class="card"><div class="ws-set"><span class="ws-no">' + esc(s.set) + "</span><span><b>" + esc([s.make, s.model].filter(Boolean).join(" ")) + "</b>" + (s.assignedName ? '<span class="small">' + esc(s.assignedName) + "</span>" : "") + '<span class="pill ' + st.cls + '">' + esc(st.label) + "</span></span></div>" +
       (!st.ok ? '<p class="err">This set’s calibration is not valid. Don’t weld with it: tell your supervisor, who will swap it for a calibrated set.</p></div>' :
       '<p class="small">Run the set on a test piece and read the meters while welding. Each reading must be within the range of the WPS you are welding to (WM-14-7).</p></div>' +
-      '<div class="card"><label class="fl">WPS<select id="cWps">' + Object.entries(WPS).map(([k, w]) => '<option value="' + k + '"' + ((last ? last.wps : "2") === k ? " selected" : "") + ">" + esc(w.name) + "</option>").join("") + '</select></label><div class="small" id="cRanges"></div>' +
-      '<label class="fl">I am the<select id="cRole"><option value="F"' + (last && last.role === "F" ? " selected" : "") + '>Fabricator (F)</option><option value="W"' + (last && last.role === "W" ? " selected" : "") + ">Welder (W)</option></select></label>" +
+      '<div class="card"><label class="fl">WPS<select id="cWps">' + Object.entries(WPS).map(([k, w]) => '<option value="' + k + '"' + (defWps(s) === k ? " selected" : "") + ">" + esc(w.name) + "</option>").join("") + '</select></label><div class="small" id="cRanges"></div>' +
+      '<label class="fl">Job<select id="cRole"><option value="W"' + (defRole(s) === "W" ? " selected" : "") + '>Welder (W)</option><option value="F"' + (defRole(s) === "F" ? " selected" : "") + ">Fabricator (F)</option></select></label>" +
+      (last ? '<p class="small">Last check ' + esc(fmtDate(isoDate(new Date(last.createdAt)))) + ": " + esc(last.amps + " A, " + last.volts + " V, " + last.flow + " l/min") + "</p>" : "") +
       '<label class="fl">Amps<input id="cA" type="number" inputmode="numeric" step="1"></label><div class="small rng" id="rA"></div>' +
       '<label class="fl">Volts<input id="cV" type="number" inputmode="decimal" step="0.1"></label><div class="small rng" id="rV"></div>' +
       '<label class="fl chk"><input type="checkbox" id="cGas"> Gas is ' + esc(GAS) + "</label>" +
@@ -246,6 +258,7 @@
     const show = () => {
       const w = WPS[$("cWps").value];
       $("cRanges").textContent = w.type + " · " + w.a.join("–") + " A · " + w.v.join("–") + " V · gas " + w.f.join("–") + " l/min. " + w.note;
+      $("cA").placeholder = rng(w.a, "A"); $("cV").placeholder = rng(w.v, "V"); $("cF").placeholder = rng(w.f, "l/min");
       [["cA", "rA", w.a, "A"], ["cV", "rV", w.v, "V"], ["cF", "rF", w.f, "l/min"]].forEach(([i, r, rg, u]) => { const x = $(i).value; $(r).className = "small rng " + (x === "" ? "" : inR(x, rg) ? "ok" : "bad"); $(r).textContent = x === "" ? "" : inR(x, rg) ? "Within " + rg.join("–") + " " + u : "Outside " + rg.join("–") + " " + u + ": adjust the set and read again"; });
     };
     ["cWps", "cA", "cV", "cF"].forEach((i) => ($(i).oninput = show)); show();
@@ -267,7 +280,7 @@
     const rows = [["Bolton Structures · Welding Check Sheet · WM-14-7 Revision A"], ["Week of " + fmtDay(monday())], [], ["Machine No.", "WPS No.", "Name", "Job", "Weld Type", "Amps", "Volts", "Gas Type", "Gas Flow", "Checked", "Amps read", "Volts read", "Flow read (l/min)", "Certificate", "Due"]];
     for (const s of sets.filter((x) => x.status !== "Out of use")) {
       const c = checks.find((x) => x.set === s.set);
-      rows.push([s.set, c ? c.wps : "", c ? c.personName : s.assignedName || s.location || "Spare set", c ? c.role : "", c ? c.weldType : "", c ? tick(c.inRange.a) : "", c ? tick(c.inRange.v) : "", c ? tick(c.gasOk) : "", c ? tick(c.inRange.f) : "", c && ver ? ver.initials : "", c ? c.amps : "", c ? c.volts : "", c ? c.flow : "", c ? c.certNo || "" : "", ""]);
+      rows.push([s.set, c ? c.wps : defWps(s), c ? c.personName : s.assignedName || s.location || "Spare set", c ? c.role : defRole(s), c ? c.weldType : WPS[defWps(s)].type, c ? tick(c.inRange.a) : "", c ? tick(c.inRange.v) : "", c ? tick(c.gasOk) : "", c ? tick(c.inRange.f) : "", c && ver ? ver.initials : "", c ? c.amps : "", c ? c.volts : "", c ? c.flow : "", c ? c.certNo || "" : "", ""]);
     }
     rows.push([], ["Signature: " + (ver ? ver.verifiedByName + " " + fmtDay(new Date(ver.createdAt)) : "")]);
     const blob = IC.Xlsx.build([{ name: "WM-14-7", rows, widths: [11, 8, 20, 6, 10, 7, 7, 9, 9, 9, 10, 10, 15, 13, 10] }]);
@@ -277,32 +290,69 @@
   // ---------------------------------------------------------------- workshop equipment checks: the register
   // per machine: each of its checks (daily basic / weekly detailed / weekly) with the last one done and whether it's due.
   // A weekly detailed check also counts as that day's basic check. Weekly checks are due from Monday each week.
+  // The forklifts and cranes are listed one by one (24 Nov): "equipitem" { type: Forklift | Overhead crane, ref,
+  // location, swl, serial, examDue (LOLER thorough examination), status }. Each listed item has its own daily basic and
+  // Monday detailed check; a machine with nothing listed is checked as one.
+  const ITEM_TYPES = ["Forklift", "Overhead crane"];
   async function equipState() {
     const kindOf = (f) => IC.Forms.WS_OLD[f.values.equipType] || f.values.equipType, dayOf = (f) => f.values.checkDate || isoDate(new Date(f.submittedAt));
     const forms = (await Data.list("forms", "team")).filter((f) => f.templateId === "wscheck" && f.status === "submitted").sort((a, b) => (dayOf(b) + (b.submittedAt || "")).localeCompare(dayOf(a) + (a.submittedAt || "")));
+    const items = (await Data.list("equipitem", "team")).filter((x) => x.status !== "Out of use").sort((a, b) => a.ref.localeCompare(b.ref, undefined, { numeric: true }));
     const today = isoDate(new Date()), mon = weekOf(), working = IC.isWorkingDay ? IC.isWorkingDay(new Date()) : true;
-    return IC.Forms.WS_EQUIP.map((m) => {
-      const keys = m.checks.map((c) => c[0]), mine = forms.filter((f) => keys.includes(kindOf(f)));
-      const checks = m.checks.map(([key, every]) => {
-        const counts = every === "day" ? keys : [key]; // the weekly detailed counts for the day too
-        const last = mine.find((f) => counts.includes(kindOf(f)));
-        const due = every === "day" ? working && (!last || dayOf(last) < today) : !last || dayOf(last) < mon;
-        return { key, every, last, due, label: every === "day" ? "Daily basic" : m.checks.length > 1 ? "Weekly detailed (Monday)" : "Weekly" };
-      });
-      const latest = mine[0];
-      return { type: m.name, checks, list: mine, last: latest, due: checks.some((c) => c.due), unsafe: latest && latest.values.safe === "No" };
-    });
+    const norm = (x) => String(x || "").toLowerCase().replace(/\s+/g, "");
+    const out = [];
+    for (const m of IC.Forms.WS_EQUIP) {
+      const keys = m.checks.map((c) => c[0]), all = forms.filter((f) => keys.includes(kindOf(f))), listed = items.filter((x) => x.type === m.name);
+      for (const it of listed.length ? listed : [null]) {
+        const mine = it ? all.filter((f) => norm(f.values.equipRef) === norm(it.ref)) : all;
+        const checks = m.checks.map(([key, every]) => {
+          const counts = every === "day" ? keys : [key];
+          const last = mine.find((f) => counts.includes(kindOf(f)));
+          const due = every === "day" ? working && (!last || dayOf(last) < today) : !last || dayOf(last) < mon;
+          return { key, every, last, due, label: every === "day" ? "Daily basic" : m.checks.length > 1 ? "Weekly detailed (Monday)" : "Weekly" };
+        });
+        const exam = it && it.examDue ? daysTo(it.examDue) : null;
+        out.push({ type: it ? it.ref : m.name, machine: m.name, item: it, checks, list: mine, last: mine[0], due: checks.some((c) => c.due), unsafe: mine[0] && mine[0].values.safe === "No", examOut: exam != null && exam < 0, examSoon: exam != null && exam >= 0 && exam <= 30 });
+      }
+    }
+    return out;
+  }
+  // add or change a listed forklift or crane (supervisors, managers, directors)
+  function itemSheet(it, done) {
+    const cur = it || { type: "Forklift", ref: "", location: "", swl: "", serial: "", examDue: "", status: "In use" };
+    const sh = sheet("<h3>" + (it ? esc(it.ref) : "Add a forklift or crane") + "</h3>" +
+      '<label class="fl">Type<select id="iType">' + ITEM_TYPES.map((t) => "<option" + (t === cur.type ? " selected" : "") + ">" + t + "</option>").join("") + "</select></label>" +
+      '<label class="fl">Number / name (as marked on it)<input id="iRef" value="' + esc(cur.ref) + '" placeholder="e.g. Forklift 1 / Crane 2"></label>' +
+      '<label class="fl">Where<input id="iLoc" value="' + esc(cur.location || "") + '" placeholder="e.g. Bay 1 / Yard"></label>' +
+      '<label class="fl">Safe working load<input id="iSwl" value="' + esc(cur.swl || "") + '" placeholder="e.g. 5 t"></label>' +
+      '<label class="fl">Serial number<input id="iSer" value="' + esc(cur.serial || "") + '"></label>' +
+      '<label class="fl">Thorough examination (LOLER) due<input id="iExam" type="date" value="' + esc(cur.examDue || "") + '"></label>' +
+      '<label class="fl">Status<select id="iSt">' + ["In use", "Out of use"].map((t) => "<option" + (t === cur.status ? " selected" : "") + ">" + t + "</option>").join("") + "</select></label>" +
+      '<button class="btn primary block" id="iGo">Save</button><button class="btn block" id="iNo">Cancel</button>');
+    sh.q("#iNo").onclick = () => sh.close();
+    sh.q("#iGo").onclick = async () => {
+      const ref = sh.q("#iRef").value.trim();
+      if (!ref) { toast("Give its number or name"); return; }
+      const rec = Object.assign({}, cur, { type: sh.q("#iType").value, ref, location: sh.q("#iLoc").value.trim(), swl: sh.q("#iSwl").value.trim(), serial: sh.q("#iSer").value.trim(), examDue: sh.q("#iExam").value, status: sh.q("#iSt").value });
+      sh.close(); await Data.save("equipitem", rec); toast(ref + " saved"); done();
+    };
   }
   async function viewEquip() {
     setBar("Workshop equipment checks", "Pre-use checks (PUWER / LOLER)", true);
     const st = await equipState(), review = can("equip-review"), doer = can("form:wscheck");
     const when = (f) => fmtDay(parseDate(f.values.checkDate || isoDate(new Date(f.submittedAt)))) + " by " + (f.values.operator || f.userName || "") + (f.values.equipRef ? " (" + f.values.equipRef + ")" : "");
     $("main").innerHTML = '<p class="small">Forklift and overhead cranes: a basic check every working day before use, and a detailed check every Monday (it counts as Monday\u2019s basic check). The other machines once a week.</p>' +
-      st.map((e) => '<div class="card eq' + (e.unsafe ? " bad" : e.due ? " warn" : "") + '"><div class="row-between"><b>' + esc(e.type) + "</b>" + (e.unsafe ? '<span class="pill bad">Not safe to use</span>' : "") + "</div>" +
+      st.map((e) => '<div class="card eq' + (e.unsafe || e.examOut ? " bad" : e.due ? " warn" : "") + '"><div class="row-between"><b>' + esc(e.type) + (e.item ? ' <span class="small">' + esc([e.item.type !== e.type && e.item.type, e.item.location, e.item.swl && "SWL " + e.item.swl].filter(Boolean).join(" · ")) + "</span>" : "") + "</b>" + (e.unsafe ? '<span class="pill bad">Not safe to use</span>' : "") + "</div>" +
+        (e.item && e.item.examDue ? '<div class="small' + (e.examOut ? " err" : "") + '">Thorough examination ' + (e.examOut ? "OVERDUE since " : "due ") + esc(fmtDate(e.item.examDue)) + "</div>" : "") +
         e.checks.map((c) => '<div class="eq-c"><span><span class="small"><b>' + esc(c.label) + "</b> · " + (c.last ? "last " + esc(when(c.last)) : "never checked in the app") + '</span></span><span class="eq-a"><span class="pill ' + (c.due ? "warn" : "ok") + '">' + (c.due ? (c.every === "day" ? "Due today" : "Due this week") : "Done") + "</span>" +
-          (doer ? '<a class="btn sm' + (c.due ? " primary" : "") + '" href="#/form-new/wscheck/' + encodeURIComponent(c.key) + '">Check</a>' : "") + "</span></div>").join("") +
+          (doer ? '<a class="btn sm' + (c.due ? " primary" : "") + '" href="#/form-new/wscheck/' + encodeURIComponent(c.key) + (e.item ? "/" + encodeURIComponent(e.item.ref) : "") + '">Check</a>' : "") + "</span></div>").join("") +
         (e.last && (e.last.flags || []).length ? '<div class="small err">' + esc((e.last.flags || []).slice(0, 3).map((x) => x.text || x.label || String(x)).join("; ")) + "</div>" : "") +
-        (review && e.list.length ? '<details><summary class="small">' + e.list.length + " check" + (e.list.length > 1 ? "s" : "") + "</summary>" + e.list.slice(0, 40).map((f) => '<a class="tile-row" href="#/form/' + encodeURIComponent(f.id) + '"><span><b>' + esc(fmtDay(parseDate(f.values.checkDate || isoDate(new Date(f.submittedAt))))) + " · " + esc((IC.Forms.WS_OLD[f.values.equipType] || f.values.equipType).replace(e.type + " – ", "").replace(e.type, "weekly")) + '</b><span class="small">' + esc((f.values.operator || f.userName || "") + (f.values.equipRef ? " · " + f.values.equipRef : "") + " · " + (f.values.safe === "No" ? "NOT SAFE" : "safe") + ((f.flags || []).length ? " · " + f.flags.length + " defect" + (f.flags.length > 1 ? "s" : "") : "")) + "</span></span>›</a>").join("") + "</details>" : "") + "</div>").join("");
+        (review && e.item ? '<button class="btn sm" data-item="' + esc(e.item.id) + '">Edit</button>' : "") +
+        (review && e.list.length ? '<details><summary class="small">' + e.list.length + " check" + (e.list.length > 1 ? "s" : "") + "</summary>" + e.list.slice(0, 40).map((f) => '<a class="tile-row" href="#/form/' + encodeURIComponent(f.id) + '"><span><b>' + esc(fmtDay(parseDate(f.values.checkDate || isoDate(new Date(f.submittedAt))))) + " · " + esc((IC.Forms.WS_OLD[f.values.equipType] || f.values.equipType).replace(e.type + " – ", "").replace(e.type, "weekly")) + '</b><span class="small">' + esc((f.values.operator || f.userName || "") + (f.values.equipRef ? " · " + f.values.equipRef : "") + " · " + (f.values.safe === "No" ? "NOT SAFE" : "safe") + ((f.flags || []).length ? " · " + f.flags.length + " defect" + (f.flags.length > 1 ? "s" : "") : "")) + "</span></span>›</a>").join("") + "</details>" : "") + "</div>").join("") +
+      (review ? '<div class="card"><b>Forklifts and cranes</b><p class="small">List each one by the number marked on it, so every check is against that one. A forklift or crane listed here gets its own daily and Monday checks.</p><button class="btn block" id="eqAdd">Add a forklift or crane</button></div>' : "");
+    if ($("eqAdd")) $("eqAdd").onclick = () => itemSheet(null, viewEquip);
+    const its = await Data.list("equipitem", "team");
+    $("main").querySelectorAll("[data-item]").forEach((b) => (b.onclick = () => itemSheet(its.find((x) => x.id === b.dataset.item), viewEquip)));
   }
 
   // ---------------------------------------------------------------- home to-do lines
@@ -320,6 +370,8 @@
     if (can("equip-check") || can("equip-review")) {
       const st = await equipState(), unsafe = st.filter((e) => e.unsafe), due = st.filter((e) => e.due && !e.unsafe);
       if (unsafe.length && can("equip-review")) out.push({ href: "#/equip", title: unsafe.map((e) => e.type).join(", ") + " not safe to use", sub: "Last equipment check", alert: true });
+      const exam = st.filter((e) => e.examOut || e.examSoon);
+      if (exam.length && can("equip-review")) out.push({ href: "#/equip", title: "Thorough examination " + (exam.some((e) => e.examOut) ? "overdue" : "due soon"), sub: exam.map((e) => e.type + " " + fmtDate(e.item.examDue)).join(", "), alert: exam.some((e) => e.examOut) });
       const dueC = st.flatMap((e) => e.checks.filter((c) => c.due).map((c) => c.key));
       if (dueC.length && can("equip-check")) out.push({ href: "#/equip", title: dueC.length + " equipment check" + (dueC.length > 1 ? "s" : "") + " due", sub: dueC.join(", ") });
     }
