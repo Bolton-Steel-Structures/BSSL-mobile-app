@@ -1,7 +1,7 @@
 {
  "sourceRepository": "private",
- "sourceCommit": "5c24e7984b5e395bfeafae1441f45b2571269237",
- "serviceWorker": "VERSION = \"icsite-v69\"",
- "builtAt": "2026-11-24T09:58:08Z",
+ "sourceCommit": "3df375bb366d9cf458e7e4142b7ea0fb5d0c91fb",
+ "serviceWorker": "VERSION = \"icsite-v71\"",
+ "builtAt": "2026-11-24T10:27:41Z",
  "mode": "demo"
 }

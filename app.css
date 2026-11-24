@@ -527,3 +527,15 @@ main:has(.admin) { max-width: none; }
 .ppl-occ { width: 100%; margin: 6px 0; padding: 10px 12px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); box-sizing: border-box; }
 .yn-q { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .yn-q > span:first-child { flex: 1; }
+/* workshop pieces: mark/1, /2 … under each line (24 Nov) */
+.fab-pcs { margin: 0 0 6px; border-bottom: 1px solid var(--line); }
+.fab-pcs summary { padding: 10px 4px; font-size: 14px; cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
+.pc { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 4px 8px 14px; border-top: 1px dashed var(--line); }
+.pc-t { min-width: 0; }
+.pc-a { display: flex; gap: 6px; align-items: center; flex: none; }
+.pc-a .link { min-width: 36px; min-height: 44px; font-size: 18px; }
+.pc.on { background: var(--warn-bg); }
+.pc.done .pc-t b { color: var(--ok); }
+.pc.next { box-shadow: inset 3px 0 0 var(--accent); }
+.fab-now { margin: 10px 0; }
+.fab-now .row { margin-top: 8px; gap: 8px; }
