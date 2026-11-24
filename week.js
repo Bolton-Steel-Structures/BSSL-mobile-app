@@ -1,5 +1,5 @@
 /* iCONSTRUCTE Site: this week (from the site labour planner in iCONSTRUCTE, W2).
- * Liam, 19 Nov: plans change quickly, so the phone shows this week only (and next Monday from Friday), never further
+ * 19 Nov: plans change quickly, so the phone shows this week only (and next Monday from Friday), never further
  * ahead, and only where the person signed in is working. Supervisors (feature "crew") also see who is with them on their
  * sites each day. Managers (feature "team-week") also get the whole team's week, as on the desktop planner.
  * The days come from the manifest ("allocations"), which iCONSTRUCTE fills to that window only (SitePublisher.AllocationsTo).

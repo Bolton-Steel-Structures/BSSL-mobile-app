@@ -1,4 +1,4 @@
-/* iCONSTRUCTE Site: workshop fabrication status (roadmap W4; Liam, 21 Nov 2026).
+/* iCONSTRUCTE Site: workshop fabrication status (roadmap W4; 21 Nov 2026).
  * The workshop runs its own iCONSTRUCTE with its own job numbers (shown here with a W prefix); each BSS Fab Issue links to one
  * workshop job. Fabricators mark each line of the job's QA list (the list issued from folder 03, or another customer's list
  * converted to the same layout) Fabricated, Welded, Checked, Loaded, in that order and by quantity. Checked must be marked by
@@ -14,7 +14,7 @@
   const { $, esc, S, Data, can, setBar, sheet, toast, fmtDay } = IC;
   const STAGES = [["fabricated", "Fabricated", "F"], ["welded", "Welded", "W"], ["checked", "Checked", "C"], ["loaded", "Loaded", "L"]];
   const LABEL = Object.fromEntries(STAGES.map((s) => [s[0], s[1]]));
-  // HC4.15: marks are counted per QA list line, not per mark: the same mark on two lines (e.g. two finishes) keeps two
+  // : marks are counted per QA list line, not per mark: the same mark on two lines (e.g. two finishes) keeps two
   // counts. A line's key is its mark; a repeat of the same mark becomes "mark#2", "mark#3" … (earlier records, which only
   // name the mark, still belong to the first line with that mark).
   const keyLines = (job) => { if (!job._keyed) { const n = {}; (job.lines || []).forEach((l) => { n[l.mark] = (n[l.mark] || 0) + 1; l.key = n[l.mark] === 1 ? l.mark : l.mark + "#" + n[l.mark]; }); job._keyed = true; } return job; };
@@ -32,7 +32,7 @@
     const lk = (r) => r.line || r.mark;
     // An undo is its own line (negative quantity) naming the mark it takes back (undoOf) and whose mark that was
     // (undoUser): the pieces come off THAT person, not whoever pressed Undo, so "checked by someone other than the
-    // welder" can't be got round by undoing someone else's mark (HC4.2). A mark that has been undone is never "the last".
+    // welder" can't be got round by undoing someone else's mark. A mark that has been undone is never "the last".
     const mine = log.filter((r) => r.wno === job.wno && done[lk(r)] && LABEL[r.stage]).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
     const undone = new Set(mine.filter((r) => r.undoOf).map((r) => r.undoOf));
     mine.forEach((r) => {
@@ -84,6 +84,82 @@
     boardTimer = setTimeout(() => { if (location.hash.startsWith("#/board")) viewBoard(); }, 60000);
   }
 
+  // ---------------------------------------------------------------- each assembly's own drawing
+  // Assembly drawings in the job's 03 folder are matched to the QA list mark by file name: the name (less ".pdf" and a
+  // trailing revision) is the mark, or contains the mark as a whole word ("B101 Rev A.pdf", "2627-004 - B101 - Rev B.pdf";
+  // not B1010 or AB101). Only current drawings are in the manifest, so this is always the issued revision.
+  const ICON_DWG = '<svg class="fab-dwg" viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
+  function drawingFor(mark, draws, allMarks) {
+    const m = String(mark || "").trim().toUpperCase();
+    if (!m || !draws || !draws.length) return null;
+    const stem = (f) => f.name.replace(/\.pdf$/i, "").replace(/[\s_-]*rev(ision)?[\s_.-]*[A-Z0-9]{1,3}$/i, "").trim().toUpperCase();
+    const exact = draws.find((f) => stem(f) === m);
+    if (exact) return exact;
+    const word = new RegExp("(^|[^A-Z0-9])" + m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^A-Z0-9]|$)");
+    // a name listing several of the job's marks ("Assemblies B103-P101") is a combined file: found by page instead
+    const others = (allMarks || []).map((x) => String(x).trim().toUpperCase()).filter((x) => x && x !== m);
+    const multi = (f) => others.some((o) => new RegExp("(^|[^A-Z0-9])" + o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^A-Z0-9]|$)").test(stem(f)));
+    const hits = draws.filter((f) => word.test(stem(f)) && !/^(GA|GENERAL)/.test(stem(f)) && !multi(f));
+    return hits.length ? hits.sort((a, b) => a.name.length - b.name.length)[0] : null;
+  }
+
+  // Combined assembly drawings (23 Nov: several assemblies are often in one PDF). Each drawing PDF of the linked job
+  // is read once per issue (text only, nothing drawn) and every page searched for the job's marks as whole words; a mark
+  // goes to the page where it is printed largest (the title / mark label), and on a tie the page naming fewest of the
+  // job's marks (so a GA or a list sheet never wins). Kept on the phone against the file and its issue date.
+  const IDX_KEY = "markidx";
+  const idxMem = {};
+  function readIdx() { return IC.LS.get(IDX_KEY, {}); }
+  async function indexFile(f, marks) {
+    const key = f.path + "|" + f.issued, all = readIdx(), have = all[key];
+    if (have && marks.every((m) => m in have.m)) return have;
+    const rec = await IC.Store.get(f.path + "|" + f.issued);
+    const blob = (rec && rec.blob) || (await IC.Src.blob(f.path));
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+    const want = new Set(marks), best = {}, perPage = [];
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const tc = await (await pdf.getPage(n)).getTextContent(), seen = {};
+      for (const it of tc.items) {
+        const size = Math.abs(it.transform ? it.transform[3] || it.transform[0] : 0) || 1;
+        for (const w of String(it.str || "").toUpperCase().split(/[^A-Z0-9]+/)) if (w && want.has(w)) seen[w] = Math.max(seen[w] || 0, size);
+      }
+      perPage.push(seen);
+    }
+    perPage.forEach((seen, i) => {
+      const count = Object.keys(seen).length;
+      for (const m of Object.keys(seen)) {
+        const b = best[m];
+        if (!b || seen[m] > b[1] + 0.01 || (Math.abs(seen[m] - b[1]) <= 0.01 && count < b[2])) best[m] = [i + 1, seen[m], count];
+      }
+    });
+    const out = { n: pdf.numPages, m: {} };
+    marks.forEach((m) => { out.m[m] = best[m] || null; });
+    const fresh = readIdx(); fresh[key] = out;
+    // keep the store small: only files still in the manifest
+    const live = new Set(((S.manifest && S.manifest.jobs) || []).flatMap((x) => (x.files || []).map((y) => y.path + "|" + y.issued)));
+    Object.keys(fresh).forEach((k) => { if (!live.has(k)) delete fresh[k]; });
+    IC.LS.set(IDX_KEY, fresh);
+    return out;
+  }
+  // { MARK: { f, page } } for marks with no drawing of their own, from the job's multi-sheet PDFs
+  async function combinedPages(j, draws, marks) {
+    const out = {};
+    const files = draws.filter((f) => /\.pdf$/i.test(f.name) && !/^(GA|GENERAL)/i.test(f.name));
+    for (const f of files) {
+      let ix;
+      try { ix = await indexFile(f, marks); } catch (e) { continue; }
+      if (!ix || ix.n < 2) continue;
+      for (const m of marks) {
+        const hit = ix.m[m];
+        if (!hit) continue;
+        const cur = out[m];
+        if (!cur || hit[1] > cur.size + 0.01 || (Math.abs(hit[1] - cur.size) <= 0.01 && hit[2] < cur.count)) out[m] = { f, page: hit[0], size: hit[1], count: hit[2], of: ix.n };
+      }
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------- one job: mark each QA list line through the four stages
   const search = {}; // what was typed in each job's search box, kept while marking
   async function viewJob(wno, filter) {
@@ -91,6 +167,13 @@
     setBar(j.wno, [j.client, j.phase].filter(Boolean).join(" · "), true);
     const log = await Data.list("fab", "team"), t = tally(j, log), p = progress(j, t), mark = can("fab-mark");
     const bss = IC.Workshop.linkedJob(j.bssFolder), draws = bss ? (bss.files || []).filter((f) => f.category === "Drawing") : [];
+    // a mark's drawing: its own file (by name), else its sheet in a combined PDF once those have been read
+    const pages = idxMem[j.wno] || {};
+    const allMarks = j.lines.map((x) => x.mark);
+    const dwg = (l) => { const f = drawingFor(l.mark, draws, allMarks); if (f) return { f, page: 0 }; const c = pages[String(l.mark).trim().toUpperCase()]; return c ? { f: c.f, page: c.page, of: c.of } : null; };
+    const dwgHref = (d) => "#/view/" + encodeURIComponent(j.bssFolder) + "/" + encodeURIComponent(d.f.path) + (d.page ? "?page=" + d.page : "");
+    const dwgName = (d) => d.f.name.replace(/\.pdf$/i, "") + (d.page ? ", sheet " + d.page + " of " + d.of : "");
+    const withDwg = j.lines.filter(dwg).length;
     const F = [["all", "All"], ["fabricated", "To fabricate"], ["welded", "To weld"], ["checked", "To check"], ["loaded", "To load"]];
     filter = F.some((x) => x[0] === filter) ? filter : "all";
     const shown = j.lines.filter((l) => filter === "all" || room(l, t.done[l.key], filter) > 0);
@@ -103,13 +186,13 @@
       '<div class="small">' + esc([j.bssJob ? "BSS job " + j.bssJob : "", j.fabIssue, j.exc, j.requiredOn ? "required " + fmtDay(IC.parseDate(j.requiredOn)) : ""].filter(Boolean).join(" · ")) + "</div>" +
       '<div class="small">' + esc((j.list || "QA list") + " · " + p.pcs + " pieces · " + tonnes(p.kg)) + "</div>" + STAGES.map(([s, name]) => bar(name, p[s])).join("") + "</div>" +
       (can("ws-hours") ? '<button class="btn block" id="fabHours">Book hours to this job</button>' : "") +
-      (draws.length ? '<details class="fab-docs"><summary>Fabrication details (' + draws.length + " drawings)</summary>" + draws.map((f) => '<a class="doc-link" href="#/view/' + encodeURIComponent(j.bssFolder) + "/" + encodeURIComponent(f.path) + '">' + esc(f.name) + "</a>").join("") + "</details>" : "") +
+      (draws.length ? '<details class="fab-docs"><summary>Fabrication details (' + draws.length + " drawings" + (withDwg < j.lines.length ? "; " + (j.lines.length - withDwg) + " assemblies have no drawing of their own" : "") + ")</summary>" + draws.map((f) => '<a class="doc-link" href="#/view/' + encodeURIComponent(j.bssFolder) + "/" + encodeURIComponent(f.path) + '">' + esc(f.name) + "</a>").join("") + "</details>" : "") +
       '<div class="chips fab-filter">' + F.map(([k, n]) => '<a class="pill' + (k === filter ? " on" : "") + '" href="#/workshop/' + encodeURIComponent(wno) + "/" + k + '">' + n + "</a>").join("") + "</div>" +
       '<input type="search" id="fabSearch" class="fab-search" placeholder="Search mark or section" aria-label="Search assemblies" autocomplete="off" autocapitalize="characters" value="' + esc(search[wno] || "") + '">' +
       (mark && filter !== "all" && shown.length ? '<button class="btn block" id="fabAll"></button>' : "") +
       '<div class="fab-key small">F fabricated · W welded · C checked · L loaded. Checked is marked by someone other than the welder.</div>' +
-      (shown.length ? shown.map((l) => '<div class="fab-line" data-key="' + esc(l.key) + '"><div class="fab-line-t"><b>' + esc(l.mark) + (l.qty > 1 ? " ×" + l.qty : "") + '</b><span class="small"> ' + esc([l.section, l.length ? l.length + " mm" : "", l.kg ? tonnes(l.kg) + (l.qty > 1 ? " each" : "") : "", l.finish].filter(Boolean).join(" · ")) + "</span></div>" +
-        '<div class="fab-bs">' + STAGES.map((s) => btn(l, s)).join("") + "</div></div>").join("") : '<div class="empty small">Nothing left ' + esc(LABEL[filter] ? "to mark as " + LABEL[filter].toLowerCase() : "") + ".</div>") + '<div class="empty small" id="fabNone" hidden>No assembly matches the search.</div>';
+      (shown.length ? shown.map((l) => { const f = dwg(l); return '<div class="fab-line" data-key="' + esc(l.key) + '"><div class="fab-line-t">' + (f ? '<a class="fab-mark" href="' + dwgHref(f) + '" aria-label="Open the drawing for ' + esc(l.mark) + " (" + esc(dwgName(f)) + ')"><b>' + esc(l.mark) + "</b>" + ICON_DWG + "</a>" : "<b>" + esc(l.mark) + "</b>") + (l.qty > 1 ? "<b> ×" + l.qty + "</b>" : "") + '<span class="small"> ' + esc([l.section, l.length ? l.length + " mm" : "", l.kg ? tonnes(l.kg) + (l.qty > 1 ? " each" : "") : "", l.finish].filter(Boolean).join(" · ")) + "</span></div>" +
+        '<div class="fab-bs">' + STAGES.map((s) => btn(l, s)).join("") + "</div></div>"; }).join("") : '<div class="empty small">Nothing left ' + esc(LABEL[filter] ? "to mark as " + LABEL[filter].toLowerCase() : "") + ".</div>") + '<div class="empty small" id="fabNone" hidden>No assembly matches the search.</div>';
 
     // search box: every word typed must be in the mark, section or finish; "Mark all shown" follows what is in view
     const hit = (l) => { const q = (search[wno] || "").toLowerCase().split(/\s+/).filter(Boolean), txt = (l.mark + " " + (l.section || "") + " " + (l.finish || "")).toLowerCase(); return q.every((w) => txt.includes(w)); };
@@ -122,6 +205,17 @@
     };
     if ($("fabHours")) $("fabHours").onclick = () => IC.WsHours.bookSheet(IC.isoDate(new Date()), (Data.profile || {}).email, () => toast("Booked: see My hours"), j.wno);
     $("fabSearch").oninput = () => { search[wno] = $("fabSearch").value; applySearch(); };
+    const missing = j.lines.filter((l) => !dwg(l)).map((l) => String(l.mark).trim().toUpperCase());
+    if (missing.length && draws.length && !idxMem[j.wno + ":busy"] && !(j.wno in idxMem && missing.every((m) => (idxMem[j.wno + ":tried"] || []).includes(m)))) {
+      idxMem[j.wno + ":busy"] = true;
+      combinedPages(j, draws, missing).then((found) => {
+        idxMem[j.wno] = Object.assign({}, idxMem[j.wno] || {}, found);
+        idxMem[j.wno + ":tried"] = missing;
+        delete idxMem[j.wno + ":busy"];
+        // redraw only if still on this job and something new was found; keep the scroll position
+        if (Object.keys(found).length && location.hash.startsWith("#/workshop/" + encodeURIComponent(wno))) { const y = $("main").scrollTop; viewJob(wno, filter).then(() => { $("main").scrollTop = y; }); }
+      }).catch(() => { delete idxMem[j.wno + ":busy"]; });
+    }
     applySearch();
 
     // why this person can't mark this line at this stage ("" = they can)
@@ -143,9 +237,11 @@
       const why = r ? blocked(l, s) : "";
       const sh = sheet("<h3>" + esc(l.mark) + " · " + LABEL[s] + "</h3><p>" + d + " of " + l.qty + " " + LABEL[s].toLowerCase() + (names.length ? " · " + esc(names.join(", ")) + (lastRec ? ", " + esc(fmtDay(lastRec.createdAt) + " " + fmtTime(lastRec.createdAt)) : "") : "") + "</p>" +
         (why ? '<p class="err">' + esc(why) + ".</p>" : "") +
+        (dwg(l) ? '<a class="btn block" id="fabDwg" href="' + dwgHref(dwg(l)) + '">Open drawing ' + esc(dwgName(dwg(l))) + "</a>" : "") +
         (mark && r && !why ? (r > 1 ? '<label class="ff-l" for="fabQty">How many?</label><input id="fabQty" type="number" inputmode="numeric" min="1" max="' + r + '" value="' + r + '">' : "") + '<button class="btn primary block" id="fabGo">Mark ' + LABEL[s].toLowerCase() + "</button>" : "") +
         (canUndo ? '<button class="btn block" id="fabUndo">Undo ' + (lastRec.user === me() ? "my" : esc(lastRec.userName || "the") + "\u2019s") + " last mark (" + lastRec.qty + ")</button>" : "") + '<button class="btn block" id="fabNo">Close</button>');
       sh.q("#fabNo").onclick = () => sh.close();
+      if (sh.q("#fabDwg")) sh.q("#fabDwg").addEventListener("click", () => sh.close());
       if (sh.q("#fabGo")) sh.q("#fabGo").onclick = async () => { const q = sh.q("#fabQty") ? Math.max(1, Math.min(r, Math.round(Number(sh.q("#fabQty").value) || 0))) : 1; sh.close(); await add(l, s, q); after(); };
       if (sh.q("#fabUndo")) sh.q("#fabUndo").onclick = async () => { sh.close(); await add(l, s, -lastRec.qty, lastRec); after(); };
     }));
@@ -166,6 +262,7 @@
   IC.Workshop = {
     dashboardHtml,
     jobs,
+    drawingFor,
     // the BSS job a workshop job is linked to: workshop staff may open its drawings (and nothing else of the job)
     linkedJob(folder) { return folder && jobs().some((w) => w.bssFolder === folder) ? ((S.manifest && S.manifest.jobs) || []).find((x) => x.folder === folder) || null : null; },
     async readyTodos() {

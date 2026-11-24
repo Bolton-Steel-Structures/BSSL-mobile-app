@@ -11,7 +11,7 @@
 
   const TYPES = ["CSCS", "CPCS", "NPORS", "IPAF", "PASMA", "SMSTS", "SSSTS", "First aid at work", "Slinger / signaller", "Abrasive wheels",
     "Welder qualification (BS EN ISO 9606-1)", "Working at height", "Manual handling", "Asbestos awareness", "Other"];
-  // Workshop staff (Liam, 21 Nov): no CSCS or other site cards; welder qualifications and copies of the weld procedures
+  // Workshop staff (21 Nov): no CSCS or other site cards; welder qualifications and copies of the weld procedures
   const WS_TYPES = ["Welder qualification (BS EN ISO 9606-1): 135 MAG", "Welder qualification (BS EN ISO 9606-1): 111 MMA", "Weld procedure (WPS)", "Visual weld inspection", "Other"];
   const wsMode = () => IC.can("workshop") && !IC.can("drawings");
   const SOON_DAYS = 60;

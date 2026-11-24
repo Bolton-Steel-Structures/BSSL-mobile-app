@@ -1,4 +1,4 @@
-/* iCONSTRUCTE Site: company notices (Liam, 23 Nov 2026).
+/* iCONSTRUCTE Site: company notices (23 Nov 2026).
  * Short one-way posts from management on everyone's Home: "Yard closed 24 Dec", "Welcome to Ben, starting Monday".
  * Posted by managers and the HR Admin, to everyone or to site, workshop or office, shown until a date. No comments or likes.
  * Company information only: no personal data (no birthdays, health, pay). Stored like other app records ("notices").
@@ -20,10 +20,10 @@
     const d = (off) => { const x = new Date(); x.setDate(x.getDate() + off); return isoDate(x); };
     const at = (off) => { const x = new Date(); x.setDate(x.getDate() + off); x.setHours(8, 5, 0, 0); return x.toISOString(); };
     const put = (rec) => { const r = Object.assign({ id: uid(), user: "", userName: rec.postedBy }, rec); return IC.Store.put({ key: "notices:" + r.id, kind: "notices", rec: r }, "records"); };
-    await put({ title: "Christmas shutdown", body: "The yard, workshop and office close at 12:00 on Thursday 24 December and reopen on Monday 4 January. Book the days in between as holiday in the app.", audience: "Everyone", postedBy: "Liam Pilkington", postedAt: at(-1), until: d(45), pinned: true });
+    await put({ title: "Christmas shutdown", body: "The yard, workshop and office close at 12:00 on Thursday 24 December and reopen on Monday 4 January. Book the days in between as holiday in the app.", audience: "Everyone", postedBy: "Alex Morgan", postedAt: at(-1), until: d(45), pinned: true });
     await put({ title: "Welcome, Aisha", body: "Aisha Patel joins the workshop as a welder fabricator this Friday. Say hello.", audience: "Workshop", postedBy: "Paul Shaw", postedAt: at(-1), until: d(7) });
-    await put({ title: "Whistleblowing: please read and sign", body: "The whistleblowing policy is now in the app under My HR. If something feels wrong, unsafe or dishonest, speak up.", audience: "Everyone", postedBy: "Liam Pilkington", postedAt: at(0), until: d(14) });
-    await put({ title: "Exclusion zones on Unit 4", body: "Crane lifts all week at Example Retail Park. Keep out of the marked zones and follow the lift plan.", audience: "Site", postedBy: "Ian Jones", postedAt: at(-2), until: d(5) });
+    await put({ title: "Whistleblowing: please read and sign", body: "The whistleblowing policy is now in the app under My HR. If something feels wrong, unsafe or dishonest, speak up.", audience: "Everyone", postedBy: "Alex Morgan", postedAt: at(0), until: d(14) });
+    await put({ title: "Exclusion zones on Unit 4", body: "Crane lifts all week at Example Retail Park. Keep out of the marked zones and follow the lift plan.", audience: "Site", postedBy: "Sam Carter", postedAt: at(-2), until: d(5) });
     LS.set("noticesSeeded", 1);
   }
 

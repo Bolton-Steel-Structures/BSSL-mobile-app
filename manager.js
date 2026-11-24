@@ -1,4 +1,4 @@
-/* iCONSTRUCTE Site: Manager tools (Liam, 19/11/2026).
+/* iCONSTRUCTE Site: Manager tools ( 19/11/2026).
  * One place for a manager to look after their team: holiday requests, expense claims, competency cards and time keeping
  * (check in / out). Only shown to managers, and each manager only gets their own team's records: the Azure API decides
  * who is in the team (the Manager field on each employee in iCONSTRUCTE) and never sends anyone else's. Nothing here is
@@ -10,7 +10,7 @@
 
   const weekStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
   const initials = (n) => String(n || "?").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase();
-  // the Workshop Manager gets Manager tools for the workshop team (HC4.8): clocking, holidays, expenses, certificates,
+  // the Workshop Manager gets Manager tools for the workshop team: clocking, holidays, expenses, certificates,
   // equipment checks; no site check-in alert, site plant or site timesheets
   const wsMode = () => IC.roleOf(Data.profile).startsWith("Workshop");
   const awayText = (e) => (e.site === "Workshop" ? "away from the workshop, " : "away from site, ") + fmtDistance(e.distanceM);
@@ -42,7 +42,7 @@
     return { state, cls, open, missed, flags, ms: todays.reduce((t, x) => t + x.ms, 0) };
   }
 
-  // ---------------------------------------------------------------- 9am check-in and who's on site (Liam, 20 Nov)
+  // ---------------------------------------------------------------- 9am check-in and who's on site (20 Nov)
   // Site staff (operatives and supervisors) not checked in by 09:00 on a working day are flagged, unless on approved
   // holiday or on the planner's Off row (manifest allocations with off: true). Set the time with checkInBy in config.js.
   // Live: the Azure API runs the same check at 09:00 and sends it to the managers (push / email); here it shows when the
@@ -143,7 +143,7 @@
         '<a class="tile-row mt-' + s.cls + '" href="#/manager/person/' + encodeURIComponent(s.p.email) + '/0"><span class="avatar">' + esc(initials(s.p.name)) + "</span><span><b>" + esc(s.p.name) + '</b><span class="small">' + esc(s.state) + "</span>" +
         s.flags.map((e) => '<span class="flag">' + (e.type === "in" ? "In" : "Out") + ": " + esc(e.locationError || awayText(e)) + (e.reason ? " · " + esc(e.reason) : "") + "</span>").join("") +
         s.missed.map((x) => '<span class="flag">No check-out on ' + esc(fmtDay(x.in.at)) + "</span>").join("") + "</span>›</a>").join("") : '<div class="empty small">No one in your team yet. Managers are set on each employee in iCONSTRUCTE.</div>') +
-      // flagged clock-ins and clock-outs this week (away from site or the workshop, rough location), so none go unseen (HC4.8)
+      // flagged clock-ins and clock-outs this week (away from site or the workshop, rough location), so none go unseen
       (weekFlags.length ? '<div class="section-h">Flagged this week (' + weekFlags.length + ")</div>" + weekFlags.map((e) => '<a class="tile-row" href="#/manager/person/' + encodeURIComponent(e.user) + '/0"><span><b>' + esc(e.userName || e.user) + '</b><span class="small">' + esc(fmtDay(e.at) + " " + fmtTime(e.at) + " · " + (e.type === "in" ? "In" : "Out")) + '</span><span class="flag">' + esc(e.locationError || awayText(e)) + (e.reason ? " · " + esc(e.reason) : "") + "</span></span>›</a>").join("") : "") +
       '<div class="section-h">Off in the next 2 weeks</div>' + (offSoon.length ? offSoon.map((r) => '<div class="req"><div><b>' + esc(r.userName) + '</b><div class="small">' + esc(fmtDay(r.from)) + (r.to !== r.from ? " – " + esc(fmtDay(r.to)) : "") + " · " + esc(r.type) + "</div></div></div>").join("") : '<div class="empty small">No one booked off.</div>') +
       (cardsDue.length ? '<div class="section-h">Cards expiring or expired</div>' + cardsDue.map((c) => IC.Cards.row(c, true)).join("") : "");
@@ -222,7 +222,7 @@
     };
   }
 
-  // ---------------------------------------------------------------- daily vehicle checks (Liam, 22 Nov)
+  // ---------------------------------------------------------------- daily vehicle checks (22 Nov)
   // Regular drivers = anyone in the team with a vehicle check in the last 14 days. On a working day, a regular driver
   // who isn't off and has no check today is "not done"; any "No" answer or "not safe to drive" today is a defect.
   async function vehicleToday(d) {
@@ -255,7 +255,7 @@
       '<div class="section-h">Vehicles this week</div>' + (rows.length ? rows.join("") : '<div class="empty small">No vehicle checks this week.</div>');
   }
 
-  // ---------------------------------------------------------------- workshop equipment checks (HC4.11)
+  // ---------------------------------------------------------------- workshop equipment checks
   // Every overhead crane and forklift checked this week, one row each (type + the number or bay typed on the check), a
   // dot per day (green fine, red a "No" or not safe, grey no check) and the defects listed underneath.
   async function equipmentWeek() {
@@ -285,7 +285,7 @@
   }
 
   // for Home's to-do list: who's late in (empty before the check-in time or on a non-working day)
-  // ---------------------------------------------------------------- PPE requests (Liam, 22 Nov)
+  // ---------------------------------------------------------------- PPE requests (22 Nov)
   // Requests from the manager's team: waiting (submitted) first, then ordered and still to hand out. Mark one Ordered
   // (optional note, e.g. when it's due), Issued, or Declined with a reason the person sees.
   async function ppeAll() {
@@ -326,7 +326,7 @@
     async vehicleAlerts() { const d = await load(), r = roll(d), v = await vehicleToday(d); return { defects: v.defects, missing: r.late ? v.missing : [] }; }
   };
 
-  // Plant checks across the jobs (Liam, 20 Nov: managers oversee these and can complete them): every machine on hire to
+  // Plant checks across the jobs (20 Nov: managers oversee these and can complete them): every machine on hire to
   // a live job, this week's daily checks (green OK, red defect, grey none), today's state first. Tap a machine for its
   // weekly sheet, where a manager can also do the check.
   async function viewPlant() {

@@ -62,7 +62,7 @@
       });
     },
     get(key, store = "files") { return this.tx(store, "readonly", (s) => s.get(key)).catch(() => null); },
-    // HC4.20: the records store is read once and kept until something is written to it (Home used to read every
+    // : the records store is read once and kept until something is written to it (Home used to read every
     // record on the phone many times per screen: once per job, per document, per register)
     snap: {},
     forget(store) { delete this.snap[store]; },
@@ -162,9 +162,9 @@
       // demo week plan for the sample logins and team (the real one comes from the planner, W2)
       if (!m.allocations) {
         const P = {
-          "daniel.wiseman@boltonstructures.com": ["2514/021", "2514/021", "2514/021", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2514/021", "2514/021"],
-          "ian.jones@boltonstructures.com": ["2522/004", "2522/004", "2522/004", "2522/004", "2514/021", "2514/021", "2514/021", "2530/011", "2530/011", "2530/011"],
-          "liam.pilkington@boltonstructures.com": ["2530/011", "2514/021", "", "2522/004", "", "2530/011", "", "2514/021", "", ""],
+          "jordan.lee@example.com": ["2514/021", "2514/021", "2514/021", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2514/021", "2514/021"],
+          "sam.carter@example.com": ["2522/004", "2522/004", "2522/004", "2522/004", "2514/021", "2514/021", "2514/021", "2530/011", "2530/011", "2530/011"],
+          "alex.morgan@example.com": ["2530/011", "2514/021", "", "2522/004", "", "2530/011", "", "2514/021", "", ""],
           "s.khan@example.com": ["2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "2522/004", "", "", ""],
           "m.wilson@example.com": ["2514/021", "2514/021", "2530/011", "2530/011", "2514/021", "2514/021", "2514/021", "2514/021", "2522/004", "2522/004"]
         };
@@ -178,9 +178,7 @@
         days.forEach((day) => m.allocations.push({ email: "l.hart@example.com", date: day, off: true }));
         Object.entries(P).forEach(([email, list]) => list.forEach((jn, i) => { const j = jobs[jn]; if (j) m.allocations.push({ email, date: days[i], jobNumber: jn, folder: j.folder, site: j.site, description: j.description, start: jn === "2530/011" ? "08:00" : "07:30", workingAway: jn === "2522/004" }); }));
       }
-      // demo 3D model (roadmap 5.8 test): Tekla IFC sample on the first job (stored as .ifc.txt: the preview host serves no .ifc)
       const mj = (m.jobs || []).find((j) => j.jobNumber === "2514/021");
-      if (mj && !mj.models) mj.models = [{ name: "The Bond Roof Terrace - Test.ifc", path: "2514-021/Models/The Bond Roof Terrace - Test.ifc.txt", issued: "2026-11-18" }];
       // demo crane hires on 2514/021: today, and a second visit in two days' time
       const dd = (n) => { const x = new Date(); x.setDate(x.getDate() + n); return isoDate(x); };
       if (mj && !mj.cranes) mj.cranes = [{ description: "50t mobile crane", supplier: "Example Crane Hire", onHire: dd(0), offHire: dd(0) }, { description: "50t mobile crane", supplier: "Example Crane Hire", onHire: dd(2), offHire: dd(2) }];
@@ -195,23 +193,23 @@
     Manager: ["drawings", "all-jobs", "leave", "expenses", "hr", "hr-admin", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ppe", "form:ncr"],
-    // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
+    // Workshop (the workshop's own staff; 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    // Workshop Director (Liam, 23 Nov): a director of the workshop company only. Sees the workshop and its
+    // Workshop Director (23 Nov): a director of the workshop company only. Sees the workshop and its
     // staff like the Workshop Manager, and nothing of BSS: no site jobs, drawings, planner or BSS staff.
     "Workshop Director": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "hr-workshop", "cards", "form:wscheck", "form:ppe", "form:ncr"],
     "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
     "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
     "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
     "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
-    // Screens (Liam, 21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
+    // Screens (21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
     //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
-    // HR Admin (Liam, 23 Nov): the office person who runs HR; sees every employee's HR record, issues documents, sets up new starters.
+    // HR Admin (23 Nov): the office person who runs HR; sees every employee's HR record, issues documents, sets up new starters.
     //   hr = My HR (own details, documents to sign, absence)   hr-admin = everyone's HR records (directors have it too)
     //   hr-workshop = every HR record in full, for workshop staff only (Workshop Director)
     "HR Admin": ["leave", "expenses", "hr", "hr-admin", "cards"],
-    // From Liam's roles workbook (23 Nov). Change these in the app: App admin > Permissions.
+    // From the roles workbook (23 Nov). Change these in the app: App admin > Permissions.
     Accounts: ["leave", "expenses", "hr", "hr-admin", "manager", "form:ppe"],
     Admin: ["expenses", "hr", "manager", "form:ppe"],
     Estimators: ["leave", "expenses", "hr", "form:ppe"],
@@ -219,17 +217,17 @@
     Draughtsmen: ["drawings", "all-jobs", "model", "leave", "expenses", "hr", "form:ppe"],
     "QA Manager": ["drawings", "all-jobs", "rams", "leave", "expenses", "hr", "cards", "week", "model", "erect", "qa", "form:*"],
     "Workshop Accounts": ["leave", "expenses", "hr", "form:ppe"],
-    // App Admin (Liam, 23 Nov): runs the app once live: roles, permissions, people, action owners, content. Given alongside a normal role.
+    // App Admin (23 Nov): runs the app once live: roles, permissions, people, action owners, content. Given alongside a normal role.
     "App Admin": ["app-admin"],
     Screens: ["workshop", "board", "screens"]
   };
-  // config.js roles are laid over the defaults: a role changed there replaces the default, a new one is added (HC4.21)
+  // config.js roles are laid over the defaults: a role changed there replaces the default, a new one is added
   let ROLES = Object.assign({}, DEFAULT_ROLES, CFG.roles || {});
   // the workbook's names for two of the built-in roles
   const ROLE_ALIAS = { directors: "Manager", director: "Manager", operatives: "Operative" };
   const ROLE_LABEL = { Manager: "Directors", Operative: "Operatives" };
-  // HC4.16: a role the app doesn't recognise gets nothing (it used to become an Operative, with drawings and RAMS)
-  // A person can hold up to three roles (Liam, 23 Nov: people with more than one job); they get everything each allows.
+  // : a role the app doesn't recognise gets nothing (it used to become an Operative, with drawings and RAMS)
+  // A person can hold up to three roles (23 Nov: people with more than one job); they get everything each allows.
   function roleKey(r) {
     const k = String(r || "").trim().toLowerCase();
     if (!k) return "";
@@ -248,7 +246,7 @@
     return rolesOf(p).some((r) => { const list = ROLES[r] || []; return list.includes(feature) || (feature.startsWith("form:") && list.includes("form:*")); });
   }
 
-  // ---------------------------------------------------------------- app settings (App admin, Liam 23 Nov)
+  // ---------------------------------------------------------------- app settings (App admin, 23 Nov)
   // Roles and permissions, people (roles, line manager, van, clocking), desktop page access and action owners, changed in
   // the app by the App Admin and kept on the server (/api/settings), not in a release. Every save is logged.
   const Settings = {
@@ -324,20 +322,20 @@
     },
 
     async list(kind, scope) {
-      const all = (await Store.all("records")).filter((r) => r.kind === kind).map((r) => Object.assign({}, r.rec)); // copies: the read is shared (HC4.20)
+      const all = (await Store.all("records")).filter((r) => r.kind === kind).map((r) => Object.assign({}, r.rec)); // copies: the read is shared
       const me = this.profile && this.profile.email;
       return scope === "team" ? all : all.filter((r) => !r.user || r.user === me);
     },
     async get(kind, id) { const r = await Store.get(kind + ":" + id, "records"); return r ? r.rec : null; },
 
     // Manager tools: the people this manager looks after (from the Manager field on each employee in iCONSTRUCTE).
-    // the manager's own team (and themselves): team screens only show these people's records (HC4.8)
+    // the manager's own team (and themselves): team screens only show these people's records
     async teamSet() { return new Set((await this.team()).map((p) => p.email).concat(this.profile ? [this.profile.email] : [])); },
 
     async team() {
       if (!this.profile || !this.profile.isManager) return [];
       if (DEMO) {
-        // the Workshop Manager's team is the workshop; directors (Manager role) have both (HC4.8)
+        // the Workshop Manager's team is the workshop; directors (Manager role) have both
         const r = roleOf(this.profile), list = r.startsWith("Workshop") ? Demo.wsTeam : r === "Manager" ? Demo.team.concat(Demo.wsTeam) : Demo.team;
         return list.map(([email, name, role]) => ({ email, name, role }));
       }
@@ -435,22 +433,22 @@
   };
 
   // ---------------------------------------------------------------- demo data (sample team, so approvals and the team calendar have something in them)
-  // Sample logins (demo only): one of each role, so each can be tried. Liam Pilkington manages the sample team.
+  // Sample logins (demo only): one of each role, so each can be tried. Alex Morgan manages the sample team.
   const SAMPLES = [
-    { id: "manager", name: "Liam Pilkington", email: "liam.pilkington@boltonstructures.com", role: "Manager", leaveAllowance: 25 },
-    { id: "supervisor", name: "Ian Jones", email: "ian.jones@boltonstructures.com", role: "Supervisor", leaveAllowance: 25 },
-    { id: "operative", name: "Daniel Wiseman", email: "daniel.wiseman@boltonstructures.com", role: "Operative", leaveAllowance: 22 },
+    { id: "manager", name: "Alex Morgan", email: "alex.morgan@example.com", role: "Manager", leaveAllowance: 25 },
+    { id: "supervisor", name: "Sam Carter", email: "sam.carter@example.com", role: "Supervisor", leaveAllowance: 25 },
+    { id: "operative", name: "Jordan Lee", email: "jordan.lee@example.com", role: "Operative", leaveAllowance: 22 },
     // two workshop logins, so "checked by someone other than the welder" can be tried
     { id: "wsmanager", name: "Paul Shaw", email: "p.shaw@example.com", role: "Workshop Manager", leaveAllowance: 25 },
     { id: "wssupervisor", name: "Chris Dale", email: "c.dale@example.com", role: "Workshop Supervisor", leaveAllowance: 22 },
     { id: "fabricator", name: "Tom Reid", email: "t.reid@example.com", role: "Fabricator/Welder", leaveAllowance: 22 },
     { id: "wsdirector", name: "Gary Holt", email: "g.holt@example.com", role: "Workshop Director", leaveAllowance: 25 }, // workshop company director only (23 Nov)
     { id: "hradmin", name: "Kate Bennett", email: "k.bennett@example.com", role: "HR Admin", leaveAllowance: 25 }, // office / HR (23 Nov)
-    { id: "screens", name: "Workshop screen", email: "screens@boltonstructures.com", role: "Screens", leaveAllowance: 0 }
+    { id: "screens", name: "Workshop screen", email: "screens@example.com", role: "Screens", leaveAllowance: 0 }
   ];
   const Demo = {
-    // the manager's team (everyone except Liam), with two extra sample people so the team screens have something in them
-    team: [["ian.jones@boltonstructures.com", "Ian Jones", "Supervisor"], ["daniel.wiseman@boltonstructures.com", "Daniel Wiseman", "Operative"],
+    // the manager's team (everyone except the owner), with two extra sample people so the team screens have something in them
+    team: [["sam.carter@example.com", "Sam Carter", "Supervisor"], ["jordan.lee@example.com", "Jordan Lee", "Operative"],
       ["s.khan@example.com", "Sam Khan", "Operative"], ["m.wilson@example.com", "Mark Wilson", "Operative (welder)"], ["l.hart@example.com", "Lee Hart", "Operative"]],
     // the workshop (the Workshop Manager's team)
     wsTeam: [["c.dale@example.com", "Chris Dale", "Workshop Supervisor"], ["t.reid@example.com", "Tom Reid", "Fabricator/Welder"]],
@@ -458,9 +456,9 @@
     people() {
       const ws = (r) => /^Workshop|Fabricator/.test(r);
       const all = SAMPLES.filter((x) => x.role !== "Screens").map((x) => [x.email, x.name, x.role]).concat(this.team.slice(2), this.wsTeam.filter((t) => !SAMPLES.some((x) => x.email === t[0])));
-      const vans = { "ian.jones@boltonstructures.com": "BX21 KLM", "daniel.wiseman@boltonstructures.com": "BV19 FHP" };
+      const vans = { "sam.carter@example.com": "BX21 KLM", "jordan.lee@example.com": "BV19 FHP" };
       return all.map(([email, name, role]) => ({ name, email, bss: !ws(role) || role === "Workshop Director" ? !ws(role) : false, workshop: ws(role) || role === "Manager",
-        roles: [role], appAdmin: role === "Manager", manager: role === "Manager" || role === "Workshop Director" ? "No approver needed" : ws(role) ? "Paul Shaw" : "Liam Pilkington",
+        roles: [role], appAdmin: role === "Manager", manager: role === "Manager" || role === "Workshop Director" ? "No approver needed" : ws(role) ? "Paul Shaw" : "Alex Morgan",
         deputy: "", van: !!vans[email], vanReg: vans[email] || "", clocksIn: /Operative|Supervisor|Fabricator/.test(role) && role !== "Workshop Manager", notes: "" }));
     },
     async seed() {
@@ -482,7 +480,7 @@
       // expenses
       await put("expenses", { id: uid(), user: dan[0], userName: dan[1], date: d(-2), category: "Subsistence / meals", amount: 18.4, vat: 3.07, jobFolder: "2514-021", jobNumber: "2514/021", note: "Overnight meal allowance", status: "pending", createdAt: now.toISOString() });
       await put("expenses", { id: uid(), user: ian[0], userName: ian[1], date: d(-4), category: "Mileage (own vehicle)", miles: 64, amount: 35.2, from: "Yard, Bolton", to: "Site", jobFolder: "2522-004", jobNumber: "2522/004", note: "Own van to site and back", status: "pending", createdAt: now.toISOString() });
-      await put("expenses", { id: uid(), user: dan[0], userName: dan[1], date: d(-9), category: "Parking", amount: 6.5, vat: 1.08, jobFolder: "2514-021", jobNumber: "2514/021", note: "", status: "approved", decidedBy: "Liam Pilkington", createdAt: now.toISOString() });
+      await put("expenses", { id: uid(), user: dan[0], userName: dan[1], date: d(-9), category: "Parking", amount: 6.5, vat: 1.08, jobFolder: "2514-021", jobNumber: "2514/021", note: "", status: "approved", decidedBy: "Alex Morgan", createdAt: now.toISOString() });
       // check-ins: last week and this week, someone on site now, one flagged, one missed check-out
       const at = (back, h, m) => { const x = new Date(now); x.setDate(x.getDate() - back); x.setHours(h, m, 0, 0); return x; };
       const job = { jobFolder: "2514-021", jobNumber: "2514/021", site: "Example Retail Park" }, job2 = { jobFolder: "2522-004", jobNumber: "2522/004", site: "Riverside Depot" };
@@ -500,7 +498,7 @@
       await shift(ian, 0, job, 7, 18, null);
       await shift(dan, 0, job, 7, 52, null, null, { in: { distanceM: 1240, flagged: true, reason: "Collecting bolts from the yard first" } });
       await shift(mark, 0, job, 7, 12, null);
-      // the workshop: clocked at the premises; one flagged clock-out, one holiday request, one equipment defect (HC4.8, HC4.11)
+      // the workshop: clocked at the premises; one flagged clock-out, one holiday request, one equipment defect
       // daily vehicle checks (22 Nov): two vans driven most days; one check found a defect yesterday
       const vans = [[this.team.find((x) => /Supervisor/.test(x[2])) || this.team[0], "BX21 KLM", 48210], [this.team.find((x) => /^Operative$/.test(x[2])) || this.team[1], "BV19 FHP", 72545]];
       for (const [who, reg, miles] of vans) for (let back = 1, first = true; back <= 8; back++) {
@@ -516,14 +514,14 @@
       await put("forms", { id: uid(), templateId: "wscheck", templateTitle: "Workshop equipment check", status: "submitted", user: chris[0], userName: chris[1], jobFolder: "", jobNumber: "", createdAt: at(1, 7, 40).toISOString(), submittedAt: at(1, 7, 45).toISOString(),
         values: { checkDate: d(-1), equipType: "Forklift", equipRef: "Forklift 1", checks: { "Forks, carriage and chains undamaged": "No" }, checksActions: { "Forks, carriage and chains undamaged": "Chain stretched; hire company called" }, safe: "No", operator: chris[1] },
         flags: [{ text: "Forks, carriage and chains undamaged: No (action: Chain stretched; hire company called)" }, { text: "Safe to use?: No" }] });
-      // PPE requests (Liam, 22 Nov): Sam waiting, Lee's ordered, Tom (workshop) waiting
+      // PPE requests (22 Nov): Sam waiting, Lee's ordered, Tom (workshop) waiting
       const ppe = (p, ago, items, reason, status, extra) => put("forms", Object.assign({ id: uid(), templateId: "ppe", templateTitle: "Request PPE", status, user: p[0], userName: p[1], jobFolder: "", jobNumber: "", noJob: false,
         createdAt: at(ago, 7, 10).toISOString(), submittedAt: at(ago, 7, 12).toISOString(), values: { items, reason, safeNow: "Yes", details: "" } }, extra || {}));
       await ppe(sam, 0, [{ item: "Safety boots", size: "10", qty: 1 }, { item: "Gloves", size: "L", qty: 2 }], "Worn out", "submitted");
-      await ppe(this.team[4], 2, [{ item: "Hi-vis jacket", size: "XL", qty: 1 }], "Damaged", "ordered", { decidedBy: "Liam Pilkington", decidedAt: at(1, 9, 0).toISOString(), decisionNote: "Due Wednesday" });
+      await ppe(this.team[4], 2, [{ item: "Hi-vis jacket", size: "XL", qty: 1 }], "Damaged", "ordered", { decidedBy: "Alex Morgan", decidedAt: at(1, 9, 0).toISOString(), decisionNote: "Due Wednesday" });
       await ppe(this.wsTeam[1], 1, [{ item: "Welding gloves", size: "", qty: 1 }], "Worn out", "submitted");
       // competency cards: one expired, two expiring, one person with no CSCS on record
-      const card = (p, type, number, category, off, verified) => put("cards", { id: uid(), user: p[0], userName: p[1], type, number, category, expiry: d(off), photos: [], status: verified ? "verified" : "current", decidedBy: verified ? "Liam Pilkington" : undefined, decidedAt: verified ? now.toISOString() : undefined, createdAt: now.toISOString() });
+      const card = (p, type, number, category, off, verified) => put("cards", { id: uid(), user: p[0], userName: p[1], type, number, category, expiry: d(off), photos: [], status: verified ? "verified" : "current", decidedBy: verified ? "Alex Morgan" : undefined, decidedAt: verified ? now.toISOString() : undefined, createdAt: now.toISOString() });
       await card(liam, "CSCS", "00412345", "Manager (black)", 400, true);
       await card(ian, "CSCS", "00290014", "Supervisor (gold)", 300, true);
       await card(ian, "SMSTS", "SM-55120", "", 45, true);
@@ -731,7 +729,7 @@
     return (S.manifest.allocations || []).filter((a) => mine.has(String(a.email).toLowerCase()) && a.date >= today).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   }
 
-  // Cranes on a job on a given day (Liam, 21 Nov): crane hires are sent with each job (dates only, no check sheet) so the
+  // Cranes on a job on a given day (21 Nov): crane hires are sent with each job (dates only, no check sheet) so the
   // site can see there's a crane on site that day. On hire up to and including the off-hire date; no off-hire date = ongoing.
   function cranesOn(job, iso) {
     return ((job && job.cranes) || []).filter((c) => c.onHire && c.onHire <= iso && (!c.offHire || c.offHire >= iso));

@@ -5,7 +5,7 @@ window.SITE_CONFIG = {
   clientId: "YOUR-APP-CLIENT-ID",        // Application (client) ID of the "iCONSTRUCTE Site" app registration
 
   // The SharePoint site and document library that iCONSTRUCTE issues drawings to
-  siteHost: "yourcompany.sharepoint.com",  // e.g. boltonstructures.sharepoint.com
+  siteHost: "yourcompany.sharepoint.com",  // e.g. yourcompany.sharepoint.com
   sitePath: "/sites/SiteDrawings",         // the site's path
   library: "Documents",                    // document library name ("Documents" is the default library)
 
@@ -26,15 +26,15 @@ window.SITE_CONFIG = {
   // Check in / out: flag (not block) check-ins further than this from the site
   checkInRadiusM: 500,
 
-  // Breaks, site and workshop (Liam, 21 Nov 2026): a 15-minute brew in the morning is paid (nothing taken off); a 30-minute
+  // Breaks, site and workshop (21 Nov 2026): a 15-minute brew in the morning is paid (nothing taken off); a 30-minute
   // lunch is unpaid and taken off each day's clocked time, on days longer than lunchIfOverHours (so a short day keeps all its time).
   breaks: { paidBrewMin: 15, unpaidLunchMin: 30, lunchIfOverHours: 6 },
 
-  // Workshop clocking (Liam, 21 Nov): workshop staff can only clock in at the premises. Set lat / lng from the Google Maps
+  // Workshop clocking (21 Nov): workshop staff can only clock in at the premises. Set lat / lng from the Google Maps
   // pin of the workshop (right-click the door > the two numbers). Clock in is refused further away than radiusM (plus the
   // phone's stated accuracy, to a limit of 100 m) or with location off; clocking out away is allowed but flagged with a reason.
-  // Only the distance is kept, never the position. Pin given by Liam, 21 Nov 2026 (53.47435 N, 2.55337 W).
-  workshopLocation: { lat: 53.47435, lng: -2.55337, radiusM: 500 },
+  // Only the distance is kept, never the position.
+  workshopLocation: { lat: 53.5000, lng: -2.5000, radiusM: 500 },
 
   // Holidays: month the leave year starts (1 = January); warn when this many people are already off
   leaveYearStartMonth: 1,
@@ -44,7 +44,7 @@ window.SITE_CONFIG = {
   mileageRate: 0.55,
   mileageRateOver10k: 0.25,
 
-  // What each role sees in the app (Liam to confirm with his tick-box schedule; change the lists, nothing else).
+  // What each role sees in the app (the owner to confirm with his tick-box schedule; change the lists, nothing else).
   // The role comes from the employee record in iCONSTRUCTE (Role: Manager / Supervisor / Operative).
   //   drawings   My jobs and drawings          rams      Read & sign the RAMS
   //   time       Check in / out, timesheet      leave     Holidays           expenses  Expenses
@@ -60,23 +60,23 @@ window.SITE_CONFIG = {
     Manager: ["drawings", "all-jobs", "leave", "expenses", "hr", "hr-admin", "cards", "qa", "manager", "week", "team-week", "model", "erect", "workshop", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "board", "form:*"],
     Supervisor: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "qa", "week", "crew", "model", "erect", "form:*"],
     Operative: ["drawings", "rams", "time", "leave", "expenses", "hr", "cards", "week", "model", "form:powra", "form:plant", "form:vehicle", "form:nearmiss", "form:ppe", "form:ncr"],
-    // Workshop (the workshop's own staff; Liam, 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
+    // Workshop (the workshop's own staff; 21 Nov): clocking in and out, fabrication status, NCR; no site safety forms.
     //   fab-mark = mark lines Fabricated / Welded / Checked / Loaded   fab-correct = undo anyone's mark   fab-ready = told when a load is ready
     //   Directors use the Manager role above (everything on both sides).
-    // Workshop Director (Liam, 23 Nov): a director of the workshop company only. Sees the workshop and its
+    // Workshop Director (23 Nov): a director of the workshop company only. Sees the workshop and its
     // staff like the Workshop Manager, and nothing of BSS: no site jobs, drawings, planner or BSS staff.
     "Workshop Director": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "hr-workshop", "cards", "form:wscheck", "form:ppe", "form:ncr"],
     "Workshop Manager": ["workshop", "board", "manager", "fab-mark", "fab-correct", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
     "Workshop Admin": ["workshop", "fab-ready", "ws-hours-team", "ws-payroll", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
     "Workshop Supervisor": ["workshop", "board", "fab-mark", "fab-correct", "time", "ws-hours", "ws-hours-team", "leave", "expenses", "hr", "cards", "form:wscheck", "form:ppe", "form:ncr"],
     "Fabricator/Welder": ["workshop", "fab-mark", "time", "ws-hours", "leave", "expenses", "hr", "cards", "form:ppe", "form:ncr"],
-    // Screens (Liam, 21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
+    // Screens (21 Nov): a login for the TV screens; opens straight on the wall board, nothing else.
     //   board = can open the wall board (Directors, Workshop Manager, Workshop Supervisor, Screens)
-    // HR Admin (Liam, 23 Nov): the office person who runs HR; sees every employee's HR record, issues documents, sets up new starters.
+    // HR Admin (23 Nov): the office person who runs HR; sees every employee's HR record, issues documents, sets up new starters.
     //   hr = My HR (own details, documents to sign, absence)   hr-admin = everyone's HR records (directors have it too)
     //   hr-workshop = every HR record in full, for workshop staff only (Workshop Director)
     "HR Admin": ["leave", "expenses", "hr", "hr-admin", "cards"],
-    // From Liam's roles workbook (23 Nov). Change these in the app: App admin > Permissions.
+    // From the roles workbook (23 Nov). Change these in the app: App admin > Permissions.
     Accounts: ["leave", "expenses", "hr", "hr-admin", "manager", "form:ppe"],
     Admin: ["expenses", "hr", "manager", "form:ppe"],
     Estimators: ["leave", "expenses", "hr", "form:ppe"],
@@ -84,7 +84,7 @@ window.SITE_CONFIG = {
     Draughtsmen: ["drawings", "all-jobs", "model", "leave", "expenses", "hr", "form:ppe"],
     "QA Manager": ["drawings", "all-jobs", "rams", "leave", "expenses", "hr", "cards", "week", "model", "erect", "qa", "form:*"],
     "Workshop Accounts": ["leave", "expenses", "hr", "form:ppe"],
-    // App Admin (Liam, 23 Nov): runs the app once live: roles, permissions, people, action owners, content. Given alongside a normal role.
+    // App Admin (23 Nov): runs the app once live: roles, permissions, people, action owners, content. Given alongside a normal role.
     "App Admin": ["app-admin"],
     Screens: ["workshop", "board", "screens"]
   },

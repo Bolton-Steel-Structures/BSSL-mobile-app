@@ -1,4 +1,4 @@
-/* iCONSTRUCTE Site: HR (Liam, 23 Nov 2026).
+/* iCONSTRUCTE Site: HR (23 Nov 2026).
  * Personal data lives here and in the HR store on Azure, never in the iCONSTRUCTE Access file:
  *   hrpeople  one record per employee: contact details, emergency contact, payroll starter details, right to work, PPE sizes
  *   hrdocs    the document library: company policies (for everyone, site, workshop or office) and personal documents (contract …)
@@ -20,23 +20,34 @@
   const STARTER = [["A", "This is my first job since 6 April and I haven't been getting taxable Jobseeker's Allowance, Employment and Support Allowance, taxable Incapacity Benefit, a State Pension or an occupational pension."],
     ["B", "This is now my only job, but since 6 April I've had another job, or received taxable Jobseeker's Allowance, Employment and Support Allowance or taxable Incapacity Benefit. I don't get a State Pension or an occupational pension."],
     ["C", "As well as this job, I have another job or I get a State Pension or an occupational pension."]];
+  // BSS Medical Questionnaire (2022) (23 Nov). Health data: seen by HR (and the person) only, never by line managers.
+  const MEDICAL = ["Circulatory problems (such as varicose veins, phlebitis, thrombosis)", "Heart problems (such as angina, high blood pressure, heart attack)", "Chest problems (such as asthma)",
+    "Diabetes", "Epilepsy or fainting attacks", "Skin disorders", "Recent operations or fracture", "Back trouble, arthritis, rheumatism", "Injury to bones, joints, tendons, including wrist tendons",
+    "Any current medication", "Any other significant health problems (such as eyes, hearing)", "A claim for industrial injury", "Have you worked in an industry using vibrating / pneumatic power tools?",
+    "Have you worked in an industry with high noise levels?", "Have you ever been exposed to asbestos, radiation etc?"];
   const LOANS = ["None", "Plan 1", "Plan 2", "Plan 4", "Plan 5", "Postgraduate loan", "Not sure"];
   const RTW = ["British or Irish passport", "Share code from the Home Office", "UK birth certificate and NI number letter", "Other"];
   const SIZES = ["S", "M", "L", "XL", "2XL", "3XL"];
-  // Company induction, first day (Liam, 23 Nov). The common items, then site or workshop items by the new starter's area.
-  const INDUCT = {
-    common: ["Welcome, who's who and who to ask", "Health and safety policy explained", "Fire procedure and assembly point", "First aid, first aiders and reporting accidents and near misses",
-      "Welfare: toilets, canteen, drying room", "PPE issued and how to ask for more (app: Request PPE)", "Drugs and alcohol policy", "Mobile phones and driving",
-      "Holidays and sickness: how to book and how to report (app)", "Hours, breaks, pay day", "App set up and signed in on their phone"],
+  // Company induction, first day: BSS form QF07.1B Induction Check List (Rev B) (23 Nov), then site / workshop /
+  // office items for the new starter's area. Each section is a heading on screen and in the saved record.
+  const QF071B = [
+    ["Terms of employment understood", ["Letter of employment provided and accepted", "Job description explained and agreed", "Organisation structure described", "Medical questionnaire and proof of eligibility to work completed"]],
+    ["Introductions and tour", ["Introduced to employees", "Tour: offices", "Tour: workshops", "Tour: canteen / kitchen", "Tour: toilets", "Tour: fire exits"]],
+    ["Health and safety understood", ["Health & Safety Policy Statement", "Personal protective equipment", "Manual handling", "First aid", "Fire safety"]],
+    ["ISO 9001 quality management system awareness and UKCA marking", ["Quality Policy", "Quality Objectives", "Procedures", "Process flow charts", "Records"]],
+    ["Policies and statements", ["Health & Safety Policy Statement", "Environmental Policy Statement", "Anti-Bribery and Corruption Policy", "Anti-Slavery & Human Trafficking Policy", "Work Safe Policy", "Company Fraud Policy", "Ethics Policy", "Equal Opportunities Policy"]]
+  ];
+  const INDUCT_AREA = {
     Site: ["Cards and tickets checked (originals seen)", "Site rules, permits and exclusion zones", "Working at height: MEWPs, harnesses and lanyards", "Lifting operations, slinging and signals",
-      "RAMS, POWRA and toolbox talks", "Daily plant and vehicle checks"],
-    Workshop: ["Workshop tour: walkways and no-go areas", "Overhead crane and lifting in the workshop", "Machines: only trained and authorised people (saw, drill line)",
-      "Welding: fume extraction, screens and burns", "Hot work and gas cylinders", "Noise, vibration (HAVS) and manual handling", "Forklift: authorised drivers only", "Housekeeping and stacking steel"],
-    Office: ["Office tour", "Display screen equipment (DSE) set-up check"]
+      "RAMS, POWRA and toolbox talks", "Daily plant and vehicle checks", "App set up: check in / out, holidays, sickness reporting"],
+    Workshop: ["Overhead crane and lifting in the workshop", "Machines: only trained and authorised people (saw, drill line)", "Welding: fume extraction, screens and burns", "Hot work and gas cylinders",
+      "Noise, vibration (HAVS)", "Forklift: authorised drivers only", "Housekeeping and stacking steel", "App set up: clock in / out, holidays, sickness reporting"],
+    Office: ["Display screen equipment (DSE) set-up check", "App set up: holidays, expenses, sickness reporting"]
   };
+  const inductSections = (area) => QF071B.concat(INDUCT_AREA[area] ? [["Also for " + area.toLowerCase() + " staff (not on QF07.1B)", INDUCT_AREA[area]]] : []);
 
   const isAdmin = () => can("hr-admin");
-  // hr-workshop (Workshop Director, Liam 23 Nov): every HR record, in full, but for workshop staff only. The company
+  // hr-workshop (Workshop Director, 23 Nov): every HR record, in full, but for workshop staff only. The company
   // document library stays with the HR Admin.
   const wsHr = () => !can("hr-admin") && can("hr-workshop");
   const isFull = () => isAdmin() || wsHr();
@@ -154,17 +165,17 @@
     const em = p.emergency || {}, em2 = p.emergency2 || {};
     $("main").innerHTML = '<div class="card">' +
       (self ? "" : field("dFirst", "First name", p.firstName) + field("dLast", "Last name", p.lastName) + field("dDob", "Date of birth", p.dob, "date") + field("dNi", "National Insurance number", p.ni)) +
-      field("dPref", "Name you go by", p.preferredName) + field("dMob", "Mobile", p.mobile, "tel") + field("dEmail", "Personal email", p.personalEmail, "email") +
+      field("dPref", "Name you go by", p.preferredName) + field("dMob", "Mobile", p.mobile, "tel") + field("dHome", "Home phone", p.homePhone, "tel") + field("dEmail", "Personal email", p.personalEmail, "email") +
       field("dA1", "Address", p.address1) + field("dA2", "Address line 2", p.address2) + field("dTown", "Town", p.town) + field("dPc", "Postcode", p.postcode) +
-      '<div class="section-h">Emergency contact</div>' + field("eName", "Name", em.name) + field("eRel", "Relationship", em.relation) + field("ePh", "Phone", em.phone, "tel") +
-      '<div class="section-h">Second emergency contact (optional)</div>' + field("e2Name", "Name", em2.name) + field("e2Rel", "Relationship", em2.relation) + field("e2Ph", "Phone", em2.phone, "tel") +
+      '<div class="section-h">Emergency contact</div>' + field("eName", "Name", em.name) + field("eRel", "Relationship", em.relation) + field("ePh", "Mobile", em.phone, "tel") + field("eW", "Home / work phone", em.phone2, "tel") +
+      '<div class="section-h">Second emergency contact (optional)</div>' + field("e2Name", "Name", em2.name) + field("e2Rel", "Relationship", em2.relation) + field("e2Ph", "Mobile", em2.phone, "tel") + field("e2W", "Home / work phone", em2.phone2, "tel") +
       (self ? '<p class="small">To change your name, date of birth, NI number or bank details, speak to the office.</p>' : "") +
       '<button class="btn primary block" id="dSave">Save</button></div>';
     $("dSave").onclick = async () => {
       if (!val("eName") || !val("ePh")) { toast("Add an emergency contact"); return; }
       if (!self) Object.assign(p, { firstName: val("dFirst"), lastName: val("dLast"), dob: val("dDob"), ni: val("dNi").toUpperCase() });
-      Object.assign(p, { preferredName: val("dPref"), mobile: val("dMob"), personalEmail: val("dEmail"), address1: val("dA1"), address2: val("dA2"), town: val("dTown"), postcode: val("dPc").toUpperCase(),
-        emergency: { name: val("eName"), relation: val("eRel"), phone: val("ePh") }, emergency2: val("e2Name") ? { name: val("e2Name"), relation: val("e2Rel"), phone: val("e2Ph") } : null });
+      Object.assign(p, { preferredName: val("dPref"), mobile: val("dMob"), homePhone: val("dHome"), personalEmail: val("dEmail"), address1: val("dA1"), address2: val("dA2"), town: val("dTown"), postcode: val("dPc").toUpperCase(),
+        emergency: { name: val("eName"), relation: val("eRel"), phone: val("ePh"), phone2: val("eW") }, emergency2: val("e2Name") ? { name: val("e2Name"), relation: val("e2Rel"), phone: val("e2Ph"), phone2: val("e2W") } : null });
       p.userName = name(p); await H.save("hrpeople", p); toast("Saved"); history.back();
     };
   }
@@ -309,14 +320,17 @@
     if (p.status === "onboarding") {
       html += '<div class="section-h">Starting</div>' + (p.onboardedAt ? '<div class="note">Onboarding form done ' + esc(fmtDay(p.onboardedAt)) + ". Bring on the first day: the original right-to-work document and their cards.</div>" : '<div class="note">Invited; they haven\'t finished the onboarding form yet.</div>');
       if (isFull()) html += '<div class="card"><b>Set up their app account</b><p class="small">Create their Microsoft account first (Microsoft 365 admin centre, no licence needed for the app), then enter it here. Their documents, signatures and cards move across.</p>' +
-        field("aEmail", "Work sign-in", p.user || "", "email", ' placeholder="first.last@boltonstructures.com"') + select("aRole", "App role", Object.keys(CFG.roles).filter((r) => r !== "Screens"), p.appRole || p.role, true) +
+        field("aEmail", "Work sign-in", p.user || "", "email", ' placeholder="first.last@example.com"') + select("aRole", "App role", Object.keys(CFG.roles).filter((r) => r !== "Screens"), p.appRole || p.role, true) +
         field("aAllow", "Holiday allowance (days a year)", p.leaveAllowance || 22, "number") + '<button class="btn primary block" id="aGo">Activate</button></div>';
     }
     html += '<div class="cols2"><div>';
-    html += '<div class="section-h">Emergency contact</div>' + (em.name ? kv([[em.relation || "Contact", em.name], ["Phone", em.phone], em2.name ? [em2.relation || "Second contact", em2.name + " · " + (em2.phone || "")] : null]) + (em.phone ? '<a class="btn block" href="tel:' + esc(em.phone.replace(/\s/g, "")) + '">Ring ' + esc(em.name.split(" ")[0]) + "</a>" : "") : '<div class="flag">No emergency contact on record.</div>');
+    html += '<div class="section-h">Emergency contact</div>' + (em.name ? kv([[em.relation || "Contact", em.name], ["Mobile", em.phone], ["Home / work", em.phone2], em2.name ? [em2.relation || "Second contact", em2.name + " · " + [em2.phone, em2.phone2].filter(Boolean).join(" · ")] : null]) + (em.phone ? '<a class="btn block" href="tel:' + esc(em.phone.replace(/\s/g, "")) + '">Ring ' + esc(em.name.split(" ")[0]) + "</a>" : "") : '<div class="flag">No emergency contact on record.</div>');
     if (isFull()) {
-      html += '<div class="section-h">Personal details</div>' + kv([["Full name", [p.firstName, p.lastName].join(" ")], ["Date of birth", p.dob ? fmtDate(p.dob) : ""], ["Mobile", p.mobile], ["Personal email", p.personalEmail], ["Address", addr(p)], ["NI number", p.ni],
-        ["Starter statement", p.starter], ["Student loan", p.studentLoan]]) + '<a class="btn block" href="#/hr/edit/' + esc(p.id) + '">Edit details</a>' +
+      html += '<div class="section-h">Personal details</div>' + kv([["Full name", [p.firstName, p.lastName].join(" ")], ["Date of birth", p.dob ? fmtDate(p.dob) : ""], ["Mobile", p.mobile], ["Home phone", p.homePhone], ["Personal email", p.personalEmail], ["Address", addr(p)], ["NI number", p.ni],
+        ["Starter statement", p.starter], ["Student loan", p.studentLoan], ["Additional information", p.extraInfo]]) + '<a class="btn block" href="#/hr/edit/' + esc(p.id) + '">Edit details</a>' +
+        '<div class="section-h">Health questionnaire (confidential)</div>' + (p.medical ? (() => { const yes = (p.medical.answers || []).filter((a) => a[1] === "Yes");
+          return (yes.length ? '<div class="flag">Yes to: ' + esc(yes.map((a) => a[0]).join("; ")) + "</div>" : '<div class="small">No to every question.</div>') + (p.medical.details ? '<div class="note">' + esc(p.medical.details) + "</div>" : "") +
+            '<div class="small">Declared ' + esc(fmtDay(p.medical.declaredAt)) + "</div>"; })() : '<div class="small">Not completed.</div>') +
         '<div class="section-h">Right to work</div>' + kv([["Document", rtw.type || "Not given"], ["Share code", rtw.shareCode], ["Original seen", rtw.checkedBy ? rtw.checkedBy + " · " + fmtDate(rtw.checkedOn) : "Not yet"], ["Check again by", rtw.recheck ? fmtDate(rtw.recheck) : ""]]) +
         (rtw.photos && rtw.photos.length ? '<div class="thumbs" id="rtwTh"></div>' : "") +
         (!rtw.checkedBy ? '<button class="btn block" id="rtwOk">I\'ve seen the original</button>' : "");
@@ -407,18 +421,19 @@
   // ---------------------------------------------------------------- company induction (first day)
   async function viewInduct(id) {
     const p = (await people()).find((x) => x.id === id); if (!p) { location.hash = "#/hr/people"; return; }
-    const items = INDUCT.common.concat(INDUCT[p.area] || []), done = (await H.list("inducts")).filter((x) => x.personId === p.id).sort((a, b) => (b.doneAt || "").localeCompare(a.doneAt || ""))[0];
-    setBar("Company induction", name(p) + " · " + (p.area || ""), true);
+    const secs = inductSections(p.area), items = secs.flatMap(([h, list]) => list.map((t) => h + ": " + t)), done = (await H.list("inducts")).filter((x) => x.personId === p.id).sort((a, b) => (b.doneAt || "").localeCompare(a.doneAt || ""))[0];
+    setBar("Induction check list", "QF07.1B · " + name(p) + " · " + (p.area || ""), true);
     if (done) {
       const urls = await Promise.all([done.sigStarter, done.sigBy].map((x) => (x ? H.fileUrl(x) : "")));
       $("main").innerHTML = '<div class="note">Done ' + esc(fmtDay(done.doneAt)) + " by " + esc(done.byName) + ".</div>" + done.items.map((t) => '<div class="cl-row">✓ ' + esc(t) + "</div>").join("") +
         (done.notes ? '<div class="small">Notes: ' + esc(done.notes) + "</div>" : "") + '<div class="section-h">Signatures</div><div class="thumbs">' + urls.filter(Boolean).map((u) => '<img class="sig-img" src="' + u + '" alt="">').join("") + "</div>";
       return;
     }
-    $("main").innerHTML = '<p class="small">Go through each item with ' + esc(name(p).split(" ")[0]) + " and tick it. Both of you sign at the end.</p>" +
-      items.map((t, i) => '<label class="confirm"><input type="checkbox" data-i="' + i + '"><span>' + esc(t) + "</span></label>").join("") +
+    let k = 0;
+    $("main").innerHTML = '<p class="small">QF07.1B Induction Check List (Rev B). Go through each item with ' + esc(name(p).split(" ")[0]) + " and tick it. Both of you sign at the end.</p>" +
+      secs.map(([h, list]) => '<div class="section-h">' + esc(h) + "</div>" + list.map((t) => '<label class="confirm"><input type="checkbox" data-i="' + k++ + '"><span>' + esc(t) + "</span></label>").join("")).join("") +
       '<label class="fl">Notes<textarea id="inNotes" rows="2"></textarea></label><div id="inSig1"></div><div id="inSig2"></div><button class="btn primary block" id="inSave">Save induction</button>';
-    const s1 = signaturePad(name(p) + " (new starter)"), s2 = signaturePad(Data.profile.name + " (giving the induction)"); $("inSig1").appendChild(s1.el); $("inSig2").appendChild(s2.el);
+    const s1 = signaturePad(name(p) + " (employee)"), s2 = signaturePad(Data.profile.name + " (for Bolton Steel Structures Ltd)"); $("inSig1").appendChild(s1.el); $("inSig2").appendChild(s2.el);
     $("inSave").onclick = async () => {
       const ticked = [...document.querySelectorAll("[data-i]")].filter((c) => c.checked).map((c) => items[Number(c.dataset.i)]);
       if (ticked.length < items.length && !(await IC.ask((items.length - ticked.length) + " item(s) not ticked. Save anyway?", "Save"))) return;
@@ -512,36 +527,42 @@
     const key = "join:" + token, st = Object.assign({ step: 0, d: {}, cards: [], signed: {} }, LS.get(key, {}));
     const keep = () => LS.set(key, st);
     const first = inv.name.split(" ")[0];
-    const STEPS = ["Welcome", "About you", "Emergency contact", "Tax and right to work", "Cards and tickets", "PPE sizes", "Read and sign"];
+    const STEPS = [["welcome", "Welcome"], ["about", "About you"], ["emergency", "Emergency contacts"], ["health", "Health questionnaire"], ["tax", "Tax and right to work"], ["cards", "Cards and tickets"], ["ppe", "PPE sizes"], ["sign", "Read and sign"]];
+    const K = (n) => STEPS[n][0];
 
     const draw = () => {
       const s = st.step, d = st.d;
-      const head = s ? '<div class="small">Step ' + s + " of " + (STEPS.length - 1) + " · " + STEPS[s] + '</div><div class="progress"><div style="width:' + Math.round((s / (STEPS.length - 1)) * 100) + '%"></div></div>' : "";
+      const head = s ? '<div class="small">Step ' + s + " of " + (STEPS.length - 1) + " · " + STEPS[s][1] + '</div><div class="progress"><div style="width:' + Math.round((s / (STEPS.length - 1)) * 100) + '%"></div></div>' : "";
       const nav = '<div class="row">' + (s ? '<button class="btn" id="jBack">Back</button>' : "") + '<button class="btn primary" id="jNext">' + (s === STEPS.length - 1 ? "Send to Bolton Steel Structures" : s ? "Next" : "Start") + "</button></div>";
       let body = "";
-      if (s === 0) body = '<img class="join-logo" src="icons/bss-logo.jpg" alt="Bolton Steel Structures Ltd"><h2>Welcome, ' + esc(first) + "</h2>" +
+      if (K(s) === "welcome") body = '<img class="join-logo" src="icons/bss-logo.jpg" alt="Bolton Steel Structures Ltd"><h2>Welcome, ' + esc(first) + "</h2>" +
         "<p>You start on <b>" + esc(fmtDay(inv.startDate)) + "</b>" + (inv.role ? " as " + esc(inv.role) : "") + (inv.area ? " (" + esc(inv.area.toLowerCase()) + ")" : "") + ".</p>" +
         "<p>Before then, please fill this in on your phone. It takes about 15 minutes. Have these to hand:</p><ul><li>your National Insurance number</li><li>your passport, or your Home Office share code</li><li>your CSCS card and any other cards or tickets</li><li>an emergency contact's name and number</li></ul>" +
         '<p class="small">What you put here goes to Bolton Steel Structures\' HR records only, kept securely and used for your employment (see the staff privacy notice in the induction pack). You can stop and come back to this link later; your answers are kept on this phone until you send them.</p>';
-      if (s === 1) body = field("jFirst", "First name (as on your passport)", d.firstName) + field("jLast", "Last name", d.lastName) + field("jPref", "Name you go by (if different)", d.preferredName) +
-        field("jDob", "Date of birth", d.dob, "date") + field("jMob", "Mobile", d.mobile || inv.mobile, "tel") + field("jEmail", "Email", d.personalEmail || inv.personalEmail, "email") +
-        field("jA1", "Address", d.address1) + field("jA2", "Address line 2", d.address2) + field("jTown", "Town", d.town) + field("jPc", "Postcode", d.postcode) + field("jNi", "National Insurance number", d.ni, "text", ' placeholder="QQ 12 34 56 C"');
-      if (s === 2) body = "<p>Who should we ring if you're hurt or taken ill at work?</p>" + field("jEn", "Name", (d.emergency || {}).name) + field("jEr", "Relationship (e.g. partner, mum)", (d.emergency || {}).relation) + field("jEp", "Phone", (d.emergency || {}).phone, "tel") +
-        '<div class="section-h">Second contact (optional)</div>' + field("jE2n", "Name", (d.emergency2 || {}).name) + field("jE2r", "Relationship", (d.emergency2 || {}).relation) + field("jE2p", "Phone", (d.emergency2 || {}).phone, "tel");
-      if (s === 3) body = '<div class="section-h">Tax (HMRC starter checklist)</div><p class="small">Choose the one that\'s true for you. If you have a P45 from your last job, bring it on your first day.</p>' +
+      if (K(s) === "about") body = field("jFirst", "First name (as on your passport)", d.firstName) + field("jLast", "Last name", d.lastName) + field("jPref", "Name you go by (if different)", d.preferredName) +
+        field("jDob", "Date of birth", d.dob, "date") + field("jMob", "Mobile", d.mobile || inv.mobile, "tel") + field("jHome", "Home phone (if you have one)", d.homePhone, "tel") + field("jEmail", "Email", d.personalEmail || inv.personalEmail, "email") +
+        field("jA1", "Address", d.address1) + field("jA2", "Address line 2", d.address2) + field("jTown", "Town", d.town) + field("jPc", "Postcode", d.postcode) + field("jNi", "National Insurance number", d.ni, "text", ' placeholder="QQ 12 34 56 C"') +
+        '<label class="fl">Any additional information<textarea id="jInfo" rows="2">' + esc(d.extraInfo || "") + "</textarea></label>";
+      if (K(s) === "emergency") body = "<p>Who should we ring if you're hurt or taken ill at work?</p>" + field("jEn", "Name", (d.emergency || {}).name) + field("jEr", "Relationship (e.g. partner, mum)", (d.emergency || {}).relation) + field("jEp", "Mobile", (d.emergency || {}).phone, "tel") + field("jEw", "Home / work phone", (d.emergency || {}).phone2, "tel") +
+        '<div class="section-h">Second contact (optional)</div>' + field("jE2n", "Name", (d.emergency2 || {}).name) + field("jE2r", "Relationship", (d.emergency2 || {}).relation) + field("jE2p", "Mobile", (d.emergency2 || {}).phone, "tel") + field("jE2w", "Home / work phone", (d.emergency2 || {}).phone2, "tel");
+      if (K(s) === "health") body = '<p>The information you give is kept confidential and is needed to keep you and others safe. Only HR sees it, not your supervisor. Anything you\'re unsure about can be talked through at your induction. If your health changes while you work for us, tell the office so your record can be updated.</p>' +
+        MEDICAL.map((q, i) => '<div class="yn-q"><span>' + esc(q) + '</span><span class="seg" data-q="' + i + '"><button type="button" data-v="Yes"' + ((d.medical || {}).answers && d.medical.answers[i] === "Yes" ? ' class="on bad"' : "") + '>Yes</button><button type="button" data-v="No"' + ((d.medical || {}).answers && d.medical.answers[i] === "No" ? ' class="on"' : "") + ">No</button></span></div>").join("") +
+        '<label class="fl">If you answered yes to any, give details, including any effects or restrictions on your work<textarea id="jMedD" rows="3">' + esc((d.medical || {}).details || "") + "</textarea></label>" +
+        '<label class="confirm"><input type="checkbox" id="jMedOk"' + ((d.medical || {}).declared ? " checked" : "") + "><span>I declare that this information is correct to the best of my knowledge.</span></label>";
+      if (K(s) === "tax") body = '<div class="section-h">Tax (HMRC starter checklist)</div><p class="small">Choose the one that\'s true for you. If you have a P45 from your last job, bring it on your first day.</p>' +
         STARTER.map(([k, t]) => '<label class="confirm"><input type="radio" name="jSt" value="' + k + '"' + (d.starter === k ? " checked" : "") + "><span><b>" + k + ".</b> " + esc(t) + "</span></label>").join("") +
         select("jLoan", "Student or postgraduate loan", LOANS, d.studentLoan, true) +
         '<div class="section-h">Right to work in the UK</div><p class="small">We have to check this before you start. Bring the original on your first day.</p>' + select("jRtw", "What will you show us?", RTW, (d.rtw || {}).type, true) +
         '<div id="jShare"' + ((d.rtw || {}).type === RTW[1] ? "" : " hidden") + ">" + field("jCode", "Share code (from gov.uk/prove-right-to-work)", (d.rtw || {}).shareCode) + "</div>" +
         '<label class="fl">Photo of the document (photo page of your passport)<input id="jRtwPh" type="file" accept="image/*" multiple></label><div class="thumbs" id="jRtwTh"></div>' +
         '<p class="small">Bank details: the office will ask you for these separately, not through this form.</p>';
-      if (s === 4) body = "<p>Add each card or ticket you hold, e.g. CSCS, CPCS, IPAF, PASMA, first aid, welding tickets. Skip this if you haven't got any.</p>" +
+      if (K(s) === "cards") body = "<p>Add each card or ticket you hold, e.g. CSCS, CPCS, IPAF, PASMA, first aid, welding tickets. Skip this if you haven't got any.</p>" +
         st.cards.map((c, i) => '<div class="req"><div><b>' + esc(c.type) + '</b><div class="small">' + esc([c.number, c.expiry ? "expires " + fmtDate(c.expiry) : ""].filter(Boolean).join(" · ")) + '</div></div><div class="req-r"><button class="btn sm" data-rm="' + i + '">Remove</button></div></div>').join("") +
         '<div class="card">' + select("jcType", "Card", IC.Cards.TYPES, "", true) + field("jcNum", "Card number", "") + field("jcExp", "Expiry date", "", "date") +
         '<label class="fl">Photos (front and back)<input id="jcPh" type="file" accept="image/*" multiple></label><button class="btn block" id="jcAdd">Add this card</button></div>';
-      if (s === 5) body = "<p>So we can have your PPE ready.</p>" + field("jBoots", "Boot size (UK)", (d.ppe || {}).boots, "text", ' inputmode="decimal"') + select("jHv", "Hi-vis vest / jacket", SIZES, (d.ppe || {}).hivis, true) +
+      if (K(s) === "ppe") body = "<p>So we can have your PPE ready.</p>" + field("jBoots", "Boot size (UK)", (d.ppe || {}).boots, "text", ' inputmode="decimal"') + select("jHv", "Hi-vis vest / jacket", SIZES, (d.ppe || {}).hivis, true) +
         field("jTr", "Trousers (waist / leg)", (d.ppe || {}).trousers) + select("jGl", "Gloves", ["S", "M", "L", "XL", "2XL"], (d.ppe || {}).gloves, true);
-      if (s === 6) body = "<p>Please read each of these, tick it, then sign once at the bottom.</p>" + docs.map((x) => '<details class="card doc-body"><summary><b>' + esc(x.title) + "</b> " + (st.signed[x.id] ? "✓" : "") + "</summary>" +
+      if (K(s) === "sign") body = "<p>Please read each of these, tick it, then sign once at the bottom.</p>" + docs.map((x) => '<details class="card doc-body"><summary><b>' + esc(x.title) + "</b> " + (st.signed[x.id] ? "✓" : "") + "</summary>" +
         (x.body || "").split(/\n{2,}/).map((t) => "<p>" + esc(t) + "</p>").join("") + (x.file ? '<p class="small">The full document will be in the app once your account is set up.</p>' : "") +
         '<label class="confirm"><input type="checkbox" data-doc="' + esc(x.id) + '"' + (st.signed[x.id] ? " checked" : "") + "><span>I have read and understood this</span></label></details>").join("") + '<div id="jSig"></div>';
       $("main").innerHTML = head + '<div class="card">' + body + "</div>" + nav;
@@ -557,13 +578,17 @@
         st.step++; keep(); draw(); $("main").scrollTop = 0;
         if (DEMO && inv.status === "sent") { const rec = (await Data.list("invites", "team")).find((i) => i.token === token); if (rec) { rec.status = "started"; await H.save("invites", rec); } }
       };
-      if (s === 3) {
+      if (K(s) === "health") document.querySelectorAll(".seg[data-q]").forEach((sg) => sg.querySelectorAll("button").forEach((b) => (b.onclick = () => {
+        sg.querySelectorAll("button").forEach((x) => x.classList.remove("on", "bad")); b.classList.add("on"); if (b.dataset.v === "Yes") b.classList.add("bad");
+        st.d.medical = st.d.medical || { answers: {} }; st.d.medical.answers = st.d.medical.answers || {}; st.d.medical.answers[sg.dataset.q] = b.dataset.v; keep();
+      })));
+      if (K(s) === "tax") {
         $("jRtw").onchange = () => ($("jShare").hidden = val("jRtw") !== RTW[1]);
         const th = async () => { const urls = await Promise.all(((st.d.rtw || {}).photos || []).map((x) => H.fileUrl(x))); $("jRtwTh").innerHTML = urls.map((u) => '<img src="' + u + '" alt="">').join(""); };
         $("jRtwPh").onchange = async (e) => { st.d.rtw = st.d.rtw || {}; st.d.rtw.photos = st.d.rtw.photos || []; for (const f of e.target.files) st.d.rtw.photos.push(await H.putFile(f)); e.target.value = ""; keep(); th(); };
         th();
       }
-      if (s === 4) {
+      if (K(s) === "cards") {
         document.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => { st.cards.splice(Number(b.dataset.rm), 1); keep(); draw(); }));
         $("jcAdd").onclick = async () => {
           if (!val("jcType")) { toast("Choose the card"); return; }
@@ -571,30 +596,34 @@
           st.cards.push({ type: val("jcType"), number: val("jcNum"), expiry: val("jcExp"), photos }); keep(); draw();
         };
       }
-      if (s === 6) { pad = signaturePad("Your signature"); $("jSig").appendChild(pad.el); document.querySelectorAll("[data-doc]").forEach((c) => (c.onchange = () => { st.signed[c.dataset.doc] = c.checked; keep(); })); }
+      if (K(s) === "sign") { pad = signaturePad("Your signature"); $("jSig").appendChild(pad.el); document.querySelectorAll("[data-doc]").forEach((c) => (c.onchange = () => { st.signed[c.dataset.doc] = c.checked; keep(); })); }
     };
     const collect = (s) => {
       const d = st.d;
-      if (s === 1) Object.assign(d, { firstName: val("jFirst"), lastName: val("jLast"), preferredName: val("jPref"), dob: val("jDob"), mobile: val("jMob"), personalEmail: val("jEmail"), address1: val("jA1"), address2: val("jA2"), town: val("jTown"), postcode: val("jPc").toUpperCase(), ni: val("jNi").toUpperCase() });
-      if (s === 2) Object.assign(d, { emergency: { name: val("jEn"), relation: val("jEr"), phone: val("jEp") }, emergency2: val("jE2n") ? { name: val("jE2n"), relation: val("jE2r"), phone: val("jE2p") } : null });
-      if (s === 3) { const r = document.querySelector('input[name="jSt"]:checked'); d.starter = r ? r.value : ""; d.studentLoan = val("jLoan"); d.rtw = Object.assign(d.rtw || {}, { type: val("jRtw"), shareCode: val("jCode") }); }
-      if (s === 5) d.ppe = { boots: val("jBoots"), hivis: val("jHv"), trousers: val("jTr"), gloves: val("jGl") };
+      if (K(s) === "about") Object.assign(d, { firstName: val("jFirst"), lastName: val("jLast"), preferredName: val("jPref"), dob: val("jDob"), mobile: val("jMob"), homePhone: val("jHome"), extraInfo: val("jInfo"), personalEmail: val("jEmail"), address1: val("jA1"), address2: val("jA2"), town: val("jTown"), postcode: val("jPc").toUpperCase(), ni: val("jNi").toUpperCase() });
+      if (K(s) === "emergency") Object.assign(d, { emergency: { name: val("jEn"), relation: val("jEr"), phone: val("jEp"), phone2: val("jEw") }, emergency2: val("jE2n") ? { name: val("jE2n"), relation: val("jE2r"), phone: val("jE2p"), phone2: val("jE2w") } : null });
+      if (K(s) === "tax") { const r = document.querySelector('input[name="jSt"]:checked'); d.starter = r ? r.value : ""; d.studentLoan = val("jLoan"); d.rtw = Object.assign(d.rtw || {}, { type: val("jRtw"), shareCode: val("jCode") }); }
+      if (K(s) === "health") d.medical = Object.assign(d.medical || { answers: {} }, { details: val("jMedD"), declared: $("jMedOk").checked });
+      if (K(s) === "ppe") d.ppe = { boots: val("jBoots"), hivis: val("jHv"), trousers: val("jTr"), gloves: val("jGl") };
       keep();
     };
     const check = (s) => {
       const d = st.d;
-      if (s === 1) { if (!d.firstName || !d.lastName) return "Add your name"; if (!d.dob) return "Add your date of birth"; if (!d.mobile) return "Add your mobile"; if (!d.address1 || !d.postcode) return "Add your address and postcode";
+      if (K(s) === "about") { if (!d.firstName || !d.lastName) return "Add your name"; if (!d.dob) return "Add your date of birth"; if (!d.mobile) return "Add your mobile"; if (!d.address1 || !d.postcode) return "Add your address and postcode";
         if (d.ni && !/^[A-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]$/i.test(d.ni)) return "That NI number doesn't look right (two letters, six numbers, one letter)"; }
-      if (s === 2 && (!d.emergency.name || !d.emergency.phone)) return "Add an emergency contact's name and phone";
-      if (s === 3) { if (!d.starter) return "Choose A, B or C for tax"; if (!d.rtw.type) return "Choose what you'll show for right to work"; if (d.rtw.type === RTW[1] && !d.rtw.shareCode) return "Add your share code"; }
-      if (s === 6) { if (docs.some((x) => !st.signed[x.id])) return "Tick each document to say you've read it"; if (!pad || pad.isEmpty()) return "Sign in the box"; }
+      if (K(s) === "emergency" && (!d.emergency.name || !d.emergency.phone)) return "Add an emergency contact's name and mobile";
+      if (K(s) === "health") { const a = (d.medical || {}).answers || {}; if (MEDICAL.some((q, i) => !a[i])) return "Answer yes or no to each question";
+        if (MEDICAL.some((q, i) => a[i] === "Yes") && !(d.medical.details || "").trim()) return "Give details for the questions you answered yes"; if (!d.medical.declared) return "Tick the declaration"; }
+      if (K(s) === "tax") { if (!d.starter) return "Choose A, B or C for tax"; if (!d.rtw.type) return "Choose what you'll show for right to work"; if (d.rtw.type === RTW[1] && !d.rtw.shareCode) return "Add your share code"; }
+      if (K(s) === "sign") { if (docs.some((x) => !st.signed[x.id])) return "Tick each document to say you've read it"; if (!pad || pad.isEmpty()) return "Sign in the box"; }
       return "";
     };
     const submit = async () => {
       $("jNext").disabled = true;
       const sig = await H.putFile(await pad.toBlob()), d = st.d, at = new Date().toISOString();
       const person = { inviteId: inv.id, user: "", status: "onboarding", area: inv.area, role: inv.role, startDate: inv.startDate, manager: inv.manager || "", firstName: d.firstName, lastName: d.lastName, preferredName: d.preferredName,
-        dob: d.dob, mobile: d.mobile, personalEmail: d.personalEmail, address1: d.address1, address2: d.address2, town: d.town, postcode: d.postcode, ni: d.ni, emergency: d.emergency, emergency2: d.emergency2,
+        dob: d.dob, mobile: d.mobile, homePhone: d.homePhone, extraInfo: d.extraInfo,
+        medical: d.medical ? { answers: MEDICAL.map((q, i) => [q, d.medical.answers[i] || ""]), details: d.medical.details || "", declaredAt: at } : null, personalEmail: d.personalEmail, address1: d.address1, address2: d.address2, town: d.town, postcode: d.postcode, ni: d.ni, emergency: d.emergency, emergency2: d.emergency2,
         starter: d.starter, studentLoan: d.studentLoan, rtw: d.rtw, ppeSizes: d.ppe, onboardCards: st.cards.map((c) => ({ type: c.type, number: c.number, expiry: c.expiry, photos: c.photos })), onboardedAt: at };
       person.userName = name(person);
       const signs = docs.map((x) => ({ user: "invite:" + inv.id, userName: person.userName, docId: x.id, title: x.title, version: x.version, signedAt: at, sig }));
@@ -627,21 +656,25 @@
     if (have) { demoReady = null; return; }
     const put = (kind, rec) => IC.Store.put({ key: kind + ":" + rec.id, kind, rec: Object.assign({ createdAt: new Date().toISOString() }, rec) }, "records");
     const d = (off) => { const x = new Date(); x.setDate(x.getDate() + off); return isoDate(x); };
-    // BSS's own documents (Liam, 23 Nov): titles, revisions and a summary in the app; the full files go into the HR store on Azure
-    // (not bundled here: the trial site is public). Handbook, privacy notice and site / workshop rules still to come.
+    // BSS's own documents (23 Nov): titles, revisions and a summary in the app; the full files go into the HR store on Azure
+    // (not bundled here: the trial site is public). Handbook and privacy notice drafted (awaiting review); site / workshop rules still to come.
     const FULL = "The full document is held by the office and will open here once HR is on Azure.";
     const SAMPLE = "Sample text for the demo: waiting for Bolton Steel Structures' own document.";
     const docs = [
-      ["hs", "Health and safety policy", "Policy", "Everyone", "Jul 2026", true, "Revised 6 July 2026 by Nick Maddison, Health & Safety Director (BSA / SKEB competence controls expanded; Client's Engineer design responsibility clarified). Earlier reviews: 27 January 2026 (John Wride, annual review) and 3 December 2025 (Liam Pilkington, Building Safety Act 2022 added).\n\nPart 1 is the statement of intent, the management safety structure and the strategy. Part 2 sets out who is responsible for what, including every employee and anyone driving on company business. Part 3 is the arrangements: risk assessment, training, first aid, accident reporting, fire and evacuation, CDM, working at height, lifting, PPE, welding and burning, drugs and alcohol, the Building Safety Act and more.\n\nEvery employee must take care of themselves and others, report accidents, damage and hazards, follow the agreed safe systems and wear the right PPE, and tell us straight away if asked to do work or use equipment they're not familiar with.\n\nDriving on company business: report vehicle defects and never drive a defective vehicle; never drive under the influence of alcohol or drugs (including prescription medicines that affect driving); no mobile phones while driving unless completely hands-free; plan the route and take breaks.\n\nDrugs and alcohol: no work under the influence. The company aims to prevent substance misuse, spot problems early and, where appropriate, offer help such as counselling or time off for treatment.\n\n" + FULL],
-      ["wb", "Wellbeing policy", "Policy", "Everyone", "Jan 2026", true, "Reviewed 27 January 2026 (John Wride); statement of intent signed by Nick Maddison, Managing Director. Applies to everyone working for Bolton Steel Structures, including part-time, temporary and contract workers.\n\nIt covers physical health (safety, ergonomics, hygiene, subsidised gym membership and the on-site gym), mental health (stress, awareness, confidential support) and social wellbeing (teamwork, recognition, diversity and inclusion).\n\nYour part: follow the safety rules, use your PPE, report hazards and concerns to your supervisor straight away, take part in training, look after your health and ask for support when you need it. Questions go to the Managing Director.\n\n" + FULL],
+      ["hs", "Health and safety policy", "Policy", "Everyone", "Jul 2026", true, "Revised 6 July 2026 by the Health & Safety Director (BSA / SKEB competence controls expanded; Client's Engineer design responsibility clarified). Earlier reviews: 27 January 2026 (an external adviser, annual review) and 3 December 2025 (Alex Morgan, Building Safety Act 2022 added).\n\nPart 1 is the statement of intent, the management safety structure and the strategy. Part 2 sets out who is responsible for what, including every employee and anyone driving on company business. Part 3 is the arrangements: risk assessment, training, first aid, accident reporting, fire and evacuation, CDM, working at height, lifting, PPE, welding and burning, drugs and alcohol, the Building Safety Act and more.\n\nEvery employee must take care of themselves and others, report accidents, damage and hazards, follow the agreed safe systems and wear the right PPE, and tell us straight away if asked to do work or use equipment they're not familiar with.\n\nDriving on company business: report vehicle defects and never drive a defective vehicle; never drive under the influence of alcohol or drugs (including prescription medicines that affect driving); no mobile phones while driving unless completely hands-free; plan the route and take breaks.\n\nDrugs and alcohol: no work under the influence. The company aims to prevent substance misuse, spot problems early and, where appropriate, offer help such as counselling or time off for treatment.\n\n" + FULL],
+      ["wb", "Wellbeing policy", "Policy", "Everyone", "Jan 2026", true, "Reviewed 27 January 2026 (an external adviser); statement of intent signed by the Health & Safety Director, Managing Director. Applies to everyone working for Bolton Steel Structures, including part-time, temporary and contract workers.\n\nIt covers physical health (safety, ergonomics, hygiene, subsidised gym membership and the on-site gym), mental health (stress, awareness, confidential support) and social wellbeing (teamwork, recognition, diversity and inclusion).\n\nYour part: follow the safety rules, use your PPE, report hazards and concerns to your supervisor straight away, take part in training, look after your health and ask for support when you need it. Questions go to the Managing Director.\n\n" + FULL],
       ["is", "Information security policy", "Policy", "Everyone", "1.0", true, "Version 1.0, 27 January 2026 (marked Draft; next review 27 January 2027). Owner: Managing Director.\n\nHow we identify, secure, use and dispose of information and equipment: access control and passwords, acceptable use, remote access, mobile devices (phones, laptops, USB sticks), encryption and reporting security breaches. Never share your login or email password with anyone. Breaking the policy can lead to disciplinary action.\n\n" + FULL],
       ["wh", "Whistleblowing", "Policy", "Everyone", "Mar 2026", true, "Whistleblowing means raising a concern about unsafe, illegal, dishonest or unethical behaviour at work that could put people, the company or the public at risk. It helps prevent accidents and harm, protects colleagues and the business, and deals with problems before they become serious.\n\nExamples: unsafe work or serious breaches of site rules; faulty plant, lifting or access equipment; falsified inspections, permits, records or training documents; bullying or pressure not to report; theft, fraud, bribery or deliberate damage; environmental breaches.\n\nHow to raise a concern: tell your supervisor, manager or another senior person you trust; give clear facts (what, where, when, who); if you can't raise it locally, take it to company management; in an emergency, stop work and make the area safe.\n\nYour protection: concerns raised in good faith are taken seriously and you won't be victimised for reporting a genuine concern. Reports are handled as confidentially as possible. Malicious or knowingly false allegations are not acceptable.\n\nIf something feels wrong, unsafe or dishonest, speak up. Staying silent can put people at risk.\n\n(From the Whistleblowing toolbox talk, March 2026.)"],
+      ["ab", "Anti-bribery and corruption policy", "Policy", "Everyone", "Jan 2026", true, "January 2026, signed by the Health & Safety Director.\n\nBolton Steel Structures does not tolerate bribery or corruption in any form, including facilitation payments and kickbacks, and makes no political donations. The policy follows Transparency International's Business Principles for Countering Bribery and the Bribery Act 2010, and applies to all staff, contract and temporary workers; we encourage our suppliers and contractors to follow it too.\n\nWhat it means for you: avoid anything that could be, or look like, a conflict of interest; declare and record any gift or hospitality you're offered or accept, so a manager can review it; raise any concern early, in confidence, with your manager or supervisor. Managers set up the controls in their areas, and the company keeps accurate financial records that are audited.\n\n" + FULL],
+      ["en", "Environmental policy", "Policy", "Everyone", "Jan 2026", true, "Reviewed 27 January 2026 by our health, safety and environmental adviser; signed by the director responsible for environmental policy.\n\nWe aim to cut waste and energy use, segregate and recycle waste wherever possible, reduce vehicle and other emissions, use materials efficiently, prevent pollution and environmental incidents, train staff and meet or exceed environmental law. Site managers make sure the policy is followed on site; the full document covers waste, purchasing, resources, the local community, incidents and emergencies, transport and the relevant legislation.\n\nWhat it means for you: put waste in the right skip, report spills and leaks straight away, switch off plant and lights when not needed, and follow the site's environmental rules.\n\n" + FULL],
+      ["rw", "Legal status of employees (right to work)", "Policy", "Everyone", "Jan 2026", true, "Signed 27 January 2026 by a director.\n\nWe only employ people with the right to work in the UK, as the Immigration, Asylum and Nationality Act 2006 requires. Before you start we check your original documents (or your online share code at gov.uk/view-right-to-work), record the date and keep a copy securely for at least two years after you leave. If your permission to stay has a time limit, we check again at least every 12 months.\n\nWhat it means for you: give us true information and original documents when asked, and tell your manager straight away if your immigration status changes. Knowingly giving false information may lead to disciplinary action, up to dismissal.\n\n" + FULL],
+      ["qp", "Quality policy", "Policy", "Everyone", "Jul 2026", true, "Approved 22 July 2026 by the Managing Director.\n\nOur quality management system, certified to BS EN ISO 9001:2015, is there so that what we supply consistently meets or beats our customers' expectations. We review our processes and customers' needs regularly and set measurable quality objectives each year. The Quality Manager is the management representative responsible for making sure the system is understood and followed, and everyone takes part in it. The policy is reviewed at least once a year at the management review.\n\n" + FULL],
       ["hb", "Employee handbook", "Handbook", "Everyone", "1", true, "Hours, pay, holidays, sickness reporting, conduct, grievance and disciplinary procedures.\n\n" + SAMPLE],
       ["pn", "Staff privacy notice", "Policy", "Everyone", "1", true, "What personal information we keep about you, why, who can see it, how long we keep it and your rights under UK GDPR.\n\n" + SAMPLE],
       ["sr", "Site rules", "Induction", "Site", "1", true, "Sign in at the gate, attend the site induction, wear full PPE, follow the RAMS and the lift plan, and keep out of exclusion zones.\n\n" + SAMPLE],
       ["wr", "Workshop rules", "Induction", "Workshop", "1", true, "Walkways clear, only trained people on machines, screens up when welding, forklift and crane by authorised people only.\n\n" + SAMPLE]
     ];
-    for (const [id, title, category, audience, version, induction, body] of docs) await put("hrdocs", { id: "doc-" + id, title, category, audience, version, induction, requiresSign: true, status: "live", body, issuedBy: "Liam Pilkington", issuedAt: d(-200) });
+    for (const [id, title, category, audience, version, induction, body] of docs) await put("hrdocs", { id: "doc-" + id, title, category, audience, version, induction, requiresSign: true, status: "live", body, issuedBy: "Alex Morgan", issuedAt: d(-200) });
     const area = { "HR Admin": "Office", Manager: "Office", Supervisor: "Site", Operative: "Site", "Operative (welder)": "Site", "Workshop Director": "Workshop", "Workshop Manager": "Workshop", "Workshop Supervisor": "Workshop", "Fabricator/Welder": "Workshop" };
     const staff = SAMPLES.filter((s) => s.role !== "Screens").map((s) => [s.email, s.name, s.role, s.leaveAllowance]).concat(IC.DEMO_TEAM.slice(2).map((t) => [t[0], t[1], t[2], 22]));
     const kin = [["Kate", "Partner"], ["Sarah", "Mum"], ["John", "Dad"], ["Emma", "Partner"], ["Paul", "Brother"], ["Lisa", "Partner"], ["Gary", "Dad"], ["Joanne", "Mum"], ["Steve", "Brother"], ["Claire", "Partner"]];
@@ -649,10 +682,10 @@
     for (const [email, full, role, allow] of staff) {
       const [firstName, ...rest] = full.split(" "), n = i++;
       await put("hrpeople", { id: "p-" + n, user: email, userName: full, firstName, lastName: rest.join(" "), status: "active", role, area: area[role] || "Site", startDate: d(-400 - n * 90), leaveAllowance: allow || 22,
-        manager: area[role] === "Workshop" ? "Paul Shaw" : "Liam Pilkington", dob: (1975 + n * 3) + "-0" + (1 + (n % 9)) + "-1" + n, mobile: "07700 900" + String(100 + n * 7), personalEmail: firstName.toLowerCase() + "@example.com",
+        manager: area[role] === "Workshop" ? "Paul Shaw" : "Alex Morgan", dob: (1975 + n * 3) + "-0" + (1 + (n % 9)) + "-1" + n, mobile: "07700 900" + String(100 + n * 7), personalEmail: firstName.toLowerCase() + "@example.com",
         address1: n + 1 + " Example Street", town: "Bolton", postcode: "BL1 1AA", ni: "QQ 12 34 5" + n + " C", starter: "A", studentLoan: "None",
         emergency: n === 4 ? null : { name: kin[n % kin.length][0] + " " + rest.join(" "), relation: kin[n % kin.length][1], phone: "07700 900" + String(500 + n * 11) },
-        rtw: { type: RTW[0], checkedBy: "Liam Pilkington", checkedOn: d(-400 - n * 90) }, ppeSizes: { boots: String(8 + (n % 4)), hivis: SIZES[n % 4 + 1], gloves: "L" }, inductedAt: d(-399 - n * 90) });
+        rtw: { type: RTW[0], checkedBy: "Alex Morgan", checkedOn: d(-400 - n * 90) }, ppeSizes: { boots: String(8 + (n % 4)), hivis: SIZES[n % 4 + 1], gloves: "L" }, inductedAt: d(-399 - n * 90) });
       // everyone signed the induction pack; two people haven't signed the new phones policy, one has the handbook outstanding
       const p = { user: email, area: area[role] || "Site" };
       for (const [id, , , audience, version] of docs) {
@@ -662,12 +695,12 @@
       }
     }
     const who = (k) => staff.find((s) => s[1].startsWith(k));
-    const absn = (k, type, from, to, extra) => put("absence", Object.assign({ id: uid(), user: who(k)[0], userName: who(k)[1], type, from: d(from), to: d(to), recordedBy: "Liam Pilkington" }, extra || {}));
+    const absn = (k, type, from, to, extra) => put("absence", Object.assign({ id: uid(), user: who(k)[0], userName: who(k)[1], type, from: d(from), to: d(to), recordedBy: "Alex Morgan" }, extra || {}));
     await absn("Sam", "Sickness", -20, -19, { rtw: null });
-    await absn("Mark", "Sickness", -75, -75, { rtw: { by: "Ian Jones", on: d(-74) } });
+    await absn("Mark", "Sickness", -75, -75, { rtw: { by: "Sam Carter", on: d(-74) } });
     await absn("Chris", "Medical appointment", -12, -12, { halfStart: true, days: 0.5 });
     const exp = d(30);
-    await put("invites", { id: "inv-1", token: randomToken(), name: "Jordan Price", mobile: "07700 900321", area: "Site", role: "Steel erector", startDate: d(7), reportTo: "Ian Jones at the yard, 07:15", manager: "Liam Pilkington", status: "sent", createdBy: "Liam Pilkington", expires: exp });
+    await put("invites", { id: "inv-1", token: randomToken(), name: "Jordan Price", mobile: "07700 900321", area: "Site", role: "Steel erector", startDate: d(7), reportTo: "Sam Carter at the yard, 07:15", manager: "Alex Morgan", status: "sent", createdBy: "Alex Morgan", expires: exp });
     await put("invites", { id: "inv-2", token: randomToken(), name: "Aisha Patel", mobile: "07700 900654", area: "Workshop", role: "Welder fabricator", startDate: d(4), reportTo: "Chris Dale, workshop office, 07:00", manager: "Paul Shaw", status: "completed", createdBy: "Paul Shaw", expires: exp, completedAt: d(-1) });
     await put("hrpeople", { id: "p-aisha", inviteId: "inv-2", user: "", userName: "Aisha Patel", firstName: "Aisha", lastName: "Patel", status: "onboarding", area: "Workshop", role: "Welder fabricator", startDate: d(4), manager: "Paul Shaw",
       dob: "1996-04-12", mobile: "07700 900654", personalEmail: "aisha@example.com", address1: "22 Example Road", town: "Bolton", postcode: "BL3 2AA", ni: "QQ 65 43 21 A", starter: "B", studentLoan: "Plan 2",

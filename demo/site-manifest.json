@@ -9,9 +9,9 @@
    "customer": "Example Developments Ltd",
    "description": "Unit 4 frame and mezzanine",
    "operatives": [
-    "liam.pilkington@boltonstructures.com",
-    "ian.jones@boltonstructures.com",
-    "daniel.wiseman@boltonstructures.com",
+    "alex.morgan@example.com",
+    "sam.carter@example.com",
+    "jordan.lee@example.com",
     "m.wilson@example.com"
    ],
    "files": [
@@ -49,12 +49,47 @@
      "path": "2514-021/H&S/Crane Plan Unit 4 Rev 1.pdf",
      "issued": "2026-11-14T10:00:00",
      "issuedBy": "office"
+    },
+    {
+     "name": "C101 Rev A.pdf",
+     "category": "Drawing",
+     "path": "2514-021/Drawings/C101 Rev A.pdf",
+     "issued": "2026-11-20T10:00:00",
+     "issuedBy": "office"
+    },
+    {
+     "name": "C102 Rev A.pdf",
+     "category": "Drawing",
+     "path": "2514-021/Drawings/C102 Rev A.pdf",
+     "issued": "2026-11-20T10:00:00",
+     "issuedBy": "office"
+    },
+    {
+     "name": "B101 Rev A.pdf",
+     "category": "Drawing",
+     "path": "2514-021/Drawings/B101 Rev A.pdf",
+     "issued": "2026-11-20T10:00:00",
+     "issuedBy": "office"
+    },
+    {
+     "name": "B102 Rev A.pdf",
+     "category": "Drawing",
+     "path": "2514-021/Drawings/B102 Rev A.pdf",
+     "issued": "2026-11-20T10:00:00",
+     "issuedBy": "office"
+    },
+    {
+     "name": "2514-021 Assemblies B103-P101 Rev A.pdf",
+     "category": "Drawing",
+     "path": "2514-021/Drawings/2514-021 Assemblies B103-P101 Rev A.pdf",
+     "issued": "2026-11-20T10:00:00",
+     "issuedBy": "office"
     }
    ],
    "lat": 53.5768,
    "lng": -2.4282,
    "w3w": "filled.count.soap",
-   "pm": "liam.pilkington@boltonstructures.com",
+   "pm": "alex.morgan@example.com",
    "plant": [
     {
      "id": "P501",
@@ -104,9 +139,9 @@
    "customer": "Demo Rail Services",
    "description": "Canopy steelwork",
    "operatives": [
-    "liam.pilkington@boltonstructures.com",
-    "ian.jones@boltonstructures.com",
-    "daniel.wiseman@boltonstructures.com",
+    "alex.morgan@example.com",
+    "sam.carter@example.com",
+    "jordan.lee@example.com",
     "s.khan@example.com"
    ],
    "files": [
@@ -127,7 +162,7 @@
    ],
    "lat": 53.4808,
    "lng": -2.2426,
-   "pm": "liam.pilkington@boltonstructures.com",
+   "pm": "alex.morgan@example.com",
    "plant": [
     {
      "id": "P503",
@@ -151,7 +186,7 @@
    "customer": "Sample Build Group",
    "description": "Link bridge",
    "operatives": [
-    "liam.pilkington@boltonstructures.com",
+    "alex.morgan@example.com",
     "k.brown@example.com"
    ],
    "files": [
@@ -173,41 +208,221 @@
    "site": "Example Retail Park",
    "customer": "Example Developments Ltd",
    "description": "Variation: additional bracing (commercial)",
-   "pm": "liam.pilkington@boltonstructures.com",
+   "pm": "alex.morgan@example.com",
    "operatives": [],
    "files": []
   }
  ],
  "toolboxTalks": [
   {
-   "title": "Working at height - MEWPs and harnesses",
-   "path": "_toolbox/Working at height MEWPs and harnesses.pdf",
-   "issued": "2026-11-02T09:00:00"
+   "title": "Talk 01 - General Duties",
+   "path": "_toolbox/Talk 01 - General Duties.pdf",
+   "issued": "2026-11-23T09:00:00"
   },
   {
-   "title": "Slinging and signalling",
-   "path": "_toolbox/Slinging and signalling.pdf",
-   "issued": "2026-11-02T09:00:00"
+   "title": "Talk 02 - Advice to Employees",
+   "path": "_toolbox/Talk 02 - Advice to Employees.pdf",
+   "issued": "2026-11-23T09:00:00"
   },
   {
-   "title": "Exclusion zones during lifts",
-   "path": "_toolbox/Exclusion zones during lifts.pdf",
-   "issued": "2026-11-02T09:00:00"
+   "title": "Talk 03 - Responsibilities",
+   "path": "_toolbox/Talk 03 - Responsibilities.pdf",
+   "issued": "2026-11-23T09:00:00"
   },
   {
-   "title": "Manual handling of steel",
-   "path": "_toolbox/Manual handling of steel.pdf",
-   "issued": "2026-11-02T09:00:00"
+   "title": "Talk 04 - Housekeeping",
+   "path": "_toolbox/Talk 04 - Housekeeping.pdf",
+   "issued": "2026-11-23T09:00:00"
   },
   {
-   "title": "Impact wrenches, noise and vibration (HAVS)",
-   "path": "_toolbox/Impact wrenches noise and vibration HAVS.pdf",
-   "issued": "2026-11-02T09:00:00"
+   "title": "Talk 05 - First Aid",
+   "path": "_toolbox/Talk 05 - First Aid.pdf",
+   "issued": "2026-11-23T09:00:00"
   },
   {
-   "title": "Temporary stability during erection",
-   "path": "_toolbox/Temporary stability during erection.pdf",
-   "issued": "2026-11-02T09:00:00"
+   "title": "Talk 06 - Working Dress",
+   "path": "_toolbox/Talk 06 - Working Dress.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 07 - Eye Protection",
+   "path": "_toolbox/Talk 07 - Eye Protection.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 08 - Head & Feet",
+   "path": "_toolbox/Talk 08 - Head & Feet.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 09 - Noise",
+   "path": "_toolbox/Talk 09 - Noise.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 10 - Skin Care",
+   "path": "_toolbox/Talk 10 - Skin Care.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 11 - Use of Fire Extinguishers",
+   "path": "_toolbox/Talk 11 - Use of Fire Extinguishers.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 12 - Portable Electric Tools",
+   "path": "_toolbox/Talk 12 - Portable Electric Tools.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 13 - Welding Safely",
+   "path": "_toolbox/Talk 13 - Welding Safely.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 14 - Hot Work",
+   "path": "_toolbox/Talk 14 - Hot Work.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 15 - Working at Height",
+   "path": "_toolbox/Talk 15 - Working at Height.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 16 - Dos and Don'ts on Scaffold",
+   "path": "_toolbox/Talk 16 - Dos and Don'ts on Scaffold.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 17 - Openings and Edges",
+   "path": "_toolbox/Talk 17 - Openings and Edges.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 19 - Lifting Operations",
+   "path": "_toolbox/Talk 19 - Lifting Operations.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 20 - Leptospirosis",
+   "path": "_toolbox/Talk 20 - Leptospirosis.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 20 - Manual Handling",
+   "path": "_toolbox/Talk 20 - Manual Handling.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 21 - Demolition",
+   "path": "_toolbox/Talk 21 - Demolition.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 22 - Hazardous Substances",
+   "path": "_toolbox/Talk 22 - Hazardous Substances.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 22 - Use of Scaffold",
+   "path": "_toolbox/Talk 22 - Use of Scaffold.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 23 - Working with Compressed Air",
+   "path": "_toolbox/Talk 23 - Working with Compressed Air.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 24 - Slings",
+   "path": "_toolbox/Talk 24 - Slings.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 25 - Banksmen Slingers",
+   "path": "_toolbox/Talk 25 - Banksmen Slingers.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 26 - Security",
+   "path": "_toolbox/Talk 26 - Security.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 27 - Permit to Work Procedures",
+   "path": "_toolbox/Talk 27 - Permit to Work Procedures.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 28 - Dust & Fumes",
+   "path": "_toolbox/Talk 28 - Dust & Fumes.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 29 - Handling and Use of Diesel Fuel",
+   "path": "_toolbox/Talk 29 - Handling and Use of Diesel Fuel.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 41 - Vibration",
+   "path": "_toolbox/Talk 41 - Vibration.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 44 - Harness Inspection",
+   "path": "_toolbox/Talk 44 - Harness Inspection.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 53 - Mobile Phones",
+   "path": "_toolbox/Talk 53 - Mobile Phones.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 59 - Exclusion Zones - Steel Erection",
+   "path": "_toolbox/Talk 59 - Exclusion Zones - Steel Erection.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 62 - Working at Height",
+   "path": "_toolbox/Talk 62 - Working at Height.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 64 - Alcohol and Drugs",
+   "path": "_toolbox/Talk 64 - Alcohol and Drugs.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 72 - Steel Erection",
+   "path": "_toolbox/Talk 72 - Steel Erection.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 74 - Inspection of Lifting Accessories",
+   "path": "_toolbox/Talk 74 - Inspection of Lifting Accessories.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 76 - Cranage",
+   "path": "_toolbox/Talk 76 - Cranage.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 77 - Use of Site Hoists",
+   "path": "_toolbox/Talk 77 - Use of Site Hoists.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 78 - Drinking and Driving Next Morning",
+   "path": "_toolbox/Talk 78 - Drinking and Driving Next Morning.pdf",
+   "issued": "2026-11-23T09:00:00"
+  },
+  {
+   "title": "Talk 79 - Environment",
+   "path": "_toolbox/Talk 79 - Environment.pdf",
+   "issued": "2026-11-23T09:00:00"
   }
  ],
  "workshop": [

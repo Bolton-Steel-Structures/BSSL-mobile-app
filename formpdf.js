@@ -1,4 +1,4 @@
-/* iCONSTRUCTE Site: any completed form as a PDF, to email or share from the phone (Liam, 20 Nov: completed forms
+/* iCONSTRUCTE Site: any completed form as a PDF, to email or share from the phone (20 Nov: completed forms
  * emailed from the app to a client or manager). The phone's own share sheet is used (Outlook, Gmail, WhatsApp …),
  * so it goes from the person's own email; where a phone can't share files, the PDF downloads and an email opens.
  */
@@ -28,7 +28,58 @@
     return null;
   }
 
+  // Toolbox talk (23 Nov): printed in the layout of BSS's paper Toolbox Talk Briefing Register
+  async function register(rec) {
+    const v = rec.values || {}, { jsPDF } = window.jspdf, doc = new jsPDF({ unit: "mm", format: "a4" });
+    const M = 20, R = 190, cols = [[M, 26, "DATE"], [M + 26, 52, "NAME"], [M + 78, 42, "OCCUPATION"], [M + 120, 50, "SIGNATURE"]];
+    let y = 15;
+    const lg = await logo();
+    if (lg) { const h = 18, w = (lg.w / lg.h) * h; doc.addImage(lg.data, "JPEG", 105 - w / 2, y, w, h); }
+    y += 28; doc.setFont("times", "bold"); doc.setFontSize(12); doc.setTextColor(0, 0, 0);
+    doc.text("Toolbox Talk Briefing Register", 105, y, { align: "center" }); doc.line(105 - 30, y + 1, 105 + 30, y + 1);
+    y += 12; doc.setFontSize(11); doc.text("Subject: ", M, y); doc.setFont("times", "normal");
+    doc.text(doc.splitTextToSize((v.talk && v.talk.title) || "", R - M - 20), M + 18, y);
+    const job = IC.jobByFolder(rec.jobFolder) || {};
+    if (rec.jobNumber) { y += 6; doc.setFont("times", "bold"); doc.text("Job: ", M, y); doc.setFont("times", "normal"); doc.text(rec.jobNumber + (job.site ? " · " + job.site : ""), M + 18, y); }
+    y += 10; doc.setFontSize(10.5);
+    const st = doc.splitTextToSize("To confirm the briefing on the above subject has been held and understood, all operatives involved must sign below.", R - M);
+    doc.text(st, M, y); y += st.length * 5 + 4;
+    const rowH = 11, people = v.attendees || [], brief = v.date ? IC.parseDate(v.date) : new Date(rec.submittedAt || rec.updatedAt);
+    const headRow = () => { doc.setFont("times", "bold"); doc.setFontSize(10); cols.forEach(([x, w, h]) => { doc.rect(x, y, w, 7); doc.text(h, x + 2, y + 5); }); y += 7; doc.setFont("times", "normal"); };
+    headRow();
+    const rows = Math.max(people.length, 8);
+    for (let i = 0; i < rows; i++) {
+      if (y + rowH > 230) { doc.addPage(); y = 20; headRow(); }
+      const p = people[i]; cols.forEach(([x, w]) => doc.rect(x, y, w, rowH));
+      if (p) {
+        doc.text(fmtDate(p.signedAt ? new Date(p.signedAt) : brief), cols[0][0] + 2, y + 7);
+        doc.text(doc.splitTextToSize(p.name || "", cols[1][1] - 4)[0], cols[1][0] + 2, y + 7);
+        doc.text(doc.splitTextToSize(p.occupation || "", cols[2][1] - 4)[0], cols[2][0] + 2, y + 7);
+        const im = p.sig ? await imageFor(p.sig, 400) : null;
+        if (im) { const h = rowH - 2, w = Math.min(cols[3][1] - 4, (im.w / im.h) * h); doc.addImage(im.data, "JPEG", cols[3][0] + 2, y + 1, w, h); }
+      }
+      y += rowH;
+    }
+    if (y > 225) { doc.addPage(); y = 20; }
+    y += 8; const cm = [v.points ? "Key points: " + v.points : "", v.comments || "", v.mins ? "Duration: " + v.mins + " minutes" : ""].filter(Boolean).join("\n");
+    const cl = doc.splitTextToSize(cm, R - M - 6), ch = Math.max(30, cl.length * 5 + 12);
+    doc.rect(M, y, R - M, ch); doc.setFont("times", "bold"); doc.text("Comments:", M + 3, y + 6); doc.setFont("times", "normal"); doc.text(cl, M + 3, y + 12);
+    y += ch + 14; if (y > 265) { doc.addPage(); y = 25; }
+    doc.setFont("times", "bold"); doc.text("Briefing Delivered by", M, y); doc.setFont("times", "normal"); doc.text(v.by || rec.userName || "", M + 42, y); doc.line(M + 40, y + 1, M + 120, y + 1);
+    y += 14; doc.setFont("times", "bold"); doc.text("Signature", M, y);
+    const bs = v.bySig ? await imageFor(v.bySig, 500) : null;
+    if (bs) { const h = 12, w = Math.min(50, (bs.w / bs.h) * h); doc.addImage(bs.data, "JPEG", M + 22, y - 10, w, h); }
+    doc.line(M + 20, y + 1, M + 80, y + 1);
+    doc.text("Date", M + 92, y); doc.setFont("times", "normal"); doc.text(fmtDate(brief), M + 104, y); doc.line(M + 102, y + 1, M + 150, y + 1);
+    if ((v.photos || []).length) {
+      doc.addPage(); y = 20; doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text("Photos", M, y); y += 6; let x = M;
+      for (const id of v.photos.slice(0, 12)) { const im = await imageFor(id, 700); if (!im) continue; const w = 54, h = Math.min(40, (im.h / im.w) * w); if (x + w > R) { x = M; y += 44; } doc.addImage(im.data, "JPEG", x, y, w, h); x += w + 4; }
+    }
+    return doc.output("blob");
+  }
+
   async function build(rec) {
+    if (rec.templateId === "toolbox") return register(rec);
     const t = IC.Forms.tpl(rec.templateId) || { title: rec.templateTitle || "Form", fields: [] }, v = rec.values || {};
     const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: "mm", format: "a4" });
     const M = 15, R = 195, BOTTOM = 280;

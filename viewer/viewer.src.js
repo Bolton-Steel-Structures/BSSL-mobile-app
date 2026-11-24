@@ -54,7 +54,7 @@ async function readParts(ifc, modelID) {
   return parts;
 }
 
-/* Liam, 19 Nov: list and mark ASSEMBLIES (one per erection mark), not the parts inside them. Tekla exports each assembly
+/* 19 Nov: list and mark ASSEMBLIES (one per erection mark), not the parts inside them. Tekla exports each assembly
  * as an IfcElementAssembly that aggregates its parts (Assemblies:On). A part not in an assembly (or a file exported with
  * Assemblies:Off) is its own unit. Bolts are never units. */
 function buildUnits(ifc, modelID, parts) {

@@ -34,11 +34,11 @@
   }
 
   const YNA = ["Yes", "No", "N/A"];
-  // Plant BSS hires (Liam, 20 Nov), each with its own daily check sheet. Anything else gets the standard mechanical or
-  // non-mechanical sheet (Liam, 21 Nov). Cranes only show as a crane symbol on the days they're on site.
+  // Plant BSS hires (20 Nov), each with its own daily check sheet. Anything else gets the standard mechanical or
+  // non-mechanical sheet (21 Nov). Cranes only show as a crane symbol on the days they're on site.
   // Workshop equipment pre-use checks (PUWER reg. 5 and 6; lifting parts under LOLER). First draft: to be read by the
   // workshop supervisor against the manufacturers' instructions before use.
-  // Daily vehicle walk-round check (Liam, 22 Nov), supervisors and operatives driving a company vehicle; based on the
+  // Daily vehicle walk-round check (22 Nov), supervisors and operatives driving a company vehicle; based on the
   // DVSA daily walkaround check. First draft: for the transport / H&S adviser to confirm (approvals A8).
   const VEHICLE_CHECKS = ["Tyres: tread, no cuts or bulges, inflated", "Wheel nuts secure", "Lights, indicators and hazard lights working",
     "Mirrors, windscreen and wipers: clean, no cracks, washers working", "Oil, coolant and screen wash topped up", "Brakes and handbrake working",
@@ -103,7 +103,7 @@
         { type: "confirm", id: "understood", text: "I have read and understood the document above, it has been explained to me, and I will work to it. I will stop and tell my supervisor if anything changes on site.", required: true },
         { type: "signature", id: "sig", label: "Your signature", required: true }
       ] },
-    // The supervisor briefs the gang on one document and each person signs on the supervisor's phone (Liam, 20 Nov);
+    // The supervisor briefs the gang on one document and each person signs on the supervisor's phone (20 Nov);
     // started from the document's briefing register, not the Forms list
     { id: "ramsbrief", group: "Safety", internal: true, title: "RAMS / crane plan briefing (gang)", ref: "QFC05 Q05.4",
       blurb: "Brief the gang on the document, then each person signs on this phone.",
@@ -120,14 +120,43 @@
         { type: "text", id: "issue", label: "Issue" },
         { type: "people", id: "attendees", label: "Read, understood and signed by" }
       ] },
-    { id: "toolbox", group: "Safety", title: "Toolbox talk", ref: "QFC05 Q05.7",
+    // Laid out as BSS's Toolbox Talk Briefing Register (23 Nov): subject, each operative's date, name, occupation and
+    // signature, comments, and the briefing signed off by whoever delivered it. The PDF prints in the register's layout.
+    // RAMS addendum (24 Nov 2026): a minor change on site without re-issuing the whole RAMS. Supervisors and
+    // managers only (form:* roles: Supervisor, Manager, Project Managers, QA Manager; not operatives or the workshop).
+    // The gang signs it here; the PM reviews it (action in iCONSTRUCTE); the next RAMS revision takes it in.
+    { id: "ramsadd", group: "Safety", title: "RAMS addendum (minor change)", ref: "QFC05 · RAMS addendum",
+      blurb: "Record a minor change to the issued RAMS and brief it to the gang, without re-issuing the RAMS. A new high-risk activity (lifting, hot works, demolition, confined space, asbestos, excavation, live services) or a high residual risk needs a revised RAMS from the project manager: stop and call them.",
+      fields: [
+        { type: "docs", id: "docPath", only: "RAMS" },
+        { type: "yesno", id: "minor", label: "Is this a minor change within the scope of the RAMS above?", na: false, badAnswer: "No", warn: "Stop. This needs a revised RAMS: call the project manager. Do not start the changed work.", required: true },
+        { type: "text", id: "change", label: "What has changed on site", multiline: true, required: true },
+        { type: "text", id: "reason", label: "Why", multiline: true },
+        { type: "text", id: "hazards", label: "New or changed hazards (one per line)", multiline: true },
+        { type: "text", id: "controls", label: "Control measures (one per line)", multiline: true, required: true },
+        { type: "h", label: "Risk, 1 to 5 (if there is a new hazard)" },
+        { type: "select", id: "L", label: "Likelihood before controls", options: ["1", "2", "3", "4", "5"] },
+        { type: "select", id: "S", label: "Severity before controls", options: ["1", "2", "3", "4", "5"] },
+        { type: "select", id: "RL", label: "Likelihood after controls", options: ["1", "2", "3", "4", "5"] },
+        { type: "select", id: "RS", label: "Severity after controls", options: ["1", "2", "3", "4", "5"] },
+        { type: "text", id: "persons", label: "Persons at risk", prefillValue: "All site operatives" },
+        { type: "confirm", id: "inScope", text: "The change brings in no high-risk activity the RAMS doesn't already cover, and the risk after controls is not high.", required: true },
+        { type: "photos", id: "photos", label: "Photos (optional)" },
+        { type: "people", id: "attendees", label: "Briefed to: each person signs", occupation: true, required: true, hint: "Everyone doing the changed work signs. Anyone joining later reads and signs it with the RAMS on their own phone." },
+        { type: "text", id: "by", label: "Raised and briefed by", prefill: "me", required: true },
+        { type: "signature", id: "bySig", label: "Your signature", required: true }
+      ] },
+    { id: "toolbox", group: "Safety", title: "Toolbox talk", ref: "QFC05 Q05.7 · Toolbox Talk Briefing Register",
       blurb: "Pick the talk, deliver it, then each operative signs the register.",
       fields: [
-        { type: "talk", id: "talk", label: "Talk", required: true },
-        { type: "text", id: "by", label: "Delivered by", prefill: "me", required: true },
+        { type: "talk", id: "talk", label: "Subject (the talk)", required: true },
+        { type: "date", id: "date", label: "Date of the briefing", prefill: "today", max: "today", back: 7, required: true },
+        { type: "text", id: "by", label: "Briefing delivered by", prefill: "me", required: true },
         { type: "number", id: "mins", label: "Duration", unit: "minutes" },
         { type: "text", id: "points", label: "Key points covered", multiline: true },
-        { type: "people", id: "attendees", label: "Register: each operative signs", required: true },
+        { type: "people", id: "attendees", label: "Register", occupation: true, required: true, hint: "To confirm the briefing on the above subject has been held and understood, all operatives involved must sign below." },
+        { type: "text", id: "comments", label: "Comments", multiline: true },
+        { type: "signature", id: "bySig", label: "Briefing delivered by: signature", required: true },
         { type: "photos", id: "photos", label: "Photos (optional)" }
       ] },
     { id: "plant", group: "Safety", title: "Plant pre-use check", ref: "QFC05 Q05.8 · Plant register",
@@ -147,7 +176,7 @@
         { type: "text", id: "operator", label: "Operator", prefill: "me", required: true },
         { type: "signature", id: "sig", label: "Operator signature", required: true }
       ] },
-    // Workshop equipment (Liam, 21 Nov): PUWER pre-use checks, generally by the workshop supervisor; workshop roles only
+    // Workshop equipment (21 Nov): PUWER pre-use checks, generally by the workshop supervisor; workshop roles only
     { id: "wscheck", group: "Safety", workshop: true, title: "Workshop equipment check", ref: "PUWER · LOLER",
       blurb: "Pre-use check of an overhead crane or a forklift.",
       fields: [
@@ -174,7 +203,7 @@
         { type: "text", id: "operator", label: "Driver", prefill: "me", required: true },
         { type: "signature", id: "sig", label: "Signature", required: true }
       ] },
-    // PPE request (Liam, 22 Nov): anyone can ask their manager for new or replacement essential PPE. The manager marks it
+    // PPE request (22 Nov): anyone can ask their manager for new or replacement essential PPE. The manager marks it
     // Ordered, Issued or Declined (with a reason) in Manager tools; the person sees the answer on the request and on Home.
     { id: "ppe", group: "Safety", noJob: true, title: "Request PPE", ref: "PPE request",
       blurb: "Ask your manager for new or replacement PPE.",
@@ -293,27 +322,31 @@
         { type: "photos", id: "photos", label: "Photos" },
         { type: "signature", id: "sig", label: "Raised by", required: true }
       ] },
-    { id: "works", group: "Quality", title: "Site inspection / handover", ref: "BSS Works Inspection · NSSS 8.9 · QFC05 Q05.11",
-      blurb: "BSS standard Works Inspection sheet: areas inspected, snags & defects, and client sign-off for partial or full handover.",
+    // PM handover to the client (24 Nov: the BSS "XXXX - Handover" template, Site Inspection / Handover): same
+    // header, the same 20 areas in the same words, extra areas for the blank rows, comments, BSSL and client sign-off.
+    { id: "works", group: "Quality", title: "Site inspection / handover", ref: "BSS Site Inspection / Handover · NSSS 8.9 · QFC05 Q05.11",
+      blurb: "The project manager's handover to the client on the BSS Site Inspection / Handover sheet: areas inspected, snags and defects, and the client's sign-off for partial or full handover.",
       fields: [
-        { type: "text", id: "glRef", label: "GL ref (grid lines / area inspected)", required: true },
+        { type: "date", id: "date", label: "Date", prefill: "today", max: "today", back: 7, required: true },
+        { type: "text", id: "glRef", label: "GL ref", required: true },
         { type: "text", id: "stage", label: "Work stage", required: true, placeholder: "e.g. Phase 1 frame, GL A–F" },
-        { type: "inspect", id: "areas", label: "Areas inspected / snags & defects noted", required: true, items: [
-          "HD bolts tight", "Proprietary anchors installed", "All steelwork fitted", { t: "Columns lined, levelled & plumbed on grid", x: { label: "Checked with", options: ["Total station", "Laser level", "Laser line", "Spirit level", "Optical level", "Plumb line and tape"] } },
-          "All bolts installed", "Beam connection – bolts tight", "HSFG / TCB (indicator) bolts: indicators show full tension",
-          { t: "Bolts tensioned by torque", x: { label: "Torque (Nm), if required", number: true } }, "Beams level",
-          "Top flanges unpainted where decking is fixed", "Finishes (paint / galv) undamaged", "All flooring installed",
+        { type: "inspect", id: "areas", label: "Areas inspected / snags & defects noted (N/A where not applicable)", required: true, items: [
+          "HD bolts tight", "Proprietary anchors installed", "All steelwork fitted",
+          { t: "Columns lined, levelled & plumbed on grid", x: { label: "Checked with", options: ["Total station", "Laser level", "Laser line", "Spirit level", "Optical level", "Plumb line and tape"] } },
+          "All bolts installed", "Beam connection – bolts tight",
+          { t: "HSFG / TCB bolts torqued", x: { label: "Torque (Nm), if required", number: true } },
+          "Beams level", "Top flanges unpainted where decking is fixed", "Finishes (paint / galv) undamaged", "All flooring installed",
           "All purlins installed", "All side rails installed", "Isolation packs installed", "PC stair free of spalled edges",
-          "Steel stair fixed", "Balustrade / handrail complete", "Edge protection complete", "Metal deck complete", "Siteworks repaired",
-          "Site welds: where any site welding has been done, coatings repaired (N/A if none)"] },
+          "Steel stair fixed", "Balustrade / handrail complete", "Edge protection complete", "Metal deck complete", "Siteworks repaired"] },
+        { type: "rows", id: "otherAreas", label: "Other areas inspected (optional)", columns: [{ id: "area", label: "Area inspected", type: "text" }, { id: "accept", label: "Accept", type: "yesno", badAnswer: "No" }, { id: "comment", label: "Comments / snags / defects", type: "text" }] },
         { type: "text", id: "comments", label: "Comments", multiline: true },
         { type: "photos", id: "photos", label: "Photos" },
-        { type: "text", id: "bssName", label: "BSSL representative (printed name)", prefill: "me", required: true },
+        { type: "text", id: "bssName", label: "Completed by / BSSL representative (printed name)", prefill: "me", required: true },
         { type: "signature", id: "sig", label: "Signed by BSSL representative", required: true },
         { type: "select", id: "clientMode", label: "Client sign-off", options: ["Client signed on site", "Left with client (5-day acceptance)"], required: true },
         { type: "text", id: "clientName", label: "Client representative (printed name)", requiredIf: ["clientMode", "Client signed on site"] },
         { type: "signature", id: "clientSig", label: "Signed by client representative", requiredIf: ["clientMode", "Client signed on site"] },
-        { type: "note", text: "This document will be presented to a suitable client representative for handing over on partial or full completion. If the client is unable to complete it with the BSSL representative, it will be left with the client and a 5 day period will be permitted before acceptance is deemed granted if not returned prior." }
+        { type: "note", text: "This document will be presented to a suitable client representative for handing over on partial or full completion of the above noted project. If the client is unable to complete this document with the BSSL representative, it will be left with the client and a 5 day period will be permitted before acceptance is deemed granted if not returned prior." }
       ] },
     { id: "audit", group: "Quality", title: "Site audit (during erection)", ref: "QFC05 · NSSS 8, 9",
       blurb: "A general look at progress and quality while erection is under way. Anything marked No needs an action.",
@@ -362,24 +395,41 @@
       ] }
   ];
   const tpl = (id) => T.find((t) => t.id === id);
+  // forms tied to one issued RAMS / crane plan document
+  const isRamsT = (id) => id === "rams" || id === "ramsbrief" || id === "ramsadd";
 
   // RAMS sign-off is tied to the current issue of the job's H&S documents. A new RAMS revision needs a new signature.
-  // Each H&S document (RAMS, crane plan) is signed for separately (Liam, 20 Nov: not one signature for both), and a
+  // Each H&S document (RAMS, crane plan) is signed for separately (20 Nov: not one signature for both), and a
   // new issue of a document needs a new signature. Earlier records signed for several at once still count for each.
   const hsKey = (j) => (j.files || []).filter((f) => f.category === "H&S").map((f) => f.path + "@" + f.issued).sort().join("|");
   const docKey = (x) => x.path + "@" + x.issued;
   // crane plan: "crane", "lift plan", "lifting plan", or LP / CP as a reference (LP, LP01, CP-02; not CPCS)
-  const docKind = (x) => (/crane|lift(ing)? plan|\b(LP|CP)[-_ ]?\d*\b/i.test(x.name || "") ? "crane plan" : "RAMS");
+  const docKind = (x) => (/addend/i.test(x.name || "") ? "RAMS addendum" : /crane|lift(ing)? plan|\b(LP|CP)[-_ ]?\d*\b/i.test(x.name || "") ? "crane plan" : "RAMS");
+  const kindLabel = (x) => ({ "crane plan": "Crane plan: ", "RAMS addendum": "Addendum: " })[docKind(x)] || "RAMS: ";
+  // Addenda raised on site against one issue of a RAMS (newest last)
+  async function siteAddenda(j, x) {
+    const key = docKey(x);
+    return (await Data.list("forms", "team")).filter((f) => f.templateId === "ramsadd" && f.status === "submitted" && f.jobFolder === j.folder && f.docsKey && f.docsKey.split("|").includes(key))
+      .sort((a, b) => (a.submittedAt || "").localeCompare(b.submittedAt || ""));
+  }
+  const addLine = (a, i) => "Addendum " + String(i + 1).padStart(2, "0") + ": " + String(a.values.change || "").split("\n")[0].slice(0, 90);
   async function ramsStatus(j) {
     const hs = (j.files || []).filter((f) => f.category === "H&S"); if (!hs.length) return { needed: false, docs: [], unsigned: [] };
     const me = String((Data.profile && Data.profile.name) || "").trim().toLowerCase();
     const mine = (await Data.list("forms", "team")).filter((f) => f.jobFolder === j.folder && f.status === "submitted" && f.docsKey &&
       ((f.templateId === "rams" && (!f.user || f.user === (Data.profile || {}).email)) || (f.templateId === "ramsbrief" && me && (f.values.attendees || []).some((p) => String(p.name).trim().toLowerCase() === me))));
-    const docs = hs.map((x) => ({ file: x, kind: docKind(x), signed: mine.filter((f) => f.docsKey.split("|").includes(docKey(x))).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0] || null }));
+    const docs = [];
+    for (const x of hs) {
+      const s = mine.filter((f) => f.docsKey.split("|").includes(docKey(x))).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0] || null;
+      // an addendum raised after you signed needs reading and signing too, unless you were briefed on it
+      const adds = docKind(x) === "RAMS" ? await siteAddenda(j, x) : [];
+      const newer = s ? adds.filter((a) => (a.submittedAt || "") > (s.submittedAt || "") && !(a.values.attendees || []).some((p) => String(p.name).trim().toLowerCase() === me)) : [];
+      docs.push({ file: x, kind: newer.length ? "RAMS addendum" : docKind(x), signed: newer.length ? null : s, addenda: adds });
+    }
     const unsigned = docs.filter((d) => !d.signed);
     return { needed: true, docs, unsigned, signed: unsigned.length ? null : docs[0].signed };
   }
-  // One register per document and issue (Liam, 20 Nov): signatures from people's own phones and from gang briefings on
+  // One register per document and issue (20 Nov): signatures from people's own phones and from gang briefings on
   // the supervisor's phone, one line per person (their first signature)
   async function ramsRegister(j, x) {
     const key = docKey(x), recs = (await Data.list("forms", "team")).filter((f) => f.jobFolder === j.folder && f.status === "submitted" && f.docsKey && f.docsKey.split("|").includes(key));
@@ -392,7 +442,7 @@
     const seen = new Set();
     return rows.filter((r) => { const k = String(r.name).trim().toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; });
   }
-  // Who should sign this issue (Liam, 20 Nov: the register stays live until everyone allocated has signed): everyone on
+  // Who should sign this issue (20 Nov: the register stays live until everyone allocated has signed): everyone on
   // the planner for the job from the day it was issued, plus anyone who has checked in there since; managers don't sign
   async function ramsStillToSign(j, x, rows) {
     const from = String(x.issued || "").slice(0, 10), want = new Map();
@@ -432,26 +482,32 @@
       case "h": el.innerHTML = '<div class="section-h">' + esc(f.label) + "</div>"; return { el, get: () => undefined, check: () => "" };
       case "note": el.innerHTML = '<div class="note">' + esc(f.text) + "</div>"; return { el, get: () => undefined, check: () => "" };
       case "docs": {
-        const hs = ((ctx.job && ctx.job.files) || []).filter((x) => x.category === "H&S");
+        const hs = ((ctx.job && ctx.job.files) || []).filter((x) => x.category === "H&S" && (!f.only || docKind(x) === f.only));
         // one document per signature: the one asked for, else the first
         const want = val || (ctx.prefill || {}).docPath, d = hs.find((x) => x.path === want) || hs[0];
         if (f.id === "docPath") {
-          el.innerHTML = '<div class="ff-l">Document</div>' + (hs.length > 1 ? '<select data-doc>' + hs.map((x) => "<option value=\"" + esc(x.path) + "\"" + (x === d ? " selected" : "") + ">" + esc(docKind(x) === "crane plan" ? "Crane plan: " : "RAMS: ") + esc(x.name) + "</option>").join("") + "</select>" : "") +
-            '<div data-doclink>' + (d ? docLink(ctx.job, d) : '<div class="small">No RAMS have been issued for this job yet.</div>') + "</div>";
-          const sel = el.querySelector("[data-doc]"); let cur = d, curIssued = d ? d.issued : "";
-          if (sel) sel.onchange = () => { cur = hs.find((x) => x.path === sel.value); curIssued = cur ? cur.issued : ""; el.querySelector("[data-doclink]").innerHTML = docLink(ctx.job, cur); };
-          // HC4.13: remember which issue was on screen; a re-issue while the form is open stops the signature
-          return { el, get: () => (cur ? cur.path : ""), extra: () => ({ docIssued: curIssued }), check: () => (cur ? "" : "No RAMS have been issued for this job") };
+          el.innerHTML = '<div class="ff-l">' + (f.only ? "RAMS this changes" : "Document") + '</div>' + (hs.length > 1 ? '<select data-doc>' + hs.map((x) => "<option value=\"" + esc(x.path) + "\"" + (x === d ? " selected" : "") + ">" + esc(kindLabel(x)) + esc(x.name) + "</option>").join("") + "</select>" : "") +
+            '<div data-doclink>' + (d ? docLink(ctx.job, d) : '<div class="small">No RAMS have been issued for this job yet.</div>') + '</div><div data-adds></div>';
+          const sel = el.querySelector("[data-doc]"); let cur = d, curIssued = d ? d.issued : "", shown = [];
+          // the site addenda to this RAMS, read with it: signing the RAMS covers the addenda shown
+          const showAdds = async () => {
+            const box = el.querySelector("[data-adds]"); shown = cur && docKind(cur) === "RAMS" ? await siteAddenda(ctx.job, cur) : [];
+            box.innerHTML = shown.length ? '<div class="ff-l">' + (f.only ? "Addenda already raised" : "Addenda to this RAMS (part of what you are signing for)") + "</div>" + shown.map((a, i) => '<a class="doc-link" href="#/form/' + esc(a.id) + '">' + esc(addLine(a, i)) + ' <span class="small">' + esc((a.values.by || a.userName || "") + ", " + fmtDate(a.submittedAt)) + "</span></a>").join("") : "";
+          };
+          showAdds();
+          if (sel) sel.onchange = () => { cur = hs.find((x) => x.path === sel.value); curIssued = cur ? cur.issued : ""; el.querySelector("[data-doclink]").innerHTML = docLink(ctx.job, cur); showAdds(); };
+          // : remember which issue was on screen; a re-issue while the form is open stops the signature
+          return { el, get: () => (cur ? cur.path : ""), extra: () => ({ docIssued: curIssued, addenda: shown.map((a) => a.id) }), check: () => (cur ? "" : "No RAMS have been issued for this job") };
         }
         el.innerHTML = '<div class="ff-l">Documents</div>' + (hs.length ? hs.map((x) => '<a class="doc-link" href="#/view/' + encodeURIComponent(ctx.job.folder) + "/" + encodeURIComponent(x.path) + '">' + esc(x.name) + ' <span class="small">issued ' + esc(fmtDate(x.issued)) + "</span></a>").join("") : '<div class="small">No RAMS issued for this job yet.</div>');
         return { el, get: () => undefined, check: () => (hs.length ? "" : "No RAMS have been issued for this job") };
       }
       case "text": case "number": case "date": case "time": {
         const pre = (ctx.prefill || {})[f.id];
-        // HC4.5: a check started as a draft and finished on a later day is that later day's check, unless it was started
+        // : a check started as a draft and finished on a later day is that later day's check, unless it was started
         // from "Record a check for this day" (values.checkLate) or the person changes the date themselves
         const stale = f.prefill === "today" && val != null && ctx.resumed && !(ctx.values || {}).checkLate;
-        const v = stale ? isoDate(new Date()) : val != null ? val : pre != null ? pre : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : f.prefill === "today" ? isoDate(new Date()) : "";
+        const v = stale ? isoDate(new Date()) : val != null ? val : pre != null ? pre : f.prefill === "me" ? (Data.profile && Data.profile.name) || "" : f.prefill === "today" ? isoDate(new Date()) : f.prefillValue || "";
         // date limits: not in the future (max "today"), and no more than f.back days ago
         const dMax = f.type === "date" && f.max === "today" ? isoDate(new Date()) : "", dMin = f.type === "date" && f.back ? isoDate(addD(new Date(), -f.back)) : "";
         el.innerHTML = label + (f.multiline ? '<textarea rows="3">' + esc(v) + "</textarea>" : '<input type="' + (f.type === "text" ? "text" : f.type) + '"' + (f.type === "number" ? ' inputmode="decimal" step="any"' : "") + (dMax ? ' max="' + dMax + '"' : "") + (dMin ? ' min="' + dMin + '"' : "") + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : "") + ' value="' + esc(v) + '">') + (f.hint ? '<div class="small">' + esc(f.hint) + "</div>" : "");
@@ -557,20 +613,21 @@
         return { el, get: () => ids, check: () => need(ids.length) };
       }
       case "people": {
-        const people = []; // { name, pad, sig }
-        el.innerHTML = label + '<div class="ppl"></div><button type="button" class="btn" data-add>Add person</button>';
+        const people = []; // { name, occupation, pad, sig, signedAt }
+        el.innerHTML = label + (f.hint ? '<div class="small">' + esc(f.hint) + "</div>" : "") + '<div class="ppl"></div><button type="button" class="btn" data-add>Add person</button>';
         const box = el.querySelector(".ppl");
         const add = (p) => {
           const row = document.createElement("div"); row.className = "ppl-row";
-          row.innerHTML = '<div class="row"><input type="text" placeholder="Name" value="' + esc(p ? p.name : "") + '"><button type="button" class="link">Remove</button></div>';
+          row.innerHTML = '<div class="row"><input type="text" placeholder="Name" value="' + esc(p ? p.name : "") + '"><button type="button" class="link">Remove</button></div>' +
+            (f.occupation ? '<input type="text" class="ppl-occ" placeholder="Occupation (e.g. Erector, Welder)" value="' + esc(p ? p.occupation || "" : "") + '">' : "");
           const pad = signaturePad("Signature"); row.appendChild(pad.el); box.appendChild(row);
-          const rec = { row, pad, sig: p ? p.sig : null, inp: row.querySelector("input") }; people.push(rec);
+          const rec = { row, pad, sig: p ? p.sig : null, signedAt: p ? p.signedAt : null, inp: row.querySelector("input"), occ: row.querySelector(".ppl-occ") }; people.push(rec);
           row.querySelector(".link").onclick = () => { row.remove(); people.splice(people.indexOf(rec), 1); };
         };
         (val || []).forEach(add); if (!val || !val.length) add();
         el.querySelector("[data-add]").onclick = () => add();
         return { el,
-          get: async () => { const out = []; for (const p of people) { const name = p.inp.value.trim(); if (!name) continue; out.push({ name, sig: p.pad.isEmpty() ? p.sig : await Data.putBlob(await p.pad.toBlob()) }); } return out; },
+          get: async () => { const out = []; for (const p of people) { const name = p.inp.value.trim(); if (!name) continue; const fresh = !p.pad.isEmpty(); out.push({ name, occupation: p.occ ? p.occ.value.trim() : undefined, sig: fresh ? await Data.putBlob(await p.pad.toBlob()) : p.sig, signedAt: fresh ? new Date().toISOString() : p.signedAt || null }); } return out; },
           check: () => { const named = people.filter((p) => p.inp.value.trim()); if (f.required && !named.length) return "Add at least one attendee"; const unsigned = named.find((p) => p.pad.isEmpty() && !p.sig); return unsigned ? unsigned.inp.value.trim() + " hasn't signed" : ""; } };
       }
       case "rows": {
@@ -624,7 +681,7 @@
   }
 
   // ---------------------------------------------------------------- screens
-  // Forms that live on the QA page (Liam, 20 Nov: no doubling up between QA and Forms). People without QA (operatives)
+  // Forms that live on the QA page (20 Nov: no doubling up between QA and Forms). People without QA (operatives)
   // still raise an NCR from Forms.
   const QA_FORMS = ["handover", "audit", "works", "supcomp", "ncr", "completion"];
 
@@ -648,16 +705,16 @@
     const rec = existing || { templateId, status: "draft", values: {} };
     const prefill = existing ? {} : IC.LS.get(templateId + "Prefill", null) || {};
     if (!existing) IC.LS.del(templateId + "Prefill");
-    // HC4.10: never pick a job silently. The job opened, the last job used, or the only job; otherwise "Choose…".
+    // : never pick a job silently. The job opened, the last job used, or the only job; otherwise "Choose…".
     // A draft saved with "No job / yard" keeps that; the workshop equipment check has no job at all.
     const noJob = t.id === "wscheck" || !!t.noJob;
-    // HC4.11: workshop staff pick one of the workshop's W jobs (an NCR is raised against the W job), not a BSS site job
+    // : workshop staff pick one of the workshop's W jobs (an NCR is raised against the W job), not a BSS site job
     const wsOnly = IC.can("workshop") && !IC.can("drawings") && IC.Workshop;
     const wsJobs = wsOnly ? IC.Workshop.jobs() : [];
     let folder = wsOnly ? (rec.wno ? "ws:" + rec.wno : "") : rec.jobFolder || prefillJob || IC.LS.get("lastJob", "") || "";
     if (wsOnly ? !wsJobs.some((w) => "ws:" + w.wno === folder) : !jobByFolder(folder)) folder = !wsOnly && IC.viewableJobs().length === 1 ? IC.viewableJobs()[0].folder : "";
     const chosen = !!folder || (existing && existing.noJob === true);
-    const jobOpts = wsOnly ? '<option value="">Not a job (workshop / yard)</option>' + wsJobs.map((w) => '<option value="ws:' + esc(w.wno) + '"' + ("ws:" + w.wno === folder ? " selected" : "") + ">" + esc(w.wno + " · " + [w.client, w.phase].filter(Boolean).join(" · ")) + "</option>").join("") : jobOptions(folder, t.id !== "rams" && t.id !== "ramsbrief");
+    const jobOpts = wsOnly ? '<option value="">Not a job (workshop / yard)</option>' + wsJobs.map((w) => '<option value="ws:' + esc(w.wno) + '"' + ("ws:" + w.wno === folder ? " selected" : "") + ">" + esc(w.wno + " · " + [w.client, w.phase].filter(Boolean).join(" · ")) + "</option>").join("") : jobOptions(folder, !isRamsT(t.id));
     setBar(t.title, t.ref, true);
     $("main").innerHTML = '<form class="frm" novalidate>' + (noJob ? '<input type="hidden" id="fJob" value="">' : '<label class="fl">Job<select id="fJob">' + (chosen ? "" : '<option value="__choose" selected>Choose…</option>') + jobOpts + "</select></label>") + '<div class="small" id="fWhen">' + (t.image ? '<img class="form-photo" src="' + esc(t.image) + '" alt="">' : "") + esc(fmtDay(rec.createdAt || new Date()) + " · " + ((Data.profile && Data.profile.name) || "")) + '</div><div id="fFields"></div>' +
       '<div class="err" id="fErr" hidden></div><div class="row sticky-actions"><button type="button" class="btn" id="fDraft">Save draft</button><button type="submit" class="btn primary" id="fSend">Submit</button></div></form>';
@@ -669,19 +726,19 @@
       for (const f of t.fields) { const w = field(f, rec.values[f.id], { job, values: rec.values, prefill, resumed: !!existing && rec.status === "draft" }); w.f = f; widgets.push(w); box.appendChild(w.el); }
     };
     build();
-    $("fJob").onchange = () => { if (t.id === "rams" || t.id === "ramsbrief") build(); };
+    $("fJob").onchange = () => { if (isRamsT(t.id)) build(); };
     const collect = async () => { const v = {}; for (const w of widgets) if (w.f.id) { v[w.f.id] = await w.get(); if (w.extra) Object.assign(v, await w.extra()); } return v; };
     const save = async (status) => {
       const job = jobByFolder(jobVal());
       rec.values = await collect(); rec.status = status; rec.jobFolder = job ? job.folder : ""; rec.noJob = !noJob && $("fJob").value === ""; rec.jobNumber = job ? job.jobNumber : ""; rec.site = job ? job.site || job.customer : "";
       const wv = jobVal(); if (wv.startsWith("ws:")) { const w = wsJobs.find((x) => "ws:" + x.wno === wv); rec.wno = w ? w.wno : wv.slice(3); rec.jobNumber = rec.wno; rec.site = "Workshop" + (w && w.client ? " · " + w.client : ""); } else if (wsOnly) { delete rec.wno; rec.site = "Workshop"; }
       rec.templateTitle = t.title; rec.ref = t.ref;
-      if ((t.id === "rams" || t.id === "ramsbrief") && job) {
+      if (isRamsT(t.id) && job) {
         // record exactly which document (and which issue) was signed for
         const d = (job.files || []).find((x) => x.category === "H&S" && x.path === rec.values.docPath);
         rec.docsKey = d ? docKey(d) : "";
         rec.values.docs = d ? [{ name: d.name, issued: d.issued, issuedBy: d.issuedBy || "" }] : [];
-        rec.templateTitle = (d && docKind(d) === "crane plan" ? "Crane plan briefing" : "RAMS briefing") + (t.id === "ramsbrief" ? " (gang)" : "");
+        if (t.id !== "ramsadd") rec.templateTitle = (d && docKind(d) === "crane plan" ? "Crane plan briefing" : d && docKind(d) === "RAMS addendum" ? "RAMS addendum briefing" : "RAMS briefing") + (t.id === "ramsbrief" ? " (gang)" : "");
       }
       rec.flags = flagsFor(t, rec.values);
       if (status === "submitted") rec.submittedAt = new Date().toISOString();
@@ -695,12 +752,19 @@
         if (w.f.requiredIf) { const want = valueOf(w.f.requiredIf[0]) === w.f.requiredIf[1]; w.f.required = want; if (!want) return ""; }
         return w.check();
       }).filter(Boolean);
-      if (t.id === "rams" || t.id === "ramsbrief") {
+      if (t.id === "ramsadd") {
+        const v = (id) => valueOf(id), sc = ["L", "S", "RL", "RS"].map((k) => +v(k) || 0), any = sc.some(Boolean);
+        if (widgets.find((w) => w.f.id === "minor").get() === "No") errs.unshift("This isn't a minor change: it needs a revised RAMS from the project manager. Don't submit an addendum; call the PM.");
+        if (any && !sc.every(Boolean)) errs.push("Give all four risk scores, or none");
+        if (sc.every(Boolean) && sc[2] * sc[3] > sc[0] * sc[1]) errs.push("The risk after controls is higher than before");
+        if (sc.every(Boolean) && sc[2] * sc[3] >= 15) errs.unshift("The risk after controls is high (" + sc[2] * sc[3] + "): this needs a revised RAMS, not an addendum. Stop the task and call the project manager.");
+      }
+      if (isRamsT(t.id)) {
         const jj = jobByFolder(jobVal()), w = widgets.find((x) => x.f.id === "docPath"), path = w ? w.get() : "", ex = w && w.extra ? w.extra() : {};
         const now = jj && (jj.files || []).find((x) => x.category === "H&S" && x.path === path);
         if (path && (!now || (ex.docIssued && now.issued !== ex.docIssued))) errs.unshift("This document has been re-issued since you opened it. Go back, read the new issue, then sign.");
       }
-      if (!noJob && ($("fJob").value === "__choose" || (!$("fJob").value && (t.id === "rams" || t.id === "ramsbrief")))) errs.unshift(t.id === "rams" || t.id === "ramsbrief" ? "Choose the job" : "Choose the job (or No job / yard)");
+      if (!noJob && ($("fJob").value === "__choose" || (!$("fJob").value && isRamsT(t.id)))) errs.unshift(isRamsT(t.id) ? "Choose the job" : "Choose the job (or No job / yard)");
       const box = $("fErr");
       if (errs.length) { box.hidden = false; box.innerHTML = "<b>Please finish:</b><br>" + errs.map(esc).join("<br>"); box.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
       box.hidden = true; $("fSend").disabled = true;
@@ -740,8 +804,8 @@
     const t = tpl(rec.templateId) || { title: rec.templateTitle, fields: [] };
     setBar(t.title, (rec.jobNumber || "") + " · " + fmtDate(rec.submittedAt || rec.updatedAt), true);
     const parts = [];
-    if ((rec.templateId === "rams" || rec.templateId === "ramsbrief") && rec.values.docs && rec.values.docs.length) {
-      parts.push('<div class="done-f"><div class="ff-l">Documents signed for</div>' + rec.values.docs.map((d) => "<div>" + esc(d.name) + ' <span class="small">issued ' + esc(fmtDate(d.issued)) + "</span></div>").join("") + "</div>");
+    if (isRamsT(rec.templateId) && rec.values.docs && rec.values.docs.length) {
+      parts.push('<div class="done-f"><div class="ff-l">' + (rec.templateId === "ramsadd" ? "Amends" : "Documents signed for") + '</div>' + rec.values.docs.map((d) => "<div>" + esc(d.name) + ' <span class="small">issued ' + esc(fmtDate(d.issued)) + "</span></div>").join("") + "</div>");
     }
     for (const f of t.fields) {
       const v = rec.values[f.id]; if (!f.id || v == null || v === "" || (Array.isArray(v) && !v.length)) continue;
@@ -753,7 +817,7 @@
       else if (f.type === "yesno") body = esc(v) + (rec.values[f.id + "Action"] ? '<div class="small act-done">Action: ' + esc(rec.values[f.id + "Action"]) + "</div>" : "");
       else if (f.type === "date") body = esc(fmtDay(IC.parseDate(v)))
       else if (f.type === "talk") body = esc(v.title) + (v.other ? ' <span class="small">(other topic)</span>' : "");
-      else if (f.type === "people") body = (await Promise.all(v.map(async (p) => { const u = p.sig ? await Data.blobUrl(p.sig) : ""; return '<div class="ppl-done">' + esc(p.name) + (u ? '<img class="sig-img sm" src="' + u + '">' : "") + "</div>"; }))).join("");
+      else if (f.type === "people") body = (await Promise.all(v.map(async (p) => { const u = p.sig ? await Data.blobUrl(p.sig) : ""; return '<div class="ppl-done">' + esc(p.name) + (p.occupation ? ' <span class="small">' + esc(p.occupation) + "</span>" : "") + (p.signedAt ? ' <span class="small">' + esc(IC.fmtDay(p.signedAt)) + "</span>" : "") + (u ? '<img class="sig-img sm" src="' + u + '">' : "") + "</div>"; }))).join("");
       else if (f.type === "rows") body = '<table class="tbl"><tr>' + f.columns.map((c) => "<th>" + esc(c.label) + "</th>").join("") + "</tr>" + v.map((r) => "<tr>" + f.columns.map((c) => '<td class="' + (c.badAnswer && r[c.id] === c.badAnswer ? "bad" : "") + '">' + esc(r[c.id] || "") + "</td>").join("") + "</tr>").join("") + "</table>";
       else if (f.type === "inspect") {
         const snags = await Data.list("snags", "team");
@@ -783,13 +847,13 @@
     $("main").innerHTML = extra + (rec.flags && rec.flags.length ? '<div class="warnbox"><b>Flagged for the office</b><br>' + rec.flags.map((x) => esc(x.text)).join("<br>") + "</div>" : "") +
       '<div class="small">' + esc((rec.userName || "") + " · submitted " + fmtDay(rec.submittedAt || rec.updatedAt) + " " + fmtTime(rec.submittedAt || rec.updatedAt)) + "</div>" + parts.join("") +
       (rec.history && rec.history.length ? '<div class="small">' + rec.history.map((h) => esc(fmtDay(h.at) + " · " + (h.by || "") + " · " + h.note)).join("<br>") + "</div>" : "");
-    // email / share the completed form as a PDF (Liam, 20 Nov)
+    // email / share the completed form as a PDF (20 Nov)
     $("main").insertAdjacentHTML("beforeend", '<button class="btn block" id="fShare" style="margin-top:12px">Email or share as PDF</button>');
     $("fShare").onclick = async () => { const b = $("fShare"); b.disabled = true; b.textContent = "Making the PDF…"; try { await IC.FormPdf.share(rec); } catch (e) { console.error(e); toast("Couldn't make the PDF"); } b.disabled = false; b.textContent = "Email or share as PDF"; };
     IC.QA.bindStatus(rec);
   }
 
-  // Plant (Liam, 20 Nov): each job has a Plant section listing the plant hired to it in iCONSTRUCTE; tap the machine
+  // Plant (20 Nov): each job has a Plant section listing the plant hired to it in iCONSTRUCTE; tap the machine
   // you're operating and do the day's pre-use check. Checks gather into one weekly sheet per machine (Mon–Sun) that
   // anyone on the site can add to (a Genie Z45 may be checked by five operators in a week). Each daily check is its own
   // record, so two phones never overwrite each other. A machine that isn't on a hire in iCONSTRUCTE can still be checked
@@ -802,7 +866,7 @@
   const checkDay = (c) => (c.values.checkDate ? IC.parseDate(c.values.checkDate) : new Date(c.submittedAt || c.updatedAt));
   const lateEntry = (c) => c.values.checkDate && c.submittedAt && c.values.checkDate !== isoDate(new Date(c.submittedAt));
   IC.plantCheckDay = checkDay;
-  // PPE request state (Liam, 22 Nov): submitted = waiting for a manager; the manager sets ordered, issued or declined
+  // PPE request state (22 Nov): submitted = waiting for a manager; the manager sets ordered, issued or declined
   const PPE_STATE = { ordered: ["Ordered", "pending"], issued: ["Issued", "approved"], declined: ["Declined", "declined"] };
   IC.ppeState = (rec) => PPE_STATE[rec.status] || ["Waiting for a manager", ""];
   IC.ppeStatusHtml = (rec) => { const st = IC.ppeState(rec);
@@ -889,7 +953,7 @@
     };
   });
 
-  // Toolbox talks (Liam, 20 Nov): the talks the office has published, to read and deliver; then the register that each
+  // Toolbox talks (20 Nov): the talks the office has published, to read and deliver; then the register that each
   // operative signs (supervisors and managers run it on their phone or tablet).
   IC.route("toolbox", (args) => {
     const folder = args[0] ? decodeURIComponent(args[0]) : "", talks = (IC.S.manifest && IC.S.manifest.toolboxTalks) || [];
@@ -916,10 +980,10 @@
       if (last) IC.LS.set("vehiclePrefill", { reg: last.values.reg });
     }
     if (id === "ncr") { const p = IC.LS.get("ncrPrefill", null); IC.LS.del("ncrPrefill"); if (p) return viewForm("ncr", { templateId: "ncr", status: "draft", values: { what: p.what, where: p.where, clause: p.clause }, jobFolder: p.jobFolder }); }
-    if ((id === "rams" || id === "ramsbrief") && args[2]) IC.LS.set(id + "Prefill", { docPath: decodeURIComponent(args[2]) });
+    if (isRamsT(id) && args[2]) IC.LS.set(id + "Prefill", { docPath: decodeURIComponent(args[2]) });
     return viewForm(id, null, args[1] ? decodeURIComponent(args[1]) : "");
   });
   IC.route("form", (args) => viewDone(args[0]));
 
-  IC.Forms = { templates: T, tpl, ramsStatus, ramsRegister, ramsStillToSign, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
+  IC.Forms = { templates: T, tpl, isRamsT, siteAddenda, addLine, ramsStatus, ramsRegister, ramsStillToSign, hsKey, docKind, photoStrip, flagsFor, field, QA_FORMS };
 })();

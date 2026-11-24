@@ -1,4 +1,4 @@
-/* iCONSTRUCTE Site: workshop hours booked to jobs (Liam, 21 Nov 2026).
+/* iCONSTRUCTE Site: workshop hours booked to jobs (21 Nov 2026).
  * Fabricators and workshop supervisors clock in and out at the workshop (time.js), then book the hours to the workshop jobs
  * they worked on: a day at a time, job (W number) and hours, or "Not on a job" (maintenance, cleaning, training, waiting).
  * Supervisors can also book for the people they look after. The booked hours go to iCONSTRUCTE under the job and the

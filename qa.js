@@ -1,12 +1,12 @@
 /* iCONSTRUCTE Site: QA (quality assurance) section: BSS Works Inspection, snag list with close-out, completion certificates.
- * Kept lean (Liam, 20 Nov): before erection (safe site handover, foundation check) and close-out (site inspection /
+ * Kept lean (20 Nov): before erection (safe site handover, foundation check) and close-out (site inspection /
  * handover covering line, level & plumb, bolting and site welding, with snags; NCR; completion certificate).
  */
 (function () {
   "use strict";
   const { $, esc, Data, myJobs, jobByFolder, jobOptions, setBar, route, LS } = IC;
 
-  // Trimmed 20 Nov (Liam). Deliveries and protective coatings are office / workshop records; the foundation check is
+  // Trimmed 20 Nov . Deliveries and protective coatings are office / workshop records; the foundation check is
   // part of the safe site handover; line / level / plumb, bolting and site welding are on the site inspection / handover
   // sheet. So: before erection (safe site handover), during erection (site audit), close-out.
   const STAGES = [
@@ -38,6 +38,8 @@
       r.snagId = sn.id; made++;
     }
     if (made) { rec.flags = IC.Forms.flagsFor(IC.Forms.tpl(rec.templateId) || T(), rec.values); await Data.save("forms", rec); IC.toast(made + " snag" + (made > 1 ? "s" : "") + " added to the job's snag list"); }
+    // the handover sheet as signed with the client, straight away (24 Nov): snags open, Date Cleared blank
+    if (rec.templateId === "works" && !rec.handover) await makePdf(rec, "handover");
     await checkComplete(rec.id);
   }
 
@@ -46,21 +48,29 @@
   async function checkComplete(inspectionId) {
     const rec = await Data.get("forms", inspectionId);
     if (!rec || rec.certificate) return;
-    // HC4.3: only the full site inspection (signed with the client) makes a completion certificate. Supervisors Completion
+    // : only the full site inspection (signed with the client) makes a completion certificate. Supervisors Completion
     // is the supervisor's own record: its snags are tracked, but it never issues a certificate.
     if (rec.templateId !== "works") return;
     const snags = await snagsFor(rec);
     if (snags.some((x) => x.status !== "closed")) return;
-    const sh = IC.sheet('<h3>Creating the completion certificate</h3><p>All snags are closed out. Making the PDF…</p><div class="progress"><div class="indet"></div></div>');
+    // no snags: the handover sheet already made is the final one
+    if (!snags.length && rec.handover) { rec.certificate = rec.handover; await Data.save("forms", rec); return; }
+    await makePdf(rec, "certificate");
+  }
+
+  // handover = the sheet as signed on the day; certificate = the same sheet again with every snag's Date Cleared
+  async function makePdf(rec, which) {
+    const cleared = which === "certificate";
+    const sh = IC.sheet("<h3>" + (cleared ? "All snags cleared" : "Site inspection / handover") + "</h3><p>Making the handover PDF…</p><div class=\"progress\"><div class=\"indet\"></div></div>");
     try {
       const blob = await IC.Cert.build(rec, await Data.list("snags", "team"));
-      const name = IC.Cert.fileName(rec), path = rec.jobFolder + "/09 - QA/" + name;
-      const uploadId = await Data.queueUpload(path, blob, { kind: "completion-certificate", inspectionId: rec.id, jobNumber: rec.jobNumber });
-      rec.certificate = { name, path, uploadId, createdAt: new Date().toISOString() };
+      const name = IC.Cert.fileName(rec, cleared && !!rec.handover), path = rec.jobFolder + "/09 - QA/" + name;
+      const uploadId = await Data.queueUpload(path, blob, { kind: cleared ? "completion-certificate" : "handover", inspectionId: rec.id, jobNumber: rec.jobNumber });
+      rec[which] = { name, path, uploadId, createdAt: new Date().toISOString() };
       await Data.save("forms", rec);
-      sh.close(); IC.toast("Completion certificate created");
+      sh.close(); IC.toast(cleared ? "Handover sheet with snags cleared created" : "Handover sheet created");
     } catch (e) {
-      console.error(e); sh.close(); IC.toast("Couldn't make the certificate: " + e.message);
+      console.error(e); sh.close(); IC.toast("Couldn't make the handover PDF: " + e.message);
     }
   }
 
@@ -77,18 +87,25 @@
     let h = "";
     if (rec.certificate) {
       const st = await certState(rec);
-      h += '<div class="cert-box"><b>Completion certificate</b><div class="small">' + esc(rec.certificate.name) + "</div><div class=\"small " + (st.cls === "ok" ? "ok-t" : "") + '">' + esc(st.text) + "</div>" +
-        (st.up ? '<button class="btn block" id="certDl">Open certificate</button>' : "") + "</div>";
+      h += '<div class="cert-box"><b>Handover sheet' + (rec.handover && rec.certificate.name !== rec.handover.name ? ' (snags cleared)' : '') + '</b><div class="small">' + esc(rec.certificate.name) + "</div><div class=\"small " + (st.cls === "ok" ? "ok-t" : "") + '">' + esc(st.text) + "</div>" +
+        (st.up ? '<button class="btn block" id="certDl">Open handover sheet</button>' : "") + "</div>";
     } else if (open.length) {
-      h += '<div class="note"><b>' + open.length + " snag" + (open.length > 1 ? "s" : "") + " to close out.</b>" + (rec.templateId === "works" ? " The completion certificate is created automatically when they're all closed." : "") + "</div>" +
+      if (rec.handover) { const up = (await Data.uploads()).find((u) => u.key === "up:" + rec.handover.uploadId); h += '<div class="cert-box"><b>Handover sheet (as signed)</b><div class="small">' + esc(rec.handover.name) + "</div>" + (up ? '<button class="btn block" id="hoDl">Open handover sheet</button>' : "") + "</div>"; }
+      h += '<div class="note"><b>' + open.length + " snag" + (open.length > 1 ? "s" : "") + " to close out.</b>" + (rec.templateId === "works" ? " The handover sheet is made again with the dates cleared when they're all closed." : "") + "</div>" +
         open.map((x) => '<a class="tile-row" href="#/snag/' + x.id + '"><span class="ti">' + IC.ICON.forms + "</span><span><b>" + esc(x.area) + '</b><span class="small">' + esc(x.description || "") + '</span></span><span class="pill declined">Open</span></a>').join("");
     }
-    if (!h && rec.templateId === "supcomp") h = '<div class="note"><b>Supervisor\u2019s completion record.</b> ' + (snags.length ? "All " + snags.length + " snag" + (snags.length > 1 ? "s" : "") + " closed out. " : "No snags. ") + "The completion certificate comes from the site inspection signed with the client.</div>";
+    if (!h && rec.templateId === "supcomp") h = '<div class="note"><b>Supervisor\u2019s completion record.</b> ' + (snags.length ? "All " + snags.length + " snag" + (snags.length > 1 ? "s" : "") + " closed out. " : "No snags. ") + "The handover sheet comes from the site inspection / handover signed with the client.</div>";
     return h;
   }
 
   function bindStatus(rec) {
     const b = document.getElementById("certDl");
+    const hb = document.getElementById("hoDl");
+    if (hb && rec.handover) hb.onclick = async () => {
+      const up = (await Data.uploads()).find((u) => u.key === "up:" + rec.handover.uploadId);
+      if (!up) return;
+      const a = document.createElement("a"); a.href = URL.createObjectURL(up.blob); a.download = rec.handover.name; a.target = "_blank"; document.body.appendChild(a); a.click(); a.remove();
+    };
     if (b && rec.certificate) b.onclick = async () => {
       const up = (await Data.uploads()).find((u) => u.key === "up:" + rec.certificate.uploadId);
       if (!up) return;
@@ -150,7 +167,7 @@
       const inner = '<span class="ti quality">' + IC.ICON.check + '</span><span><b>' + esc(it.name) + '</b><span class="small">' + esc(it.ref) + "</span></span>" + (n ? '<span class="pill ok">' + n + " done</span>" : "");
       return folder ? '<a class="tile-row qa-item" href="#/form-new/' + it.form + "/" + encodeURIComponent(folder) + '">' + inner + "</a>" : '<div class="tile-row qa-item">' + inner + "</div>";
     };
-    // supervisors use the short "Supervisors Completion"; managers the full site inspection / handover (Liam, 20 Nov)
+    // supervisors use the short "Supervisors Completion"; managers the full site inspection / handover (20 Nov)
     const inspTpl = IC.can("manager") ? "works" : "supcomp";
     const inspections = forms.filter((f) => f.templateId === "works" || f.templateId === "supcomp").sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
     const insRow = (f) => {

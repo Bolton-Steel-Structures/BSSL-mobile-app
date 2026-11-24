@@ -54,7 +54,7 @@
     };
   }
 
-  // Workshop staff clock in and out at the workshop: no site to pick and no location taken (Liam, 21 Nov)
+  // Workshop staff clock in and out at the workshop: no site to pick and no location taken (21 Nov)
   const atWorkshop = () => can("workshop") && !can("drawings");
   async function check(type, folder, open) {
     if (atWorkshop()) {
@@ -68,7 +68,7 @@
       rec.locationChecked = true; rec.distanceM = dist == null ? null : Math.round(dist); rec.locationError = pos.error || "";
       if (ok) { sh.close(); return done(); }
       const why = pos.error || "You are " + fmtDistance(dist) + " from the workshop.";
-      // HC4.9: inside the shed the phone may only manage a rough fix. If it can't place you to within the radius, clocking
+      // : inside the shed the phone may only manage a rough fix. If it can't place you to within the radius, clocking
       // in is allowed but flagged, with a reason. A good fix away from the workshop, or location turned off, is still refused.
       const rough = !pos.error && (pos.accuracy || 0) > (w.radiusM || 500);
       if (type === "in" && rough) {

@@ -65,7 +65,7 @@
     const have = new Set(await Store.keys());
     for (const [k, v] of wanted) {
       if (!D.offlineJobs.includes(v.j.folder)) continue;
-      // HC2.19: a saved copy whose size doesn't match the issued file is replaced, never shown
+      // : a saved copy whose size doesn't match the issued file is replaced, never shown
       if (have.has(k) && v.f.size) { const cur = await Store.get(k); if (cur && cur.blob && cur.blob.size !== v.f.size) { await Store.del(k); have.delete(k); } }
       if (!have.has(k)) {
         try {
@@ -86,14 +86,14 @@
       $("main").innerHTML = '<div class="empty"><b>Your role isn\u2019t set up in the app yet</b><br>Your account says \u201c' + esc(p.role || "no role") + '\u201d. Ask the office to set your role, then sign in again.</div>';
       return;
     }
-    // Home (Liam, 23 Nov): everyone has the app now, so one Home for all: a shared top (greeting and today, Needs you,
+    // Home (23 Nov): everyone has the app now, so one Home for all: a shared top (greeting and today, Needs you,
     // notices, Me) and a role-specific "My work" below. Directors switch Site | Workshop inside My work.
     setBar("Bolton Steel Structures", "", false);
     if (IC.HR && !LS.get("welcomed:" + p.email, false) && !can("screens")) { location.replace("#/welcome"); return; }
     const first = String(p.name || S.user.name).split(" ")[0];
     const tile = (f, href, icon, title, sub) => (can(f) ? '<a class="tile" href="' + href + '">' + icon + "<b>" + title + "</b><span>" + sub + "</span></a>" : "");
     const hrc = await IC.HR.homeCounts(); // documents to sign; new starters ready (HR admins)
-    // my latest PPE request, for the tile (Liam, 22 Nov)
+    // my latest PPE request, for the tile (22 Nov)
     const myPpe = can("form:ppe") ? (await Data.list("forms")).filter((f) => f.templateId === "ppe" && f.status !== "draft" && f.user === p.email).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))[0] : null;
     const ppeSub = !myPpe ? "New or replacement" : myPpe.status === "submitted" ? "Waiting for a manager" : IC.ppeState(myPpe)[0] + " · " + IC.fmtDay(myPpe.decidedAt || myPpe.submittedAt);
     const vehDone = (await Data.list("forms")).some((f) => f.templateId === "vehicle" && f.status !== "draft" && f.user === p.email && f.values && IC.sameDay(IC.plantCheckDay(f), new Date()));
@@ -128,7 +128,7 @@
     // My work: by role
     const mgmt = tile("manager", "#/manager", ICON.team, "Manager tools", "Approvals, team, who's on site") +
       tile("hr-admin", "#/hr", ICON.hr, "HR", hrc.ready ? hrc.ready + " new starter" + (hrc.ready > 1 ? "s" : "") + " ready" : "People, documents, starters") +
-      (IC.wide() ? tile("app-admin", "#/admin", ICON.check, "App admin", "Roles, people, permissions") : ""); // computer screens only (Liam, 23 Nov)
+      (IC.wide() ? tile("app-admin", "#/admin", ICON.check, "App admin", "Roles, people, permissions") : ""); // computer screens only (23 Nov)
     const siteWork = tile("drawings", "#/jobs", ICON.jobs, can("all-jobs") ? "Projects" : "Drawings", can("all-jobs") ? "Live projects and packages" : "My jobs") +
       (anyForm ? '<a class="tile" href="#/forms">' + ICON.hs + "<b>" + (can("form:powra") || can("form:toolbox") ? "Safety" : can("form:wscheck") ? "Checks" : "NCR") + "</b><span>" + (!can("form:powra") && !can("form:toolbox") ? (can("form:wscheck") ? "Crane and forklift checks, NCR" : "Report a non-conformance") : can("form:toolbox") ? (can("rams") ? "RAMS, toolbox talks, checks" : "Toolbox talks, checks") : "POWRA, near miss, report a problem") + "</span></a>" : "") +
       tile("qa", "#/qa", ICON.check, "QA", "Quality records by job") +
@@ -148,7 +148,7 @@
     if ($("timeCard")) IC.Time.card($("timeCard"));
     IC.Notices.homeHtml().then((x) => { if ($("notices")) { $("notices").innerHTML = x; IC.Notices.markSeen(); } });
     if (both && side === "workshop" && $("wsdash")) $("wsdash").innerHTML = await IC.Workshop.dashboardHtml();
-    // My week: where the labour planner has me for the next 7 days (W2)
+    // My week: where the labour planner has me for the next 7 days
     const in6 = new Date(); in6.setDate(in6.getDate() + 6); const week = can("time") ? myWeek().filter((a) => a.date <= IC.isoDate(in6)) : [];
     if (week.length && $("myweek") && side === "site") {
       $("myweek").innerHTML = '<div class="section-h">My week <a href="#/week" style="float:right;font-weight:600">Details ›</a></div>' + week.map((a) => {
@@ -162,14 +162,14 @@
     // HR (23 Nov): documents to read and sign; new starters ready to set up (HR admins)
     if (hrc.sign) todo.push('<a class="todo" href="#/hr/me"><span class="ti">' + ICON.hr + "</span><span><b>" + hrc.sign + " document" + (hrc.sign > 1 ? "s" : "") + ' to read and sign</b><span class="small">My HR</span></span>›</a>');
     if (hrc.ready) todo.push('<a class="todo" href="#/hr/people/starting"><span class="ti">' + ICON.hr + "</span><span><b>" + hrc.ready + " new starter" + (hrc.ready > 1 ? "s" : "") + ' ready to set up</b><span class="small">Onboarding form done; set up their app account</span></span>›</a>');
-    // RAMS to sign: only for the site you're on today (Liam, 20 Nov: people can be reallocated before later days), i.e.
+    // RAMS to sign: only for the site you're on today (20 Nov: people can be reallocated before later days), i.e.
     // today's planner allocation and the job you're checked in at
     const todaySites = await sitesToday();
     for (const j of can("rams") ? myJobs().filter((x) => todaySites.has(x.folder)) : []) {
       const r = await IC.Forms.ramsStatus(j);
       for (const d of r.unsigned || []) todo.push('<a class="todo" href="#/form-new/rams/' + encodeURIComponent(j.folder) + "/" + encodeURIComponent(d.file.path) + '"><span class="ti safety">' + ICON.hs + "</span><span><b>Sign the " + esc(d.kind) + " for " + esc(j.jobNumber) + '</b><span class="small">' + esc(d.file.name) + "</span></span>›</a>");
     }
-    // POWRA every day (Liam, 20 Nov): supervisors carry one out each working day on the site they're on; the to-do stays
+    // POWRA every day (20 Nov): supervisors carry one out each working day on the site they're on; the to-do stays
     // until they've submitted one for that job today
     if (roleOf(Data.profile) === "Supervisor" && can("form:powra")) {
       const mineToday = (await Data.list("forms")).filter((f) => f.templateId === "powra" && f.status !== "draft" && IC.sameDay(f.submittedAt || f.updatedAt, new Date()));
@@ -216,7 +216,7 @@
   }
 
   // ---------------------------------------------------------------- jobs and drawings
-  // Managers (feature all-jobs; Liam 20 Nov): every live project, grouped by project number (the part before "/"),
+  // Managers (feature all-jobs; 20 Nov): every live project, grouped by project number (the part before "/"),
   // "My projects" (where they're the job card's PM) first; tap a project for its packages of work.
   const projectOf = (j) => String(j.jobNumber || "").split("/")[0].trim();
   function viewProjects(args) {
@@ -261,7 +261,7 @@
       (n ? '<span class="pill new">' + n + " new</span>" : "") + (off ? '<span class="pill ok">Saved offline</span>' : "") + cranePill(j) + "</div></button>";
   }
 
-  // Which of my jobs to show (Liam, 20 Nov): operatives the job they're on today; supervisors their current and recent
+  // Which of my jobs to show (20 Nov): operatives the job they're on today; supervisors their current and recent
   // jobs (this week on the planner, or checked in at in the last 14 days)
   async function sitesToday() {
     const today = IC.isoDate(new Date()), set = new Set(myWeek().filter((a) => a.date === today && !a.off && a.folder).map((a) => a.folder));
@@ -310,7 +310,7 @@
       '<span class="file-flags">' + (isNew(f) ? '<span class="pill new">New</span>' : "") + (saved ? '<span class="pill ok">Offline</span>' : "") + "</span></button>";
   }
 
-  // Job page (Liam, 20 Nov): the job's details, then a tile for each kind of site document; each opens its own page.
+  // Job page (20 Nov): the job's details, then a tile for each kind of site document; each opens its own page.
   async function viewJob(folder, section) {
     const j = jobByFolder(folder);
     if (!j) { location.hash = "#/jobs"; return; }
@@ -328,7 +328,10 @@
       setBar("RAMS & crane plan", j.jobNumber, true);
       // each document signed for on its own (RAMS, crane plan)
       $("main").innerHTML = hs.length ? rams.docs.map((d) => fileRow(d.file) + (can("rams") ? (d.signed ? '<div class="signed">✓ You signed the ' + esc(d.kind) + " on " + esc(fmtDate(d.signed.submittedAt)) + "</div>" : '<a class="btn go block" href="#/form-new/rams/' + f + "/" + encodeURIComponent(d.file.path) + '">Read &amp; sign the ' + esc(d.kind) + "</a>") : "") +
-        (can("qa") ? '<a class="tile-row" href="#/register/' + f + "/" + encodeURIComponent(d.file.path) + '"><span><b>Briefing register</b><span class="small">Who has signed this issue · brief the gang</span></span>›</a>' : "")).join("") : '<div class="empty">No RAMS issued yet.</div>';
+        (can("qa") ? '<a class="tile-row" href="#/register/' + f + "/" + encodeURIComponent(d.file.path) + '"><span><b>Briefing register</b><span class="small">Who has signed this issue · brief the gang</span></span>›</a>' : "") +
+        // addenda raised on site (24 Nov): everyone on the job sees them; supervisors and managers add them
+        (d.addenda || []).map((a, i) => '<a class="tile-row" href="#/form/' + esc(a.id) + '"><span><b>' + esc(IC.Forms.addLine(a, i)) + '</b><span class="small">' + esc((a.values.by || a.userName || "") + " · " + fmtDate(a.submittedAt) + " · " + (a.values.attendees || []).length + " briefed") + "</span></span>›</a>").join("") +
+        (d.kind !== "crane plan" && IC.Forms.docKind(d.file) === "RAMS" && can("form:ramsadd") ? '<a class="btn block" href="#/form-new/ramsadd/' + f + "/" + encodeURIComponent(d.file.path) + '">Add an addendum (minor change)</a>' : "")).join("") : '<div class="empty">No RAMS issued yet.</div>';
       return bindFiles();
     }
     if (section === "model") {
@@ -390,6 +393,8 @@
   // the office's toolbox talks (manifest toolboxTalks) open in the same viewer as drawings
   const talkLibrary = () => ({ jobNumber: "Toolbox talk", folder: "_toolbox", files: ((S.manifest && S.manifest.toolboxTalks) || []).map((t) => ({ name: t.title, path: t.path, issued: t.issued })) });
   async function viewFile(folder, path) {
+    // "…?page=N": one sheet of a combined PDF (an assembly in a multi-assembly drawing), with "Whole file" to see the rest
+    let only = 0; const pm = /\?page=(\d+)$/.exec(path); if (pm) { only = Number(pm[1]); path = path.slice(0, pm.index); }
     const wk = !can("drawings") && can("workshop") ? IC.Workshop.linkedJob(folder) : null; // workshop staff: drawings of a linked job only
     const j = folder === "_toolbox" ? talkLibrary() : wk || jobByFolder(folder), f = j && (j.files || []).find((x) => x.path === path && (!wk || x.category === "Drawing"));
     if (!f) { location.hash = wk || !can("drawings") ? "#/workshop" : j ? "#/job/" + encodeURIComponent(folder) : "#/jobs"; return; }
@@ -401,7 +406,7 @@
       '<div class="vtools"><button class="btn" id="zOut" aria-label="Zoom out">−</button><button class="btn" id="zFit">Fit</button><button class="btn" id="zIn" aria-label="Zoom in">+</button></div>';
     document.body.appendChild(v);
     v.querySelector("#vBack").onclick = () => (history.length > 1 ? history.back() : (location.hash = "#/job/" + encodeURIComponent(folder)));
-    viewerState = { el: v, zoom: 1, pdf: null, img: null };
+    viewerState = { el: v, zoom: 1, pdf: null, img: null, only };
     const rec = await Store.get(fileKey(f)); let blob = rec && rec.blob; const fromOffline = !!blob;
     if (!blob) {
       try { blob = await Src.blob(f.path); } catch (e) {
@@ -416,6 +421,12 @@
       pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
       try { viewerState.pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise; }
       catch (e) { pages.innerHTML = '<div class="vmsg">This PDF could not be opened.</div>'; return; }
+      if (only > viewerState.pdf.numPages) viewerState.only = 0;
+      if (viewerState.only) {
+        const b = v.querySelector("#vBanner"); if (b.hidden) b.textContent = ""; b.hidden = false; b.classList.add("vsheet");
+        b.innerHTML = (b.textContent ? esc(b.textContent) + "<br>" : "") + "Sheet " + only + " of " + viewerState.pdf.numPages + ' <button class="btn sm" id="vAll">Whole file</button>';
+        b.querySelector("#vAll").onclick = () => { viewerState.only = 0; b.hidden = true; renderPdf(); };
+      }
       await renderPdf();
     } else if (isImg) {
       const img = new Image(); img.src = URL.createObjectURL(blob); viewerState.img = img; pages.innerHTML = ""; pages.appendChild(img); sizeImg();
@@ -435,7 +446,7 @@
     const s = viewerState, my = ++renderToken, scroll = s.el.querySelector("#vScroll"), pages = s.el.querySelector("#vPages");
     const avail = scroll.clientWidth - 24, dpr = Math.min(window.devicePixelRatio || 1, 2);
     pages.style.transform = ""; pages.innerHTML = "";
-    for (let n = 1; n <= s.pdf.numPages; n++) {
+    for (let n = s.only || 1; n <= (s.only || s.pdf.numPages); n++) {
       if (my !== renderToken) return;
       const page = await s.pdf.getPage(n), base = page.getViewport({ scale: 1 });
       const cssScale = (avail / base.width) * s.zoom; let px = cssScale * dpr;
@@ -489,7 +500,7 @@
   }
 
   // Bottom bar on phones; on a computer screen (1024 px and wider) it becomes a side bar, with extra desktop-only entries
-  // (the 6th item, true) for the screens office staff use most (Liam, 23 Nov: open it as a proper website).
+  // (the 6th item, true) for the screens office staff use most (23 Nov: open it as a proper website).
   const NAV = [["", "Home", ICON.home, ["", "time", "manager", "cards", "card", "card-new", "hr", "notices", "welcome"], ""],
     ["hr/me", "My HR", ICON.hr, [], "hr", true], ["notices", "Notices", ICON.forms, [], "", true],
     ["workshop", "Workshop", ICON.jobs, ["workshop"], "workshop-nav"], ["jobs", "Jobs", ICON.jobs, ["jobs", "job", "view", "project"], "drawings"], ["qa", "QA", ICON.check, ["qa", "snag"], "qa"], ["forms", "Forms", ICON.forms, ["forms", "form", "form-new"], "forms"],
@@ -507,8 +518,8 @@
   }
   // Which permission each screen needs (config.js roles). A screen the role doesn't have goes back to Home.
   function permitted(name, args) {
-    if (!roleOf(Data.profile)) return name === ""; // no role set up: nothing but the message on Home (HC4.16)
-    // the Screens login only ever shows the wall board (Liam, 21 Nov)
+    if (!roleOf(Data.profile)) return name === ""; // no role set up: nothing but the message on Home
+    // the Screens login only ever shows the wall board (21 Nov)
     if (can("screens")) return name === "board" || name === "";
     if (name === "board") return can("board");
     if (name === "workshop") return can("workshop");

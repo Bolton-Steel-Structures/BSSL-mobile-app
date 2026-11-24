@@ -919,16 +919,16 @@ var qrcode = function() {
 
     _this.getBCHTypeInfo = function(data) {
       var d = data << 10;
-      while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
-        d ^= (G15 << (getBCHDigit(d) - getBCHDigit(G15) ) );
+      while (getBCHDigit(d) - getBCHDigit >= 0) {
+        d ^= (G15 << (getBCHDigit(d) - getBCHDigit ) );
       }
       return ( (data << 10) | d) ^ G15_MASK;
     };
 
     _this.getBCHTypeNumber = function(data) {
       var d = data << 12;
-      while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
-        d ^= (G18 << (getBCHDigit(d) - getBCHDigit(G18) ) );
+      while (getBCHDigit(d) - getBCHDigit >= 0) {
+        d ^= (G18 << (getBCHDigit(d) - getBCHDigit ) );
       }
       return (data << 12) | d;
     };
