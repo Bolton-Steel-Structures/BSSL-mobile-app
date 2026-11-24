@@ -530,7 +530,7 @@
     if (name === "hours-team") return can("ws-hours-team");
     if (name === "weld") return can("weld") || can("weld-admin");
     if (name === "weld-cert") return can("weld") || can("weld-admin");
-    if (name === "weld-check") return can("weld");
+    if (name === "weld-check") return can("weld") || can("weld-admin");
     if (name === "equip") return can("equip-review") || can("equip-check");
     if (name === "ws-perf") return can("ws-performance");
     if (name === "view") return can("drawings") || can("workshop");

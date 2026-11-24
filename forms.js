@@ -725,7 +725,9 @@
     const row = (f) => { const t = tpl(f.templateId) || { title: f.templateId };
       return '<a class="tile-row" href="#/form/' + f.id + '"><span class="ti">' + IC.ICON.file + "</span><span><b>" + esc(t.title) + '</b><span class="small">' + esc((f.jobNumber || "No job") + " · " + fmtDay(f.updatedAt) + " " + fmtTime(f.updatedAt)) + "</span></span>" +
         (f.status === "draft" ? '<span class="pill warn">Draft</span>' : f.templateId === "ppe" ? '<span class="pill ' + IC.ppeState(f)[1] + '">' + esc(IC.ppeState(f)[0]) + "</span>" : f.flags && f.flags.length ? '<span class="pill new">Issue</span>' : '<span class="pill ok">Sent</span>') + "</a>"; };
-    $("main").innerHTML = (drafts.length ? '<div class="section-h">Drafts</div>' + drafts.map(row).join("") : "") + group("Safety") + group("Quality").replace('<div class="section-h">Quality</div>', '<div class="section-h">' + (IC.can("qa") ? "Day work" : "Quality") + "</div>") +
+    // the Monday welding set check (WM-14-7) lives with the welding sets; listed here too so it's easy to find
+    const weld = IC.can("weld") || IC.can("weld-admin") ? '<a class="tile-row" href="#/weld-check"><span class="ti quality">' + IC.ICON.check + '</span><span><b>Welding set check</b><span class="small">WM-14-7 · every Monday · amps, volts and gas against the WPS</span></span>›</a>' : "";
+    $("main").innerHTML = (drafts.length ? '<div class="section-h">Drafts</div>' + drafts.map(row).join("") : "") + group("Safety").replace(/(<div class="section-h">Safety<\/div>)/, "$1" + weld) + (weld && !allowedT.some((t) => t.group === "Safety") ? '<div class="section-h">Safety</div>' + weld : "") + group("Quality").replace('<div class="section-h">Quality</div>', '<div class="section-h">' + (IC.can("qa") ? "Day work" : "Quality") + "</div>") +
       (done.length ? '<div class="section-h">Recently completed</div>' + done.map(row).join("") : "");
   }
   IC.route("forms", viewList);

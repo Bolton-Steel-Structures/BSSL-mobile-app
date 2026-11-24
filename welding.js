@@ -220,12 +220,16 @@
   }
 
   // ---------------------------------------------------------------- the Monday check
-  async function viewCheck() {
-    const { sets, mainCert } = await load(), s = mySet(sets);
-    setBar("Welding set check", "Week of " + fmtDay(monday()), true);
-    if (!s) { $("main").innerHTML = '<div class="empty">No welding set is assigned to you. Ask your supervisor.</div>'; return; }
+  // the operative checks their own set; a supervisor or manager can check any set (e.g. a spare, or for someone without a phone)
+  async function viewCheck(args) {
+    const { sets, mainCert } = await load(), admin = can("weld-admin"), want = args && args[0] ? decodeURIComponent(args[0]) : "";
+    const done = (await Data.list("weldcheck", "team")).filter((x) => x.weekOf === weekOf()).map((x) => x.set);
+    const s = sets.find((x) => admin && x.set === want) || mySet(sets) || (admin ? sets.find((x) => x.assignedTo && !done.includes(x.set)) || sets[0] : null);
+    setBar("Welding set check", "WM-14-7 · week of " + fmtDay(monday()), true);
+    if (!s) { $("main").innerHTML = '<div class="empty">' + (admin ? "No welding sets yet: add them on Welding sets." : "No welding set is assigned to you. Ask your supervisor.") + "</div>"; return; }
     const c = mainCert(s.set), st = certState(c), last = (await Data.list("weldcheck", "team")).filter((x) => x.set === s.set).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0];
-    $("main").innerHTML = '<div class="card"><div class="ws-set"><span class="ws-no">' + esc(s.set) + "</span><span><b>" + esc([s.make, s.model].filter(Boolean).join(" ")) + '</b><span class="pill ' + st.cls + '">' + esc(st.label) + "</span></span></div>" +
+    $("main").innerHTML = (admin ? '<label class="fl">Set<select id="cSet">' + sets.filter((x) => x.status !== "Out of use").map((x) => '<option value="' + esc(x.set) + '"' + (x.set === s.set ? " selected" : "") + ">Set " + esc(x.set) + " · " + esc(x.assignedName || x.location || "spare") + (done.includes(x.set) ? " (done this week)" : "") + "</option>").join("") + "</select></label>" : "") +
+      '<div class="card"><div class="ws-set"><span class="ws-no">' + esc(s.set) + "</span><span><b>" + esc([s.make, s.model].filter(Boolean).join(" ")) + "</b>" + (s.assignedName ? '<span class="small">' + esc(s.assignedName) + "</span>" : "") + '<span class="pill ' + st.cls + '">' + esc(st.label) + "</span></span></div>" +
       (!st.ok ? '<p class="err">This set’s calibration is not valid. Don’t weld with it: tell your supervisor, who will swap it for a calibrated set.</p></div>' :
       '<p class="small">Run the set on a test piece and read the meters while welding. Each reading must be within the range of the WPS you are welding to (WM-14-7).</p></div>' +
       '<div class="card"><label class="fl">WPS<select id="cWps">' + Object.entries(WPS).map(([k, w]) => '<option value="' + k + '"' + ((last ? last.wps : "2") === k ? " selected" : "") + ">" + esc(w.name) + "</option>").join("") + '</select></label><div class="small" id="cRanges"></div>' +
@@ -236,6 +240,7 @@
       '<label class="fl">Gas flow (l/min)<input id="cF" type="number" inputmode="decimal" step="0.5"></label><div class="small rng" id="rF"></div>' +
       '<div id="cSig"></div>' +
       '<button class="btn primary block" id="cGo">Submit check</button></div>');
+    if ($("cSet")) $("cSet").onchange = () => { location.hash = "#/weld-check/" + encodeURIComponent($("cSet").value); };
     if (!st.ok) return;
     const pad = IC.signaturePad("Signature *"); $("cSig").appendChild(pad.el);
     const show = () => {
@@ -323,7 +328,7 @@
 
   route("weld", () => viewSets());
   route("weld-cert", (args) => viewCert(args));
-  route("weld-check", () => viewCheck());
+  route("weld-check", (args) => viewCheck(args));
   route("equip", () => viewEquip());
   IC.Welding = { WPS, todos, parseCert, certState, weekOf };
 })();
